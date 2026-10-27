@@ -1,0 +1,902 @@
+
+========== .\MODULES\SUPER-ADMIN\BACKEND\repository\repository.go ==========
+
+package repository
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/yourusername/hostel-management-system/API/database"
+)
+
+// DBTX represents a database transaction or connection.
+type DBTX interface {
+	Exec(
+		context.Context,
+		string,
+		...interface{},
+	) (pgconn.CommandTag, error)
+
+	Query(
+		context.Context,
+		string,
+		...interface{},
+	) (pgx.Rows, error)
+
+	QueryRow(
+		context.Context,
+		string,
+		...interface{},
+	) pgx.Row
+}
+
+// Repository provides data access methods for the Super Admin module.
+type Repository struct {
+	Pool *pgxpool.Pool
+}
+
+// New creates a new Super Admin repository.
+func New(db *database.Database) *Repository {
+	return &Repository{
+		Pool: db.Pool,
+	}
+}
+
+// Executor returns the appropriate database executor (transaction or pool).
+func (r *Repository) Executor(ctx context.Context) DBTX {
+	if tx, ok := database.TxFromContext(ctx); ok {
+		return tx
+	}
+
+	return r.Pool
+}
+
+========== .\MODULES\SUPER-ADMIN\BACKEND\routes\super_admin_routes.go ==========
+
+FILE NOT FOUND
+
+========== .\MODULES\SUPER-ADMIN\BACKEND\routes\routes.go ==========
+
+package routes
+
+import (
+	"github.com/gin-gonic/gin"
+
+	"github.com/yourusername/hostel-management-system/API/database"
+	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/handlers"
+	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/repository"
+	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/services"
+)
+
+// RegisterSuperAdminRoutes registers all Super Admin module routes.
+// This function should be called from the main API router to integrate
+// the Super Admin backend with the existing API.
+func RegisterSuperAdminRoutes(
+	router *gin.RouterGroup,
+	db *database.Database,
+	requireView gin.HandlerFunc,
+	requireManage gin.HandlerFunc,
+) {
+	// Initialize repository
+	repo := repository.New(db)
+
+	// Initialize services
+	collegeService := services.NewCollegeService(db, repo)
+	approvalService := services.NewApprovalService(db, repo)
+	moduleService := services.NewModuleService(db, repo)
+	settingsService := services.NewSettingsService(db, repo)
+
+	// Initialize handlers
+	collegeHandler := handlers.NewCollegeHandler(collegeService)
+	approvalHandler := handlers.NewApprovalHandler(approvalService)
+	moduleHandler := handlers.NewModuleHandler(moduleService)
+	settingsHandler := handlers.NewSettingsHandler(settingsService)
+
+	// Super Admin API routes group
+	// Note: Auth and permission middleware should be applied at the router level
+	// before calling this function
+	superAdmin := router.Group("/super-admin")
+	{
+		// College Management Routes
+		colleges := superAdmin.Group("/colleges")
+		{
+			colleges.GET("", requireView, collegeHandler.ListColleges)
+			colleges.POST("", requireManage, collegeHandler.CreateCollege)
+			colleges.GET("/:id", requireView, collegeHandler.GetCollege)
+			colleges.PATCH("/:id", requireManage, collegeHandler.UpdateCollege)
+			colleges.PUT("/:id/status", requireManage, collegeHandler.UpdateCollegeStatus)
+
+			// College-specific module management
+			colleges.GET("/:id/modules", requireView, moduleHandler.ListCollegeModules)
+			colleges.PATCH("/modules/:module_id", requireManage, moduleHandler.UpdateCollegeModule)
+
+			// College-specific settings
+			colleges.GET("/:id/settings", requireView, settingsHandler.ListCollegeSettings)
+			colleges.GET("/:id/settings/:key", requireView, settingsHandler.GetCollegeSetting)
+			colleges.PUT("/:id/settings/:key", requireManage, settingsHandler.UpdateCollegeSetting)
+		}
+
+		// Approval Workflow Routes
+		approvals := superAdmin.Group("/approvals")
+		{
+			approvals.GET("", requireView, approvalHandler.ListApprovalRequests)
+			approvals.GET("/:id", requireView, approvalHandler.GetApprovalRequest)
+			approvals.POST("/steps/:step_id/decision", requireManage, approvalHandler.ProcessApprovalDecision)
+		}
+
+		// Module Catalogue Routes
+		modules := superAdmin.Group("/modules")
+		{
+			modules.GET("", requireView, moduleHandler.ListModules)
+			modules.GET("/:id", requireView, moduleHandler.GetModule)
+		}
+	}
+}
+
+========== .\MODULES\SUPER-ADMIN\BACKEND\handlers\college_handler.go ==========
+
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"github.com/yourusername/hostel-management-system/API/pkg/response"
+	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/models"
+	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/services"
+	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/validators"
+)
+
+// CollegeHandler handles HTTP requests for college management.
+type CollegeHandler struct {
+	service *services.CollegeService
+}
+
+// NewCollegeHandler creates a new college handler.
+func NewCollegeHandler(service *services.CollegeService) *CollegeHandler {
+	return &CollegeHandler{
+		service: service,
+	}
+}
+
+// ListColleges handles GET /colleges - list all colleges with optional filtering and pagination.
+// @Summary List colleges
+// @Description Retrieve a list of colleges with optional status filter and pagination
+// @Tags Colleges
+// @Accept json
+// @Produce json
+// @Param status query string false "Filter by status (ONBOARDING, ACTIVE, SUSPENDED, DEACTIVATED)"
+// @Param limit query int false "Limit (default 20, max 100)"
+// @Param offset query int false "Offset (default 0)"
+// @Success 200 {object} response.Response{data=[]models.College,meta=models.PaginationMeta}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /colleges [get]
+// @Security BearerAuth
+func (h *CollegeHandler) ListColleges(c *gin.Context) {
+	// Parse query parameters
+	var params models.ListCollegesParams
+	if err := c.ShouldBindQuery(&params); err != nil {
+		respondError(c, validators.NewValidationError("Invalid query parameters"))
+		return
+	}
+
+	// Validate parameters
+	if err := validators.ValidateListCollegesParams(&params); err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Call service
+	colleges, meta, err := h.service.ListColleges(c.Request.Context(), params)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Return response with pagination metadata
+	response.WithMeta(c, http.StatusOK, map[string]interface{}{
+		"colleges": colleges,
+	}, meta)
+}
+
+// GetCollege handles GET /colleges/:id - retrieve a single college by ID.
+// @Summary Get college by ID
+// @Description Retrieve a single college by its UUID
+// @Tags Colleges
+// @Accept json
+// @Produce json
+// @Param id path string true "College ID (UUID)"
+// @Success 200 {object} response.Response{data=models.College}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /colleges/{id} [get]
+// @Security BearerAuth
+func (h *CollegeHandler) GetCollege(c *gin.Context) {
+	// Validate and parse college ID
+	collegeID, err := validators.ValidateCollegeID(c.Param("id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Call service
+	college, err := h.service.GetCollege(c.Request.Context(), collegeID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Return response
+	response.OK(c, map[string]interface{}{
+		"college": college,
+	})
+}
+
+// CreateCollege handles POST /colleges - create a new college.
+// @Summary Create college
+// @Description Create a new college in ONBOARDING status
+// @Tags Colleges
+// @Accept json
+// @Produce json
+// @Param body body models.CreateCollegeRequest true "College creation payload"
+// @Success 201 {object} response.Response{data=models.College}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse
+// @Failure 409 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /colleges [post]
+// @Security BearerAuth
+func (h *CollegeHandler) CreateCollege(c *gin.Context) {
+	// Parse request body
+	var req models.CreateCollegeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, validators.NewValidationError("Invalid request body"))
+		return
+	}
+
+	// Validate request
+	if err := validators.ValidateCreateCollegeRequest(&req); err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Call service
+	college, err := h.service.CreateCollege(c.Request.Context(), req)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Return created response
+	response.Created(c, map[string]interface{}{
+		"college": college,
+	})
+}
+
+// UpdateCollege handles PATCH /colleges/:id - update college details.
+// @Summary Update college
+// @Description Update permitted fields of a college
+// @Tags Colleges
+// @Accept json
+// @Produce json
+// @Param id path string true "College ID (UUID)"
+// @Param body body models.UpdateCollegeRequest true "College update payload"
+// @Success 200 {object} response.Response{data=models.College}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /colleges/{id} [patch]
+// @Security BearerAuth
+func (h *CollegeHandler) UpdateCollege(c *gin.Context) {
+	// Validate and parse college ID
+	collegeID, err := validators.ValidateCollegeID(c.Param("id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Parse request body
+	var req models.UpdateCollegeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, validators.NewValidationError("Invalid request body"))
+		return
+	}
+
+	// Validate request
+	if err := validators.ValidateUpdateCollegeRequest(&req); err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Call service
+	college, err := h.service.UpdateCollege(c.Request.Context(), collegeID, req)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Return response
+	response.OK(c, map[string]interface{}{
+		"college": college,
+	})
+}
+
+// UpdateCollegeStatus handles PUT /colleges/:id/status - update college status.
+// @Summary Update college status
+// @Description Update the lifecycle status of a college with reason tracking
+// @Tags Colleges
+// @Accept json
+// @Produce json
+// @Param id path string true "College ID (UUID)"
+// @Param body body models.UpdateCollegeStatusRequest true "Status update payload"
+// @Success 200 {object} response.Response{data=models.College}
+// @Failure 400 {object} response.ErrorResponse
+// @Failure 401 {object} response.ErrorResponse
+// @Failure 403 {object} response.ErrorResponse
+// @Failure 404 {object} response.ErrorResponse
+// @Failure 500 {object} response.ErrorResponse
+// @Router /colleges/{id}/status [put]
+// @Security BearerAuth
+func (h *CollegeHandler) UpdateCollegeStatus(c *gin.Context) {
+	// Validate and parse college ID
+	collegeID, err := validators.ValidateCollegeID(c.Param("id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Parse request body
+	var req models.UpdateCollegeStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, validators.NewValidationError("Invalid request body"))
+		return
+	}
+
+	// Validate request
+	if err := validators.ValidateUpdateCollegeStatusRequest(&req); err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Call service
+	college, err := h.service.UpdateCollegeStatus(c.Request.Context(), collegeID, req)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	// Return response
+	response.OK(c, map[string]interface{}{
+		"college": college,
+	})
+}
+
+========== .\MODULES\SUPER-ADMIN\BACKEND\models\college.go ==========
+
+package models
+
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
+
+// College represents a platform college/tenant.
+type College struct {
+	CollegeID     uuid.UUID  `json:"college_id" db:"college_id"`
+	CollegeCode   string     `json:"college_code" db:"college_code"`
+	Name          string     `json:"name" db:"name"`
+	City          *string    `json:"city,omitempty" db:"city"`
+	State         *string    `json:"state,omitempty" db:"state"`
+	Timezone      string     `json:"timezone" db:"timezone"`
+	Status        string     `json:"status" db:"status"`
+	ContactEmail  *string    `json:"contact_email,omitempty" db:"contact_email"`
+	ActivatedAt   *time.Time `json:"activated_at,omitempty" db:"activated_at"`
+	SuspendedAt   *time.Time `json:"suspended_at,omitempty" db:"suspended_at"`
+	DeactivatedAt *time.Time `json:"deactivated_at,omitempty" db:"deactivated_at"`
+	ArchivedAt    *time.Time `json:"archived_at,omitempty" db:"archived_at"`
+	LifecycleReason *string  `json:"lifecycle_reason,omitempty" db:"lifecycle_reason"`
+	CreatedAt     time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at" db:"updated_at"`
+}
+
+// CreateCollegeRequest represents the payload for creating a college.
+type CreateCollegeRequest struct {
+	CollegeCode  string  `json:"college_code" binding:"required,max=100"`
+	Name         string  `json:"name" binding:"required,max=200"`
+	City         *string `json:"city,omitempty" binding:"omitempty,max=100"`
+	State        *string `json:"state,omitempty" binding:"omitempty,max=100"`
+	Timezone     string  `json:"timezone" binding:"required,max=100"`
+	ContactEmail *string `json:"contact_email,omitempty" binding:"omitempty,email"`
+}
+
+// UpdateCollegeRequest represents the payload for updating a college.
+type UpdateCollegeRequest struct {
+	Name         *string `json:"name,omitempty" binding:"omitempty,max=200"`
+	City         *string `json:"city,omitempty" binding:"omitempty,max=100"`
+	State        *string `json:"state,omitempty" binding:"omitempty,max=100"`
+	Timezone     *string `json:"timezone,omitempty" binding:"omitempty,max=100"`
+	ContactEmail *string `json:"contact_email,omitempty" binding:"omitempty,email"`
+}
+
+// UpdateCollegeStatusRequest represents the payload for updating college status.
+type UpdateCollegeStatusRequest struct {
+	Status string  `json:"status" binding:"required,oneof=ONBOARDING ACTIVE SUSPENDED DEACTIVATED"`
+	Reason *string `json:"reason,omitempty" binding:"omitempty,max=500"`
+}
+
+// ListCollegesParams represents query parameters for listing colleges.
+type ListCollegesParams struct {
+	Status string `form:"status" binding:"omitempty,oneof=ONBOARDING ACTIVE SUSPENDED DEACTIVATED"`
+	Limit  int    `form:"limit" binding:"omitempty,min=1,max=100"`
+	Offset int    `form:"offset" binding:"omitempty,min=0"`
+}
+
+========== .\API\internal\repository\platform_college_onboarding_repository.go ==========
+
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+)
+
+type CollegeOnboardingStep struct {
+	OnboardingID uuid.UUID  `json:"onboarding_id"`
+	CollegeID    uuid.UUID  `json:"college_id"`
+	StepCode     string     `json:"step_code"`
+	Status       string     `json:"status"`
+	CompletedBy  *uuid.UUID `json:"completed_by,omitempty"`
+	CompletedAt  *string    `json:"completed_at,omitempty"`
+	Notes        *string    `json:"notes,omitempty"`
+}
+
+// CreateInitialCollegeOnboardingSteps creates the initial checklist.
+// Call this inside the same transaction that creates the college.
+func (r *Repository) CreateInitialCollegeOnboardingSteps(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) error {
+	if collegeID == uuid.Nil {
+		return fmt.Errorf("college ID is required for onboarding")
+	}
+
+	stepCodes := []string{
+		"COLLEGE_PROFILE",
+		"COLLEGE_ADMIN",
+		"BRANDING",
+		"ENTITLEMENTS",
+		"READINESS_REVIEW",
+		"GO_LIVE",
+	}
+
+	for _, stepCode := range stepCodes {
+		_, err := r.Executor(ctx).Exec(
+			ctx,
+			`
+			INSERT INTO platform.college_onboarding (
+				college_id,
+				step_code,
+				status
+			)
+			VALUES ($1, $2, 'PENDING')
+			ON CONFLICT (college_id, step_code) DO NOTHING
+			`,
+			collegeID,
+			stepCode,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"create onboarding step %s: %w",
+				stepCode,
+				err,
+			)
+		}
+	}
+
+	return nil
+}
+
+// ListCollegeOnboardingSteps retrieves a college's onboarding checklist.
+func (r *Repository) ListCollegeOnboardingSteps(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) ([]CollegeOnboardingStep, error) {
+	rows, err := r.Executor(ctx).Query(
+		ctx,
+		`
+		SELECT
+			onboarding_id,
+			college_id,
+			step_code,
+			status,
+			completed_by,
+			completed_at::text,
+			notes
+		FROM platform.college_onboarding
+		WHERE college_id = $1
+		ORDER BY created_at ASC, step_code ASC
+		`,
+		collegeID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"list college onboarding steps: %w",
+			err,
+		)
+	}
+	defer rows.Close()
+
+	steps := make([]CollegeOnboardingStep, 0)
+
+	for rows.Next() {
+		var step CollegeOnboardingStep
+
+		if err := rows.Scan(
+			&step.OnboardingID,
+			&step.CollegeID,
+			&step.StepCode,
+			&step.Status,
+			&step.CompletedBy,
+			&step.CompletedAt,
+			&step.Notes,
+		); err != nil {
+			return nil, fmt.Errorf(
+				"scan college onboarding step: %w",
+				err,
+			)
+		}
+
+		steps = append(steps, step)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf(
+			"read college onboarding steps: %w",
+			err,
+		)
+	}
+
+	return steps, nil
+}
+
+type UpdateCollegeOnboardingParams struct {
+	StepCode    string
+	Status      string
+	Notes       *string
+	CompletedBy *uuid.UUID
+}
+
+type CollegeOnboardingUpdateResult struct {
+	Step      CollegeOnboardingStep
+	OldStatus string
+}
+
+// UpdateCollegeOnboardingStep updates a step inside the caller's transaction.
+func (r *Repository) UpdateCollegeOnboardingStep(
+	ctx context.Context,
+	collegeID uuid.UUID,
+	params UpdateCollegeOnboardingParams,
+) (CollegeOnboardingUpdateResult, error) {
+	if collegeID == uuid.Nil {
+		return CollegeOnboardingUpdateResult{}, fmt.Errorf("college ID is required")
+	}
+
+	var result CollegeOnboardingUpdateResult
+
+	err := r.Executor(ctx).QueryRow(ctx, `
+		SELECT status
+		FROM platform.college_onboarding
+		WHERE college_id = $1 AND step_code = $2
+		FOR UPDATE
+	`, collegeID, params.StepCode).Scan(&result.OldStatus)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return result, ErrNotFound
+		}
+		return result, fmt.Errorf("lock onboarding step: %w", err)
+	}
+
+	_, err = r.Executor(ctx).Exec(ctx, `
+		UPDATE platform.college_onboarding
+		SET
+			status = $3,
+			notes = $4,
+			completed_by = CASE
+				WHEN $3 = 'COMPLETED' THEN $5
+				ELSE NULL
+			END,
+			completed_at = CASE
+				WHEN $3 = 'COMPLETED' THEN NOW()
+				ELSE NULL
+			END,
+			updated_at = NOW()
+		WHERE college_id = $1 AND step_code = $2
+	`, collegeID, params.StepCode, params.Status, params.Notes, params.CompletedBy)
+
+	if err != nil {
+		return result, fmt.Errorf("update onboarding step: %w", err)
+	}
+
+	var step CollegeOnboardingStep
+
+	err = r.Executor(ctx).QueryRow(ctx, `
+		SELECT
+			onboarding_id, college_id, step_code, status,
+			completed_by, completed_at::text, notes
+		FROM platform.college_onboarding
+		WHERE college_id = $1 AND step_code = $2
+	`, collegeID, params.StepCode).Scan(
+		&step.OnboardingID,
+		&step.CollegeID,
+		&step.StepCode,
+		&step.Status,
+		&step.CompletedBy,
+		&step.CompletedAt,
+		&step.Notes,
+	)
+
+	if err != nil {
+		return result, fmt.Errorf("read updated onboarding step: %w", err)
+	}
+
+	result.Step = step
+	return result, nil
+}
+
+// ValidateCollegeOnboardingReadyForActivation ensures all required
+// onboarding steps exist and are completed before college activation.
+// Call inside the same transaction as the college status update.
+func (r *Repository) ValidateCollegeOnboardingReadyForActivation(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) error {
+	rows, err := r.Executor(ctx).Query(
+		ctx,
+		`
+		SELECT step_code, status
+		FROM platform.college_onboarding
+		WHERE college_id = $1
+		ORDER BY step_code
+		FOR UPDATE
+		`,
+		collegeID,
+	)
+	if err != nil {
+		return fmt.Errorf("lock college onboarding checklist: %w", err)
+	}
+	defer rows.Close()
+
+	requiredSteps := map[string]bool{
+		"COLLEGE_PROFILE":  false,
+		"COLLEGE_ADMIN":    false,
+		"BRANDING":         false,
+		"ENTITLEMENTS":     false,
+		"READINESS_REVIEW": false,
+		"GO_LIVE":          false,
+	}
+
+	for rows.Next() {
+		var stepCode, status string
+		if err := rows.Scan(&stepCode, &status); err != nil {
+			return fmt.Errorf("read onboarding checklist: %w", err)
+		}
+
+		if _, required := requiredSteps[stepCode]; !required {
+			continue
+		}
+
+		if status != "COMPLETED" {
+			return fmt.Errorf(
+				"onboarding step %s must be COMPLETED before activation",
+				stepCode,
+			)
+		}
+
+		requiredSteps[stepCode] = true
+	}
+
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("iterate onboarding checklist: %w", err)
+	}
+
+	for stepCode, completed := range requiredSteps {
+		if !completed {
+			return fmt.Errorf(
+				"required onboarding step %s is missing",
+				stepCode,
+			)
+		}
+	}
+
+	return nil
+}
+
+========== .\API\internal\repository\platform_college_status_repository.go ==========
+
+package repository
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+)
+
+type UpdateCollegeStatusParams struct {
+	Status          string
+	LifecycleReason string
+}
+
+type PlatformCollegeStatus struct {
+	CollegeID       uuid.UUID `json:"college_id"`
+	CollegeCode     string    `json:"college_code"`
+	Name            string    `json:"name"`
+	Status          string    `json:"status"`
+	Timezone        string    `json:"timezone"`
+	ActivatedAt     *string   `json:"activated_at,omitempty"`
+	SuspendedAt     *string   `json:"suspended_at,omitempty"`
+	DeactivatedAt   *string   `json:"deactivated_at,omitempty"`
+	ArchivedAt      *string   `json:"archived_at,omitempty"`
+	LifecycleReason *string   `json:"lifecycle_reason,omitempty"`
+}
+
+// GetCollegeStatusForUpdate reads the current status while locking the
+// college row until the surrounding transaction commits or rolls back.
+func (r *Repository) GetCollegeStatusForUpdate(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) (string, error) {
+	var status string
+
+	err := r.Executor(ctx).QueryRow(
+		ctx,
+		`
+		SELECT status
+		FROM platform.colleges
+		WHERE college_id = $1
+		FOR UPDATE
+		`,
+		collegeID,
+	).Scan(&status)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", fmt.Errorf("failed to read college status: %w", err)
+	}
+
+	return status, nil
+}
+
+func (r *Repository) UpdateCollegeStatus(
+	ctx context.Context,
+	collegeID uuid.UUID,
+	params UpdateCollegeStatusParams,
+) (PlatformCollegeStatus, error) {
+	executor := r.Executor(ctx)
+
+	var college PlatformCollegeStatus
+
+	err := executor.QueryRow(
+		ctx,
+		`
+		UPDATE platform.colleges
+		SET
+			status = $1::text,
+			lifecycle_reason = $2,
+
+			activated_at = CASE
+				WHEN $1::text = 'ACTIVE' AND status <> 'ACTIVE'
+					THEN NOW()
+				ELSE activated_at
+			END,
+
+			suspended_at = CASE
+				WHEN $1::text = 'SUSPENDED' AND status <> 'SUSPENDED'
+					THEN NOW()
+				ELSE suspended_at
+			END,
+
+			deactivated_at = CASE
+				WHEN $1::text = 'DEACTIVATED' AND status <> 'DEACTIVATED'
+					THEN NOW()
+				ELSE deactivated_at
+			END,
+
+			updated_at = NOW()
+
+		WHERE college_id = $3
+
+		RETURNING
+			college_id,
+			college_code,
+			name,
+			status,
+			timezone,
+			to_char(activated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+			to_char(suspended_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+			to_char(deactivated_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+			to_char(archived_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"'),
+			lifecycle_reason
+		`,
+		params.Status,
+		params.LifecycleReason,
+		collegeID,
+	).Scan(
+		&college.CollegeID,
+		&college.CollegeCode,
+		&college.Name,
+		&college.Status,
+		&college.Timezone,
+		&college.ActivatedAt,
+		&college.SuspendedAt,
+		&college.DeactivatedAt,
+		&college.ArchivedAt,
+		&college.LifecycleReason,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return PlatformCollegeStatus{}, ErrNotFound
+		}
+
+		var pgErr *pgconn.PgError
+
+		if errors.As(err, &pgErr) {
+			return PlatformCollegeStatus{}, fmt.Errorf(
+				"failed to update college status: %w",
+				err,
+			)
+		}
+
+		return PlatformCollegeStatus{}, fmt.Errorf(
+			"failed to update college status: %w",
+			err,
+		)
+	}
+
+	return college, nil
+}
+
+========== .\API\database\database.go ==========
+
+package database
+
+import (
+	"context"
+
+	"github.com/jackc/pgx/v5"
+	internaldb "github.com/yourusername/hostel-management-system/API/internal/database"
+)
+
+// Database exposes the API database type to other project modules.
+type Database = internaldb.Database
+
+// TxFromContext returns the transaction stored in the request context.
+func TxFromContext(ctx context.Context) (pgx.Tx, bool) {
+	return internaldb.TxFromContext(ctx)
+}

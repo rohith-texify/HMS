@@ -1,0 +1,31 @@
+{
+  "name": "hostel-management-system",
+  "version": "1.0.0",
+  "description": "Multi-tenant Hostel Management System",
+  "private": true,
+  "workspaces": [
+    "MODULES/STUDENT/FRONTEND/WEB",
+    "MODULES/PARENT/FRONTEND/WEB",
+    "MODULES/ADMIN/FRONTEND/WEB",
+    "MODULES/HOSTEL-INCHARGE/FRONTEND/WEB",
+    "MODULES/SECURITY/FRONTEND/WEB",
+    "MODULES/SUPER-ADMIN/FRONTEND/WEB"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm run install:modules",
+    "install:modules": "npm install --workspaces",
+    "dev:student": "npm run dev --workspace=MODULES/STUDENT/FRONTEND/WEB",
+    "dev:parent": "npm run dev --workspace=MODULES/PARENT/FRONTEND/WEB",
+    "dev:admin": "npm run dev --workspace=MODULES/ADMIN/FRONTEND/WEB",
+    "dev:incharge": "npm run dev --workspace=MODULES/HOSTEL-INCHARGE/FRONTEND/WEB",
+    "dev:security": "npm run dev --workspace=MODULES/SECURITY/FRONTEND/WEB",
+    "dev:super-admin": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
+    "build:all": "npm run build --workspaces",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "eslint-config-react-app": "^7.0.1"
+  }
+}

@@ -1,0 +1,146 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: hms-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: hostel_management
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./DATABASE/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - hms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: hms-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - hms-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/backend.Dockerfile
+    container_name: hms-backend
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=hostel_management
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SERVER_PORT=8080
+      - GIN_MODE=debug
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hms-network
+    volumes:
+      - ./STORAGE:/app/STORAGE
+    restart: unless-stopped
+
+  student-web:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/student-web.Dockerfile
+    container_name: hms-student-web
+    ports:
+      - "5173:80"
+    networks:
+      - hms-network
+    depends_on:
+      - backend
+
+  parent-web:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/parent-web.Dockerfile
+    container_name: hms-parent-web
+    ports:
+      - "5174:80"
+    networks:
+      - hms-network
+    depends_on:
+      - backend
+
+  admin-web:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/admin-web.Dockerfile
+    container_name: hms-admin-web
+    ports:
+      - "5175:80"
+    networks:
+      - hms-network
+    depends_on:
+      - backend
+
+  incharge-web:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/incharge-web.Dockerfile
+    container_name: hms-incharge-web
+    ports:
+      - "5176:80"
+    networks:
+      - hms-network
+    depends_on:
+      - backend
+
+  security-web:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/security-web.Dockerfile
+    container_name: hms-security-web
+    ports:
+      - "5177:80"
+    networks:
+      - hms-network
+    depends_on:
+      - backend
+
+  super-admin-web:
+    build:
+      context: .
+      dockerfile: INFRASTRUCTURE/docker/super-admin-web.Dockerfile
+    container_name: hms-super-admin-web
+    ports:
+      - "5178:80"
+    networks:
+      - hms-network
+    depends_on:
+      - backend
+
+networks:
+  hms-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
