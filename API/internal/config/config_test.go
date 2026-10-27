@@ -145,3 +145,46 @@ func TestLoad_PortResolution(t *testing.T) {
 	}
 }
 
+func TestLoad_DatabaseURLResolution(t *testing.T) {
+	origDBURL := os.Getenv("DATABASE_URL")
+	origDBName := os.Getenv("DB_NAME")
+	origDBUser := os.Getenv("DB_USER")
+	origJWT := os.Getenv("JWT_SECRET")
+
+	defer func() {
+		os.Setenv("DATABASE_URL", origDBURL)
+		os.Setenv("DB_NAME", origDBName)
+		os.Setenv("DB_USER", origDBUser)
+		os.Setenv("JWT_SECRET", origJWT)
+	}()
+
+	os.Unsetenv("DB_NAME")
+	os.Unsetenv("DB_USER")
+	os.Setenv("JWT_SECRET", "test_jwt_secret_dev")
+	os.Setenv("DATABASE_URL", "postgres://cloud_user:secret_pass@db.neon.tech:5432/hms_prod?sslmode=require")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error parsing DATABASE_URL: %v", err)
+	}
+
+	if cfg.Database.Host != "db.neon.tech" {
+		t.Errorf("expected Host 'db.neon.tech', got '%s'", cfg.Database.Host)
+	}
+	if cfg.Database.Port != "5432" {
+		t.Errorf("expected Port '5432', got '%s'", cfg.Database.Port)
+	}
+	if cfg.Database.Name != "hms_prod" {
+		t.Errorf("expected Name 'hms_prod', got '%s'", cfg.Database.Name)
+	}
+	if cfg.Database.User != "cloud_user" {
+		t.Errorf("expected User 'cloud_user', got '%s'", cfg.Database.User)
+	}
+	if cfg.Database.Password != "secret_pass" {
+		t.Errorf("expected Password 'secret_pass', got '%s'", cfg.Database.Password)
+	}
+	if cfg.Database.SSLMode != "require" {
+		t.Errorf("expected SSLMode 'require', got '%s'", cfg.Database.SSLMode)
+	}
+}
+

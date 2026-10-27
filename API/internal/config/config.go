@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -155,8 +156,38 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
+	dbHost := getEnv("DB_HOST", "localhost")
+	dbPort := getEnv("DB_PORT", "5432")
+	dbName := getEnv("DB_NAME", "")
 	dbUser := getEnv("DB_USER", "")
 	dbPassword := os.Getenv("DB_PASSWORD")
+	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+
+	if rawDBURL := os.Getenv("DATABASE_URL"); rawDBURL != "" {
+		if parsedURL, err := url.Parse(rawDBURL); err == nil {
+			if parsedURL.Hostname() != "" {
+				dbHost = parsedURL.Hostname()
+			}
+			if parsedURL.Port() != "" {
+				dbPort = parsedURL.Port()
+			}
+			if db := strings.TrimPrefix(parsedURL.Path, "/"); db != "" {
+				dbName = db
+			}
+			if parsedURL.User != nil {
+				if u := parsedURL.User.Username(); u != "" {
+					dbUser = u
+				}
+				if p, ok := parsedURL.User.Password(); ok {
+					dbPassword = p
+				}
+			}
+			if mode := parsedURL.Query().Get("sslmode"); mode != "" {
+				dbSSLMode = mode
+			}
+		}
+	}
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = getEnv("SERVER_PORT", "8080")
@@ -169,12 +200,12 @@ func Load() (*Config, error) {
 		},
 
 		Database: DatabaseConfig{
-			Host:     getEnv("DB_HOST", "localhost"),
-			Port:     getEnv("DB_PORT", "5432"),
-			Name:     getEnv("DB_NAME", ""),
+			Host:     dbHost,
+			Port:     dbPort,
+			Name:     dbName,
 			User:     dbUser,
 			Password: dbPassword,
-			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			SSLMode:  dbSSLMode,
 
 			MaxConns:        maxConns,
 			MinConns:        minConns,
