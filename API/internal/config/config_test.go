@@ -91,3 +91,57 @@ func TestLoad_JWTSecretValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestLoad_PortResolution(t *testing.T) {
+	origPort := os.Getenv("PORT")
+	origServerPort := os.Getenv("SERVER_PORT")
+	origDBName := os.Getenv("DB_NAME")
+	origDBUser := os.Getenv("DB_USER")
+	origJWT := os.Getenv("JWT_SECRET")
+
+	defer func() {
+		os.Setenv("PORT", origPort)
+		os.Setenv("SERVER_PORT", origServerPort)
+		os.Setenv("DB_NAME", origDBName)
+		os.Setenv("DB_USER", origDBUser)
+		os.Setenv("JWT_SECRET", origJWT)
+	}()
+
+	os.Setenv("DB_NAME", "test_db")
+	os.Setenv("DB_USER", "test_user")
+	os.Setenv("JWT_SECRET", "test_jwt_secret_dev")
+
+	// Case 1: PORT is set by Render (e.g. 10000)
+	os.Setenv("PORT", "10000")
+	os.Setenv("SERVER_PORT", "9090")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Server.Port != "10000" {
+		t.Errorf("expected port '10000' from PORT, got '%s'", cfg.Server.Port)
+	}
+
+	// Case 2: PORT is empty, SERVER_PORT is set
+	os.Unsetenv("PORT")
+	os.Setenv("SERVER_PORT", "9090")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Server.Port != "9090" {
+		t.Errorf("expected port '9090' from SERVER_PORT, got '%s'", cfg.Server.Port)
+	}
+
+	// Case 3: Both are empty, default to 8080
+	os.Unsetenv("PORT")
+	os.Unsetenv("SERVER_PORT")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Server.Port != "8080" {
+		t.Errorf("expected default port '8080', got '%s'", cfg.Server.Port)
+	}
+}
+

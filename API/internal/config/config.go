@@ -157,10 +157,14 @@ func Load() (*Config, error) {
 
 	dbUser := getEnv("DB_USER", "")
 	dbPassword := os.Getenv("DB_PASSWORD")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = getEnv("SERVER_PORT", "8080")
+	}
 
 	config := &Config{
 		Server: ServerConfig{
-			Port:        getEnv("SERVER_PORT", "8080"),
+			Port:        port,
 			Environment: getEnv("APP_ENV", "development"),
 		},
 
