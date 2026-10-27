@@ -186,5 +186,36 @@ func TestLoad_DatabaseURLResolution(t *testing.T) {
 	if cfg.Database.SSLMode != "require" {
 		t.Errorf("expected SSLMode 'require', got '%s'", cfg.Database.SSLMode)
 	}
+
+	// Test Render format (no port, no sslmode in query, postgresql:// scheme)
+	os.Setenv("DATABASE_URL", "postgresql://hms_db_3way_user:D06mA7yWsJJvb1uKWroeHOHrYDOgcpAg@dpg-dbgb12qvcj2c73bmcm0g-a.oregon-postgres.render.com/hms_db_3way")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatalf("unexpected error parsing Render DATABASE_URL: %v", err)
+	}
+	if cfg.Database.Host != "dpg-dbgb12qvcj2c73bmcm0g-a.oregon-postgres.render.com" {
+		t.Errorf("expected Host 'dpg-dbgb12qvcj2c73bmcm0g-a.oregon-postgres.render.com', got '%s'", cfg.Database.Host)
+	}
+	if cfg.Database.Port != "5432" {
+		t.Errorf("expected default Port '5432', got '%s'", cfg.Database.Port)
+	}
+	if cfg.Database.Name != "hms_db_3way" {
+		t.Errorf("expected Name 'hms_db_3way', got '%s'", cfg.Database.Name)
+	}
+	if cfg.Database.User != "hms_db_3way_user" {
+		t.Errorf("expected User 'hms_db_3way_user', got '%s'", cfg.Database.User)
+	}
+	if cfg.Database.Password != "D06mA7yWsJJvb1uKWroeHOHrYDOgcpAg" {
+		t.Errorf("expected Password, got '%s'", cfg.Database.Password)
+	}
+	if cfg.Database.SSLMode != "require" {
+		t.Errorf("expected SSLMode 'require' for cloud host, got '%s'", cfg.Database.SSLMode)
+	}
+	if cfg.Database.CollegeUser != "hms_db_3way_user" {
+		t.Errorf("expected CollegeUser to fall back to 'hms_db_3way_user', got '%s'", cfg.Database.CollegeUser)
+	}
+	if cfg.Database.PlatformUser != "hms_db_3way_user" {
+		t.Errorf("expected PlatformUser to fall back to 'hms_db_3way_user', got '%s'", cfg.Database.PlatformUser)
+	}
 }
 

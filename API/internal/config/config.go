@@ -163,7 +163,7 @@ func Load() (*Config, error) {
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbSSLMode := getEnv("DB_SSLMODE", "disable")
 
-	if rawDBURL := os.Getenv("DATABASE_URL"); rawDBURL != "" {
+	if rawDBURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); rawDBURL != "" {
 		if parsedURL, err := url.Parse(rawDBURL); err == nil {
 			if parsedURL.Hostname() != "" {
 				dbHost = parsedURL.Hostname()
@@ -171,8 +171,8 @@ func Load() (*Config, error) {
 			if parsedURL.Port() != "" {
 				dbPort = parsedURL.Port()
 			}
-			if db := strings.TrimPrefix(parsedURL.Path, "/"); db != "" {
-				dbName = db
+			if path := strings.TrimPrefix(parsedURL.Path, "/"); path != "" {
+				dbName = strings.Split(path, "?")[0]
 			}
 			if parsedURL.User != nil {
 				if u := parsedURL.User.Username(); u != "" {
@@ -184,6 +184,8 @@ func Load() (*Config, error) {
 			}
 			if mode := parsedURL.Query().Get("sslmode"); mode != "" {
 				dbSSLMode = mode
+			} else if parsedURL.Hostname() != "localhost" && parsedURL.Hostname() != "127.0.0.1" && parsedURL.Hostname() != "postgres" {
+				dbSSLMode = "require"
 			}
 		}
 	}
@@ -212,12 +214,12 @@ func Load() (*Config, error) {
 			MaxConnLifetime: maxConnLifetime,
 			MaxConnIdleTime: maxConnIdleTime,
 
-			CollegeUser:     getEnv("DB_COLLEGE_USER", getEnv("DB_USER", "hms_college_app")),
+			CollegeUser:     getEnv("DB_COLLEGE_USER", dbUser),
 			CollegePassword: getEnv("DB_COLLEGE_PASSWORD", dbPassword),
 			CollegeMaxConns: collegeMaxConns,
 			CollegeMinConns: collegeMinConns,
 
-			PlatformUser:     getEnv("DB_PLATFORM_USER", getEnv("DB_USER", "hms_platform_app")),
+			PlatformUser:     getEnv("DB_PLATFORM_USER", dbUser),
 			PlatformPassword: getEnv("DB_PLATFORM_PASSWORD", dbPassword),
 			PlatformMaxConns: platformMaxConns,
 			PlatformMinConns: platformMinConns,
