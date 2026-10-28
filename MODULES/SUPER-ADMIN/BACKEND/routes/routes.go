@@ -35,6 +35,7 @@ func RegisterSuperAdminRoutes(
 	permissionService := services.NewPermissionService(db, repo)
 	accessControlService := services.NewAccessControlService(db, repo)
 	systemSettingsService := services.NewSystemSettingsService(db, repo)
+	auditService := services.NewAuditService(db, repo)
 
 	// Initialize handlers
 	collegeHandler := handlers.NewCollegeHandler(collegeService)
@@ -50,6 +51,7 @@ func RegisterSuperAdminRoutes(
 	permissionHandler := handlers.NewPermissionHandler(permissionService, roleService)
 	accessControlHandler := handlers.NewAccessControlHandler(accessControlService)
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(systemSettingsService)
+	auditHandler := handlers.NewAuditHandler(auditService)
 
 	// Super Admin API routes group
 	// Note: Auth and permission middleware should be applied at the router level
@@ -282,6 +284,17 @@ func RegisterSuperAdminRoutes(
 			systemSettings.PUT("/:key", requireManage, systemSettingsHandler.UpdateSetting)
 			systemSettings.POST("/:key/reset", requireManage, systemSettingsHandler.ResetSetting)
 			systemSettings.POST("/:key/revert", requireManage, systemSettingsHandler.RevertSetting)
+		}
+
+		// Platform Audit Log & Activity Log (Module 14)
+		auditLogs := superAdmin.Group("/audit-logs")
+		{
+			auditLogs.GET("", requireView, auditHandler.ListAuditLogs)
+			auditLogs.POST("/verify-integrity", requireView, auditHandler.VerifyIntegrity)
+			auditLogs.GET("/exports", requireView, auditHandler.ListExportRequests)
+			auditLogs.POST("/exports", requireManage, auditHandler.RequestExport)
+			auditLogs.POST("/exports/:id/decision", requireManage, auditHandler.ProcessExportDecision)
+			auditLogs.GET("/:id", requireView, auditHandler.GetAuditLog)
 		}
 	}
 }

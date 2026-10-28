@@ -20,6 +20,7 @@ import RolesPage from '../pages/RolesPage';
 import PermissionsPage from '../pages/PermissionsPage';
 import AccessControlPage from '../pages/AccessControlPage';
 import SystemSettingsPage from '../pages/SystemSettingsPage';
+import AuditLogsPage from '../pages/AuditLogsPage';
 
 // Component that redirects already authenticated Super Admins away from /login to /dashboard
 function LoginRoute() {
@@ -67,6 +68,8 @@ export default function AppRoutes() {
         <Route path="/modules" element={<ModulesPage />} />
         <Route path="/system-settings" element={<SystemSettingsPage />} />
         <Route path="/settings" element={<SystemSettingsPage />} />
+        <Route path="/audit-logs" element={<AuditLogsPage />} />
+        <Route path="/audit" element={<AuditLogsPage />} />
       </Route>
 
       {/* Catch-all route */}

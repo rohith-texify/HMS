@@ -99,6 +99,14 @@ export default function Sidebar() {
           <span>⚙️</span>
           <span>System Settings</span>
         </NavLink>
+
+        <NavLink
+          to="/audit-logs"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>📜</span>
+          <span>Audit Logs</span>
+        </NavLink>
       </nav>
 
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #334155' }}>
