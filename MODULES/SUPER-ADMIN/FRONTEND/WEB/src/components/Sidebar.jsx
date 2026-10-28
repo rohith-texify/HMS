@@ -91,6 +91,14 @@ export default function Sidebar() {
           <span>📱</span>
           <span>Applications</span>
         </NavLink>
+
+        <NavLink
+          to="/system-settings"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>⚙️</span>
+          <span>System Settings</span>
+        </NavLink>
       </nav>
 
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #334155' }}>

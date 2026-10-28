@@ -34,6 +34,7 @@ func RegisterSuperAdminRoutes(
 	roleService := services.NewRoleService(db, repo)
 	permissionService := services.NewPermissionService(db, repo)
 	accessControlService := services.NewAccessControlService(db, repo)
+	systemSettingsService := services.NewSystemSettingsService(db, repo)
 
 	// Initialize handlers
 	collegeHandler := handlers.NewCollegeHandler(collegeService)
@@ -48,6 +49,7 @@ func RegisterSuperAdminRoutes(
 	roleHandler := handlers.NewRoleHandler(roleService)
 	permissionHandler := handlers.NewPermissionHandler(permissionService, roleService)
 	accessControlHandler := handlers.NewAccessControlHandler(accessControlService)
+	systemSettingsHandler := handlers.NewSystemSettingsHandler(systemSettingsService)
 
 	// Super Admin API routes group
 	// Note: Auth and permission middleware should be applied at the router level
@@ -267,6 +269,19 @@ func RegisterSuperAdminRoutes(
 		accessControl := superAdmin.Group("/access-control")
 		{
 			accessControl.POST("/evaluate", requireView, accessControlHandler.GlobalEvaluateAccess)
+		}
+
+		// Company-Wide Platform System Configuration (Module 13)
+		systemSettings := superAdmin.Group("/system-settings")
+		{
+			systemSettings.GET("", requireView, systemSettingsHandler.ListSettings)
+			systemSettings.GET("/history", requireView, systemSettingsHandler.ListHistory)
+			systemSettings.GET("/tenant-inheritance", requireView, systemSettingsHandler.GetTenantInheritanceOverview)
+			systemSettings.GET("/maintenance", systemSettingsHandler.CheckMaintenanceStatus)
+			systemSettings.GET("/:key", requireView, systemSettingsHandler.GetSetting)
+			systemSettings.PUT("/:key", requireManage, systemSettingsHandler.UpdateSetting)
+			systemSettings.POST("/:key/reset", requireManage, systemSettingsHandler.ResetSetting)
+			systemSettings.POST("/:key/revert", requireManage, systemSettingsHandler.RevertSetting)
 		}
 	}
 }
