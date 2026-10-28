@@ -107,6 +107,10 @@ func createPool(
 	trimmedDBName := strings.TrimSpace(cfg.Name)
 	trimmedSSLMode := strings.TrimSpace(cfg.SSLMode)
 
+	// Safe diagnostic: Print quoted representation and byte codes of the username (NO secrets).
+	fmt.Printf("[DB-INIT] Initializing pool for user %q (len=%d, bytes=%v) at %s:%s/%s\n",
+		trimmedUser, len(trimmedUser), []byte(trimmedUser), trimmedHost, trimmedPort, trimmedDBName)
+
 	connConfig.Host = trimmedHost
 	connConfig.Port = parsePort(trimmedPort)
 	connConfig.Database = trimmedDBName
