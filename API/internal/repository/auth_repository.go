@@ -27,15 +27,15 @@ type AuthIdentity struct {
 // CollegeID is nil for platform-scoped roles such as SUPER_ADMIN.
 // CollegeID must be present for college-scoped roles.
 type AuthMembership struct {
-	UserRoleID   uuid.UUID
-	RoleID       uuid.UUID
-	CollegeID    *uuid.UUID
-	Status       string
-	ExpiresAt    *time.Time
-	RoleCode     string
-	RoleName     string
-	RoleScope    string
-	IsSystemRole bool
+	UserRoleID   uuid.UUID  `json:"user_role_id"`
+	RoleID       uuid.UUID  `json:"role_id"`
+	CollegeID    *uuid.UUID `json:"college_id"`
+	Status       string     `json:"status"`
+	ExpiresAt    *time.Time `json:"expires_at"`
+	RoleCode     string     `json:"role_code"`
+	RoleName     string     `json:"role_name"`
+	RoleScope    string     `json:"role_scope"`
+	IsSystemRole bool       `json:"is_system_role"`
 }
 
 // FindAuthIdentityByEmail retrieves the user account and all of

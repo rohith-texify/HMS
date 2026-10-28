@@ -27,9 +27,13 @@ export const authService = {
       throw new Error('Authentication response did not contain an access token.');
     }
 
+    const roleScope = membership?.role_scope || membership?.RoleScope;
+    const roleCode = membership?.role_code || membership?.RoleCode;
+    const roleName = membership?.role_name || membership?.RoleName || 'Super Admin';
+
     // Role and Platform Scope Validation:
     // Only SUPER_ADMIN with PLATFORM scope is permitted into this control plane.
-    if (!membership || membership.role_scope !== 'PLATFORM' || membership.role_code !== 'SUPER_ADMIN') {
+    if (!membership || roleScope !== 'PLATFORM' || roleCode !== 'SUPER_ADMIN') {
       throw new Error(
         'Access denied. This portal is strictly restricted to authenticated platform Super Administrators.'
       );
@@ -38,9 +42,9 @@ export const authService = {
     const sessionUser = {
       id: user_id,
       email: userEmail || email,
-      role: membership.role_code,
-      roleName: membership.role_name || 'Super Admin',
-      scope: membership.role_scope,
+      role: roleCode,
+      roleName: roleName,
+      scope: roleScope,
       expiresAt: expires_at,
     };
 
