@@ -109,7 +109,7 @@ export default function AccessControlPage() {
           if (item.children) markExpanded(item.children);
         });
       };
-      markExpanded(data.root_applications || []);
+      markExpanded(data.hierarchy || data.root_applications || []);
       setExpandedNodes(initialExpanded);
     } catch (err) {
       if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
@@ -145,7 +145,8 @@ export default function AccessControlPage() {
         if (item.children) collect(item.children);
       });
     }
-    if (matrixData?.root_applications) collect(matrixData.root_applications);
+    const roots = matrixData?.hierarchy || matrixData?.root_applications;
+    if (roots) collect(roots);
     setExpandedNodes(all);
   };
 
@@ -260,19 +261,19 @@ export default function AccessControlPage() {
 
   // Filter matrix tree recursively
   const filteredTree = useMemo(() => {
-    if (!matrixData?.root_applications) return [];
+    const roots = matrixData?.hierarchy || matrixData?.root_applications;
+    if (!roots) return [];
 
     function matchesFilter(node) {
       const q = searchFilter.toLowerCase();
-      const matchesSearch =
-        !q ||
-        node.name?.toLowerCase().includes(q) ||
-        node.module_code?.toLowerCase().includes(q) ||
-        node.category?.toLowerCase().includes(q);
+      const nodeName = (node.module_name || node.name || '').toLowerCase();
+      const nodeCode = (node.module_code || '').toLowerCase();
+      const matchesSearch = !q || nodeName.includes(q) || nodeCode.includes(q);
 
       const matchesKind = kindFilter === 'ALL' || node.kind === kindFilter;
       const matchesStatus = statusFilter === 'ALL' || node.effective_status === statusFilter;
-      const matchesMode = modeFilter === 'ALL' || node.mode === modeFilter;
+      const nodeMode = node.effective_mode || node.mode || 'FULL';
+      const matchesMode = modeFilter === 'ALL' || nodeMode === modeFilter;
 
       return matchesSearch && matchesKind && matchesStatus && matchesMode;
     }
@@ -290,7 +291,7 @@ export default function AccessControlPage() {
       return null;
     }
 
-    return matrixData.root_applications.map(filterNode).filter(Boolean);
+    return roots.map(filterNode).filter(Boolean);
   }, [matrixData, searchFilter, kindFilter, statusFilter, modeFilter]);
 
   // Overall metrics
@@ -307,14 +308,16 @@ export default function AccessControlPage() {
         totalNodes++;
         if (item.effective_status === 'ACTIVE') activeNodes++;
         if (item.effective_status === 'DISABLED') disabledNodes++;
-        if (item.mode === 'READ_ONLY') readOnlyNodes++;
+        const itemMode = item.effective_mode || item.mode || 'FULL';
+        if (itemMode === 'READ_ONLY') readOnlyNodes++;
         if (item.inherited_disabled) inheritedDisabledNodes++;
         if (item.children) count(item.children);
       });
     }
 
-    if (matrixData?.root_applications) {
-      count(matrixData.root_applications);
+    const roots = matrixData?.hierarchy || matrixData?.root_applications;
+    if (roots) {
+      count(roots);
     }
 
     return { totalNodes, activeNodes, disabledNodes, readOnlyNodes, inheritedDisabledNodes };
@@ -1326,7 +1329,7 @@ function TreeNodeCard({ node, level, expandedNodes, toggleNode, onConfigure, onI
 
           {/* Name & Code */}
           <div>
-            <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.95rem' }}>{node.name}</span>
+            <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.95rem' }}>{node.module_name || node.name}</span>
             <span style={{ marginLeft: '8px', color: '#94a3b8', fontSize: '0.8rem', fontFamily: 'monospace' }}>
               [{node.module_code}]
             </span>
@@ -1390,11 +1393,11 @@ function TreeNodeCard({ node, level, expandedNodes, toggleNode, onConfigure, onI
               padding: '2px 8px',
               borderRadius: '4px',
               fontWeight: 600,
-              background: node.mode === 'FULL' ? '#1e40af' : '#0284c7',
+              background: (node.effective_mode || node.mode) === 'FULL' ? '#1e40af' : '#0284c7',
               color: '#ffffff',
             }}
           >
-            Mode: {node.mode}
+            Mode: {node.effective_mode || node.mode || 'FULL'}
           </span>
 
           {/* Configure Button */}
@@ -1443,29 +1446,34 @@ function TreeNodeCard({ node, level, expandedNodes, toggleNode, onConfigure, onI
                 Action Entitlement Matrix:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {node.actions.map((act) => (
-                  <span
-                    key={act.action}
-                    onClick={() => onInspect(node, act.action)}
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      background: act.outcome === 'ALLOWED' ? '#064e3b55' : '#7f1d1d55',
-                      border: `1px solid ${act.outcome === 'ALLOWED' ? '#10b981' : '#ef4444'}`,
-                      color: act.outcome === 'ALLOWED' ? '#6ee7b7' : '#fca5a5',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                    }}
-                    title={`Click to inspect action: ${act.action}. Reason: ${act.reason}`}
-                  >
-                    <span>{act.outcome === 'ALLOWED' ? '✓' : '✗'}</span>
-                    <strong>{act.action}</strong>
-                    <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>({act.outcome})</span>
-                  </span>
-                ))}
+                {node.actions.map((act) => {
+                  const actionCode = act.action_code || act.action;
+                  const accessOutcome = act.effective_access || act.outcome || 'ALLOWED';
+                  const isAllowed = accessOutcome === 'ALLOWED';
+                  return (
+                    <span
+                      key={actionCode}
+                      onClick={() => onInspect(node, actionCode)}
+                      style={{
+                        fontSize: '0.75rem',
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: isAllowed ? '#064e3b55' : '#7f1d1d55',
+                        border: `1px solid ${isAllowed ? '#10b981' : '#ef4444'}`,
+                        color: isAllowed ? '#6ee7b7' : '#fca5a5',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      title={`Click to inspect action: ${actionCode}. Note: ${act.restriction_note || act.reason || accessOutcome}`}
+                    >
+                      <span>{isAllowed ? '✓' : '✗'}</span>
+                      <strong>{actionCode}</strong>
+                      <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>({accessOutcome})</span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}
