@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// Create configured Axios client for Super Admin API
 // Supports configurable VITE_API_BASE_URL for Vercel production deployment
-const baseURL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://hms-backend-dtcm.onrender.com' : '');
 
 const api = axios.create({
   baseURL,
