@@ -125,7 +125,7 @@ func (r *Repository) ListAuditLogs(
 		return nil, 0, fmt.Errorf("count audit logs: %w", err)
 	}
 
-	// Fetch Records
+	// Fetch Records with safe column fallback if 015 migration has not been applied to database
 	querySQL := fmt.Sprintf(`
 		SELECT
 			a.audit_id,
@@ -146,12 +146,12 @@ func (r *Repository) ListAuditLogs(
 			a.user_agent,
 			a.correlation_id,
 			COALESCE(a.severity, 'INFO'),
-			COALESCE(a.result_status, 'SUCCESS'),
-			a.error_code,
-			a.ticket_reference,
-			a.approval_reference,
-			a.current_hash,
-			a.previous_hash,
+			COALESCE(to_jsonb(a)->>'result_status', 'SUCCESS') as result_status,
+			to_jsonb(a)->>'error_code' as error_code,
+			to_jsonb(a)->>'ticket_reference' as ticket_reference,
+			to_jsonb(a)->>'approval_reference' as approval_reference,
+			to_jsonb(a)->>'current_hash' as current_hash,
+			to_jsonb(a)->>'previous_hash' as previous_hash,
 			a.created_at
 		FROM platform.audit_logs a
 		LEFT JOIN app.users u ON a.actor_user_id = u.user_id
@@ -240,12 +240,12 @@ func (r *Repository) GetAuditLogByID(
 			a.user_agent,
 			a.correlation_id,
 			COALESCE(a.severity, 'INFO'),
-			COALESCE(a.result_status, 'SUCCESS'),
-			a.error_code,
-			a.ticket_reference,
-			a.approval_reference,
-			a.current_hash,
-			a.previous_hash,
+			COALESCE(to_jsonb(a)->>'result_status', 'SUCCESS') as result_status,
+			to_jsonb(a)->>'error_code' as error_code,
+			to_jsonb(a)->>'ticket_reference' as ticket_reference,
+			to_jsonb(a)->>'approval_reference' as approval_reference,
+			to_jsonb(a)->>'current_hash' as current_hash,
+			to_jsonb(a)->>'previous_hash' as previous_hash,
 			a.created_at
 		FROM platform.audit_logs a
 		LEFT JOIN app.users u ON a.actor_user_id = u.user_id
@@ -333,63 +333,120 @@ func (r *Repository) RecordPlatformAudit(
 	oldBytes, _ := json.Marshal(log.OldData)
 	newBytes, _ := json.Marshal(log.NewData)
 
-	const insertSQL = `
-		INSERT INTO platform.audit_logs (
-			audit_id,
-			college_id,
-			actor_user_id,
-			actor_role,
-			module,
-			action,
-			entity_type,
-			entity_id,
-			old_data,
-			new_data,
-			reason,
-			correlation_id,
-			severity,
-			result_status,
-			error_code,
-			ticket_reference,
-			approval_reference,
-			current_hash,
-			previous_hash,
-			created_at
-		) VALUES (
-			$1, $2, $3, $4,
-			$5, $6, $7, $8,
-			$9::jsonb, $10::jsonb,
-			$11, $12, $13, $14,
-			$15, $16, $17, $18,
-			$19, $20
+	// Check if new columns exist in platform.audit_logs
+	var hasNewCols bool
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT FROM information_schema.columns 
+			WHERE table_schema = 'platform' AND table_name = 'audit_logs' AND column_name = 'result_status'
 		)
-	`
-	_, err := r.Executor(ctx).Exec(
-		ctx,
-		insertSQL,
-		log.AuditID,
-		log.CollegeID,
-		log.ActorUserID,
-		log.ActorRole,
-		log.Module,
-		log.Action,
-		log.EntityType,
-		log.EntityID,
-		string(oldBytes),
-		string(newBytes),
-		log.Reason,
-		log.CorrelationID,
-		log.Severity,
-		log.ResultStatus,
-		log.ErrorCode,
-		log.TicketReference,
-		log.ApprovalReference,
-		computedHash,
-		lastHash,
-		log.CreatedAt,
-	)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("insert audit log: %w", err)
+	`).Scan(&hasNewCols)
+
+	if hasNewCols {
+		const insertSQL = `
+			INSERT INTO platform.audit_logs (
+				audit_id,
+				college_id,
+				actor_user_id,
+				actor_role,
+				module,
+				action,
+				entity_type,
+				entity_id,
+				old_data,
+				new_data,
+				reason,
+				correlation_id,
+				severity,
+				result_status,
+				error_code,
+				ticket_reference,
+				approval_reference,
+				current_hash,
+				previous_hash,
+				created_at
+			) VALUES (
+				$1, $2, $3, $4,
+				$5, $6, $7, $8,
+				$9::jsonb, $10::jsonb,
+				$11, $12, $13, $14,
+				$15, $16, $17, $18,
+				$19, $20
+			)
+		`
+		_, err := r.Executor(ctx).Exec(
+			ctx,
+			insertSQL,
+			log.AuditID,
+			log.CollegeID,
+			log.ActorUserID,
+			log.ActorRole,
+			log.Module,
+			log.Action,
+			log.EntityType,
+			log.EntityID,
+			string(oldBytes),
+			string(newBytes),
+			log.Reason,
+			log.CorrelationID,
+			log.Severity,
+			log.ResultStatus,
+			log.ErrorCode,
+			log.TicketReference,
+			log.ApprovalReference,
+			computedHash,
+			lastHash,
+			log.CreatedAt,
+		)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("insert audit log: %w", err)
+		}
+	} else {
+		// Fallback to baseline columns
+		const legacyInsertSQL = `
+			INSERT INTO platform.audit_logs (
+				audit_id,
+				college_id,
+				actor_user_id,
+				actor_role,
+				module,
+				action,
+				entity_type,
+				entity_id,
+				old_data,
+				new_data,
+				reason,
+				correlation_id,
+				severity,
+				created_at
+			) VALUES (
+				$1, $2, $3, $4,
+				$5, $6, $7, $8,
+				$9::jsonb, $10::jsonb,
+				$11, $12, $13, $14
+			)
+		`
+		_, err := r.Executor(ctx).Exec(
+			ctx,
+			legacyInsertSQL,
+			log.AuditID,
+			log.CollegeID,
+			log.ActorUserID,
+			log.ActorRole,
+			log.Module,
+			log.Action,
+			log.EntityType,
+			log.EntityID,
+			string(oldBytes),
+			string(newBytes),
+			log.Reason,
+			log.CorrelationID,
+			log.Severity,
+			log.CreatedAt,
+		)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("insert audit log legacy: %w", err)
+		}
 	}
 
 	return log.AuditID, nil
@@ -410,8 +467,8 @@ func (r *Repository) VerifyAuditChainIntegrity(
 			module,
 			action,
 			created_at,
-			COALESCE(current_hash, ''),
-			COALESCE(previous_hash, '')
+			COALESCE(to_jsonb(platform.audit_logs)->>'current_hash', ''),
+			COALESCE(to_jsonb(platform.audit_logs)->>'previous_hash', '')
 		FROM platform.audit_logs
 		ORDER BY created_at DESC
 		LIMIT $1
@@ -550,6 +607,19 @@ func (r *Repository) ListAuditExportRequests(
 	ctx context.Context,
 	status string,
 ) ([]models.AuditExportRequest, error) {
+	// Check if table exists
+	var tableExists bool
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables 
+			WHERE table_schema = 'platform' AND table_name = 'audit_export_requests'
+		)
+	`).Scan(&tableExists)
+
+	if !tableExists {
+		return []models.AuditExportRequest{}, nil
+	}
+
 	query := `
 		SELECT
 			aer.request_id,
