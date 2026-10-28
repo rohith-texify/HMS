@@ -36,7 +36,7 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       await login(trimmedEmail, password, rememberMe);
-      navigate(from, { replace: true });
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       const errMsg =
         err.message ||
