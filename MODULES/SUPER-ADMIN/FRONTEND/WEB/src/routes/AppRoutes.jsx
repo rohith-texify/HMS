@@ -1,5 +1,8 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import AdminLayout from '../layouts/AdminLayout';
+import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import CollegesPage from '../pages/CollegesPage';
 import CreateCollegePage from '../pages/CreateCollegePage';
@@ -17,32 +20,54 @@ import RolesPage from '../pages/RolesPage';
 import PermissionsPage from '../pages/PermissionsPage';
 import AccessControlPage from '../pages/AccessControlPage';
 
+// Component that redirects already authenticated Super Admins away from /login to /dashboard
+function LoginRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <LoginPage />;
+}
+
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/onboarding" element={<OnboardingListPage />} />
-      <Route path="/colleges" element={<CollegesPage />} />
-      <Route path="/colleges/new" element={<CreateCollegePage />} />
-      <Route path="/colleges/:id" element={<CollegeDetailPage />} />
-      <Route path="/colleges/:id/admins" element={<CollegeAdminsPage />} />
-      <Route path="/colleges/:id/onboarding" element={<CollegeOnboardingWizardPage />} />
-      <Route path="/colleges/:id/configuration" element={<CollegeConfigurationPage />} />
-      <Route path="/colleges/:id/settings" element={<CollegeConfigurationPage />} />
-      <Route path="/colleges/:id/applications" element={<ApplicationManagementPage />} />
-      <Route path="/colleges/:id/modules" element={<ModulesPage />} />
-      <Route path="/colleges/:id/access-control" element={<AccessControlPage />} />
-      <Route path="/colleges/:id/hostel-structure" element={<HostelStructureMasterPage />} />
-      <Route path="/staff" element={<StaffPage />} />
-      <Route path="/roles" element={<RolesPage />} />
-      <Route path="/permissions" element={<PermissionsPage />} />
-      <Route path="/access-control" element={<AccessControlPage />} />
-      <Route path="/applications" element={<ApplicationManagementPage />} />
-      <Route path="/approvals" element={<ApprovalsPage />} />
-      <Route path="/modules" element={<ModulesPage />} />
+      {/* Public Authentication Route */}
+      <Route path="/login" element={<LoginRoute />} />
+
+      {/* Protected Super Admin Platform Routes */}
+      <Route element={<AdminLayout />}>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/onboarding" element={<OnboardingListPage />} />
+        <Route path="/colleges" element={<CollegesPage />} />
+        <Route path="/colleges/new" element={<CreateCollegePage />} />
+        <Route path="/colleges/:id" element={<CollegeDetailPage />} />
+        <Route path="/colleges/:id/admins" element={<CollegeAdminsPage />} />
+        <Route path="/colleges/:id/onboarding" element={<CollegeOnboardingWizardPage />} />
+        <Route path="/colleges/:id/configuration" element={<CollegeConfigurationPage />} />
+        <Route path="/colleges/:id/settings" element={<CollegeConfigurationPage />} />
+        <Route path="/colleges/:id/applications" element={<ApplicationManagementPage />} />
+        <Route path="/colleges/:id/modules" element={<ModulesPage />} />
+        <Route path="/colleges/:id/access-control" element={<AccessControlPage />} />
+        <Route path="/colleges/:id/hostel-structure" element={<HostelStructureMasterPage />} />
+        <Route path="/staff" element={<StaffPage />} />
+        <Route path="/roles" element={<RolesPage />} />
+        <Route path="/permissions" element={<PermissionsPage />} />
+        <Route path="/access-control" element={<AccessControlPage />} />
+        <Route path="/applications" element={<ApplicationManagementPage />} />
+        <Route path="/approvals" element={<ApprovalsPage />} />
+        <Route path="/modules" element={<ModulesPage />} />
+      </Route>
+
+      {/* Catch-all route */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
-

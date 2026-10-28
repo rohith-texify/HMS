@@ -24,7 +24,10 @@ export async function fetchDashboard(filters = {}) {
  * @param {string} password
  * @returns {Promise<Object>} Login response data
  */
-export async function loginSuperAdmin(email = 'dev.admin@hms.local', password = 'HMS@Dev123') {
+export async function loginSuperAdmin(email, password) {
+  if (!email || !password) {
+    throw new Error('Email and password are required');
+  }
   const res = await api.post('/auth/login', { email, password });
   if (res.data?.access_token) {
     localStorage.setItem('token', res.data.access_token);

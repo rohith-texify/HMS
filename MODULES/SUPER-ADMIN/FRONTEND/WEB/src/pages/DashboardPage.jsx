@@ -9,7 +9,7 @@ import CriticalAlertsList from '../components/CriticalAlertsList';
 import PendingApprovalsSummary from '../components/PendingApprovalsSummary';
 import RecentActivityTable from '../components/RecentActivityTable';
 import UnsupportedMetricsPanel from '../components/UnsupportedMetricsPanel';
-import { fetchDashboard, fetchColleges, loginSuperAdmin } from '../services/dashboardService';
+import { fetchDashboard, fetchColleges } from '../services/dashboardService';
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
@@ -22,17 +22,8 @@ export default function DashboardPage() {
   // Use request counter to avoid race conditions with fast filter changes
   const requestCounter = useRef(0);
 
-  const handleConnectSession = async () => {
-    try {
-      setLoading(true);
-      await loginSuperAdmin();
-      const collegesList = await fetchColleges();
-      setColleges(collegesList);
-      await loadDashboardData(filters, false);
-    } catch (err) {
-      setError('Session connection failed: ' + (err.message || 'Unknown error'));
-      setLoading(false);
-    }
+  const handleGoToLogin = () => {
+    window.location.href = '/login';
   };
 
   // Load colleges list once on mount
@@ -124,8 +115,8 @@ export default function DashboardPage() {
             <button className="btn btn-outline" onClick={() => loadDashboardData(filters, true)}>
               Retry Connection
             </button>
-            <button className="btn btn-primary" id="btn-connect-session" onClick={handleConnectSession}>
-              Connect Authorized Super Admin Session
+            <button className="btn btn-primary" id="btn-connect-session" onClick={handleGoToLogin}>
+              Sign In to Super Admin
             </button>
           </div>
         </div>

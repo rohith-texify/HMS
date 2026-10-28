@@ -102,13 +102,13 @@ export default function AccessControlPage() {
 
       // Default expand top-level apps and modules
       const initialExpanded = {};
-      function markExpanded(items) {
+      const markExpanded = (items) => {
         if (!items) return;
         items.forEach((item) => {
           initialExpanded[item.module_id] = true;
           if (item.children) markExpanded(item.children);
         });
-      }
+      };
       markExpanded(data.root_applications || []);
       setExpandedNodes(initialExpanded);
     } catch (err) {
@@ -430,7 +430,7 @@ export default function AccessControlPage() {
           }}
         >
           <span>🔍</span>
-          <span>"Why Is This Denied?" Inspector</span>
+          <span>&quot;Why Is This Denied?&quot; Inspector</span>
         </button>
 
         <button

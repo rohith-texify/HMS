@@ -1,9 +1,12 @@
 import axios from 'axios';
 
 // Create configured Axios client for Super Admin API
+// Supports configurable VITE_API_BASE_URL for Vercel production deployment
+const baseURL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+
 const api = axios.create({
-  baseURL: '', // Uses relative path to leverage Vite proxy or origin
-  timeout: 10000,
+  baseURL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,7 +15,12 @@ const api = axios.create({
 // Request interceptor to attach JWT token and platform scope
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    const token =
+      localStorage.getItem('hms_token') ||
+      sessionStorage.getItem('hms_token') ||
+      localStorage.getItem('token') ||
+      sessionStorage.getItem('token');
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
