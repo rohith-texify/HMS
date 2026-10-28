@@ -81,13 +81,13 @@ func (r *Repository) ListAuditLogs(
 	}
 
 	if params.ResultStatus != "" {
-		whereClauses = append(whereClauses, fmt.Sprintf("a.result_status = $%d", argIdx))
+		whereClauses = append(whereClauses, fmt.Sprintf("COALESCE(to_jsonb(a)->>'result_status', 'SUCCESS') = $%d", argIdx))
 		args = append(args, params.ResultStatus)
 		argIdx++
 	}
 
 	if params.TicketReference != "" {
-		whereClauses = append(whereClauses, fmt.Sprintf("a.ticket_reference = $%d", argIdx))
+		whereClauses = append(whereClauses, fmt.Sprintf("(to_jsonb(a)->>'ticket_reference') = $%d", argIdx))
 		args = append(args, params.TicketReference)
 		argIdx++
 	}
