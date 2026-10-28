@@ -219,3 +219,48 @@ func TestLoad_DatabaseURLResolution(t *testing.T) {
 	}
 }
 
+func TestLoad_DatabaseUserTrimmingAndValidation(t *testing.T) {
+	origDBName := os.Getenv("DB_NAME")
+	origDBUser := os.Getenv("DB_USER")
+	origCollegeUser := os.Getenv("DB_COLLEGE_USER")
+	origPlatformUser := os.Getenv("DB_PLATFORM_USER")
+	origJWT := os.Getenv("JWT_SECRET")
+
+	defer func() {
+		os.Setenv("DB_NAME", origDBName)
+		os.Setenv("DB_USER", origDBUser)
+		os.Setenv("DB_COLLEGE_USER", origCollegeUser)
+		os.Setenv("DB_PLATFORM_USER", origPlatformUser)
+		os.Setenv("JWT_SECRET", origJWT)
+	}()
+
+	os.Setenv("DB_NAME", "test_db")
+	os.Setenv("JWT_SECRET", "test_jwt_secret_dev")
+
+	// 1. Whitespace around user names should be safely trimmed
+	os.Setenv("DB_USER", "  postgres_admin  \n")
+	os.Setenv("DB_COLLEGE_USER", " \t hms_college_app \n ")
+	os.Setenv("DB_PLATFORM_USER", "  hms_platform_app  ")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("unexpected error loading config with trimmed whitespace: %v", err)
+	}
+	if cfg.Database.User != "postgres_admin" {
+		t.Errorf("expected DB_USER 'postgres_admin', got '%s'", cfg.Database.User)
+	}
+	if cfg.Database.CollegeUser != "hms_college_app" {
+		t.Errorf("expected DB_COLLEGE_USER 'hms_college_app', got '%s'", cfg.Database.CollegeUser)
+	}
+	if cfg.Database.PlatformUser != "hms_platform_app" {
+		t.Errorf("expected DB_PLATFORM_USER 'hms_platform_app', got '%s'", cfg.Database.PlatformUser)
+	}
+
+	// 2. Control characters / newlines inside the username must be rejected
+	os.Setenv("DB_COLLEGE_USER", "hms_college\n_app")
+	_, err = Load()
+	if err == nil {
+		t.Fatal("expected error for username containing newline, got nil")
+	}
+}
+

@@ -156,49 +156,69 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	dbHost := getEnv("DB_HOST", "localhost")
-	dbPort := getEnv("DB_PORT", "5432")
-	dbName := getEnv("DB_NAME", "")
-	dbUser := getEnv("DB_USER", "")
+	dbHost := getTrimmedEnv("DB_HOST", "localhost")
+	dbPort := getTrimmedEnv("DB_PORT", "5432")
+	dbName := getTrimmedEnv("DB_NAME", "")
+	dbUser := getTrimmedEnv("DB_USER", "")
 	dbPassword := os.Getenv("DB_PASSWORD")
-	dbSSLMode := getEnv("DB_SSLMODE", "disable")
+	dbSSLMode := getTrimmedEnv("DB_SSLMODE", "disable")
 
 	if rawDBURL := strings.TrimSpace(os.Getenv("DATABASE_URL")); rawDBURL != "" {
 		if parsedURL, err := url.Parse(rawDBURL); err == nil {
-			if parsedURL.Hostname() != "" {
-				dbHost = parsedURL.Hostname()
+			if dbHost == "localhost" && parsedURL.Hostname() != "" {
+				dbHost = strings.TrimSpace(parsedURL.Hostname())
 			}
-			if parsedURL.Port() != "" {
-				dbPort = parsedURL.Port()
+			if (dbPort == "5432" || dbPort == "") && parsedURL.Port() != "" {
+				dbPort = strings.TrimSpace(parsedURL.Port())
 			}
-			if path := strings.TrimPrefix(parsedURL.Path, "/"); path != "" {
-				dbName = strings.Split(path, "?")[0]
+			if dbName == "" {
+				if path := strings.TrimPrefix(parsedURL.Path, "/"); path != "" {
+					dbName = strings.TrimSpace(strings.Split(path, "?")[0])
+				}
 			}
 			if parsedURL.User != nil {
-				if u := parsedURL.User.Username(); u != "" {
-					dbUser = u
+				if dbUser == "" {
+					if u := parsedURL.User.Username(); u != "" {
+						dbUser = strings.TrimSpace(u)
+					}
 				}
-				if p, ok := parsedURL.User.Password(); ok {
-					dbPassword = p
+				if dbPassword == "" {
+					if p, ok := parsedURL.User.Password(); ok {
+						dbPassword = p
+					}
 				}
 			}
-			if mode := parsedURL.Query().Get("sslmode"); mode != "" {
-				dbSSLMode = mode
-			} else if parsedURL.Hostname() != "localhost" && parsedURL.Hostname() != "127.0.0.1" && parsedURL.Hostname() != "postgres" {
-				dbSSLMode = "require"
+			if dbSSLMode == "disable" {
+				if mode := strings.TrimSpace(parsedURL.Query().Get("sslmode")); mode != "" {
+					dbSSLMode = mode
+				} else if parsedURL.Hostname() != "localhost" && parsedURL.Hostname() != "127.0.0.1" && parsedURL.Hostname() != "postgres" {
+					dbSSLMode = "require"
+				}
 			}
 		}
 	}
 
-	port := os.Getenv("PORT")
+	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
-		port = getEnv("SERVER_PORT", "8080")
+		port = getTrimmedEnv("SERVER_PORT", "8080")
+	}
+
+	collegeUser := getTrimmedEnv("DB_COLLEGE_USER", dbUser)
+	collegePassword := os.Getenv("DB_COLLEGE_PASSWORD")
+	if collegePassword == "" {
+		collegePassword = dbPassword
+	}
+
+	platformUser := getTrimmedEnv("DB_PLATFORM_USER", dbUser)
+	platformPassword := os.Getenv("DB_PLATFORM_PASSWORD")
+	if platformPassword == "" {
+		platformPassword = dbPassword
 	}
 
 	config := &Config{
 		Server: ServerConfig{
 			Port:        port,
-			Environment: getEnv("APP_ENV", "development"),
+			Environment: getTrimmedEnv("APP_ENV", "development"),
 		},
 
 		Database: DatabaseConfig{
@@ -214,21 +234,21 @@ func Load() (*Config, error) {
 			MaxConnLifetime: maxConnLifetime,
 			MaxConnIdleTime: maxConnIdleTime,
 
-			CollegeUser:     getEnv("DB_COLLEGE_USER", dbUser),
-			CollegePassword: getEnv("DB_COLLEGE_PASSWORD", dbPassword),
+			CollegeUser:     collegeUser,
+			CollegePassword: collegePassword,
 			CollegeMaxConns: collegeMaxConns,
 			CollegeMinConns: collegeMinConns,
 
-			PlatformUser:     getEnv("DB_PLATFORM_USER", dbUser),
-			PlatformPassword: getEnv("DB_PLATFORM_PASSWORD", dbPassword),
+			PlatformUser:     platformUser,
+			PlatformPassword: platformPassword,
 			PlatformMaxConns: platformMaxConns,
 			PlatformMinConns: platformMinConns,
 		},
 
 		JWT: JWTConfig{
 			Secret:             os.Getenv("JWT_SECRET"),
-			Issuer:             getEnv("JWT_ISSUER", "hms-api"),
-			Audience:           getEnv("JWT_AUDIENCE", "hms-client"),
+			Issuer:             getTrimmedEnv("JWT_ISSUER", "hms-api"),
+			Audience:           getTrimmedEnv("JWT_AUDIENCE", "hms-client"),
 			AccessTokenMinutes: accessTokenMinutes,
 		},
 
@@ -237,9 +257,9 @@ func Load() (*Config, error) {
 		},
 
 		Telegram: TelegramConfig{
-			Enabled:         getEnv("TELEGRAM_ALERTS_ENABLED", "false") == "true",
+			Enabled:         getTrimmedEnv("TELEGRAM_ALERTS_ENABLED", "false") == "true",
 			BotToken:        os.Getenv("TELEGRAM_BOT_TOKEN"),
-			ChatID:          os.Getenv("TELEGRAM_CHAT_ID"),
+			ChatID:          strings.TrimSpace(os.Getenv("TELEGRAM_CHAT_ID")),
 			CooldownSeconds: telegramCooldown,
 			TimeoutSeconds:  telegramTimeout,
 		},
@@ -257,6 +277,16 @@ func Load() (*Config, error) {
 
 	if config.Database.User == "" {
 		return nil, fmt.Errorf("DB_USER is required")
+	}
+
+	if err := validateDBUsername("DB_USER", config.Database.User); err != nil {
+		return nil, err
+	}
+	if err := validateDBUsername("DB_COLLEGE_USER", config.Database.CollegeUser); err != nil {
+		return nil, err
+	}
+	if err := validateDBUsername("DB_PLATFORM_USER", config.Database.PlatformUser); err != nil {
+		return nil, err
 	}
 
 	if config.Server.Environment == "production" && config.Database.SSLMode == "disable" {
@@ -281,6 +311,24 @@ func Load() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func getTrimmedEnv(key string, fallback string) string {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func validateDBUsername(field, username string) error {
+	if username == "" {
+		return fmt.Errorf("%s is required", field)
+	}
+	if strings.ContainsAny(username, "\r\n\t") {
+		return fmt.Errorf("%s contains invalid control characters or newlines", field)
+	}
+	return nil
 }
 
 func getEnv(key string, fallback string) string {

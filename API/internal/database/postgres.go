@@ -3,6 +3,8 @@ package database
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -99,23 +101,29 @@ func createPool(
 		return nil, fmt.Errorf("failed to initialize PostgreSQL configuration: %w", err)
 	}
 
-	connConfig.Host = cfg.Host
-	connConfig.Port = parsePort(cfg.Port)
-	connConfig.Database = cfg.Name
-	connConfig.User = user
+	trimmedUser := strings.TrimSpace(user)
+	trimmedHost := strings.TrimSpace(cfg.Host)
+	trimmedPort := strings.TrimSpace(cfg.Port)
+	trimmedDBName := strings.TrimSpace(cfg.Name)
+	trimmedSSLMode := strings.TrimSpace(cfg.SSLMode)
+
+	connConfig.Host = trimmedHost
+	connConfig.Port = parsePort(trimmedPort)
+	connConfig.Database = trimmedDBName
+	connConfig.User = trimmedUser
 	connConfig.Password = password
 	connConfig.TLSConfig = nil
 
 	// Disable TLS for local development when DB_SSLMODE=disable.
-	if cfg.SSLMode != "disable" {
+	if trimmedSSLMode != "disable" {
 		connConfig, err = pgx.ParseConfig(
 			fmt.Sprintf(
 				"postgres://%s@%s:%s/%s?sslmode=%s",
-				user,
-				cfg.Host,
-				cfg.Port,
-				cfg.Name,
-				cfg.SSLMode,
+				url.QueryEscape(trimmedUser),
+				trimmedHost,
+				trimmedPort,
+				trimmedDBName,
+				trimmedSSLMode,
 			),
 		)
 		if err != nil {

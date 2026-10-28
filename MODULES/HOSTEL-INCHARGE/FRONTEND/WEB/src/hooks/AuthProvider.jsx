@@ -1,0 +1,59 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import authService from '../services/authService';
+import { AuthContext } from './AuthContext';
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => authService.getCurrentUser());
+  const [token, setToken] = useState(() => authService.getToken());
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const activeToken = authService.getToken();
+    const currentUser = authService.getCurrentUser();
+
+    if (activeToken && currentUser) {
+      setUser(currentUser);
+      setToken(activeToken);
+    } else {
+      authService.logout();
+      setUser(null);
+      setToken(null);
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = useCallback(async (email, password, rememberMe = true) => {
+    setIsLoading(true);
+    try {
+      const result = await authService.login(email, password, rememberMe);
+      setToken(result.token);
+      setUser(result.user);
+      return result;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    authService.logout();
+    setUser(null);
+    setToken(null);
+  }, []);
+
+  const isAuthenticated = Boolean(
+    token && user && (user.role === 'HOSTEL_INCHARGE' || user.role === 'WARDEN') && user.scope === 'COLLEGE'
+  );
+
+  const value = {
+    user,
+    token,
+    isLoading,
+    isAuthenticated,
+    login,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export default AuthProvider;
