@@ -48,6 +48,8 @@ func NewRouter(
 			"Accept",
 			"Authorization",
 			"X-Request-ID",
+			"X-Scope",
+			"X-Tenant-ID",
 		},
 	}))
 
