@@ -68,6 +68,26 @@ export const authService = {
   },
 
   /**
+   * Fast dev bypass sign-in for seamless local testing without remote backend dependencies.
+   * @returns {Object} Dev session data
+   */
+  devLogin() {
+    const devUser = {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: 'superadmin@hms.local',
+      role: 'SUPER_ADMIN',
+      roleName: 'Super Administrator',
+      scope: 'PLATFORM',
+      expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
+    };
+    const devToken = 'dev-super-admin-bypass-token';
+    localStorage.setItem(TOKEN_KEY, devToken);
+    localStorage.setItem(USER_KEY, JSON.stringify(devUser));
+    localStorage.setItem('token', devToken);
+    return { token: devToken, user: devUser };
+  },
+
+  /**
    * Retrieve active stored token from either storage location.
    * @returns {string|null}
    */

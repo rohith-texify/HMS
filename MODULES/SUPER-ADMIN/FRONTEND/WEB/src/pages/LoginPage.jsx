@@ -11,12 +11,19 @@ export default function LoginPage() {
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, devLogin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Target destination after login, defaults to /dashboard
   const from = location.state?.from?.pathname || '/dashboard';
+
+  const handleDevLogin = () => {
+    if (devLogin) {
+      devLogin();
+      navigate(from, { replace: true });
+    }
+  };
 
   const handleContinueWithEmail = (e) => {
     e.preventDefault();
@@ -698,6 +705,23 @@ export default function LoginPage() {
               ) : null}
               <span>{isSubmitting ? 'Authenticating...' : showPasswordField ? 'Sign In to Platform' : 'Continue with Email'}</span>
             </button>
+
+            {/* Quick 1-Click Dev Sign-In for instant local testing without backend dependency */}
+            {import.meta.env.DEV && (
+              <button
+                type="button"
+                id="btn-dev-login"
+                onClick={handleDevLogin}
+                className="btn-continue"
+                style={{
+                  marginTop: '10px',
+                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.28)',
+                }}
+              >
+                ⚡ Instant Dev Sign-In (Local Testing)
+              </button>
+            )}
 
             {/* Continue with Google */}
             <button

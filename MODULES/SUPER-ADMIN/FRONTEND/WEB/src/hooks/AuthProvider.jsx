@@ -54,6 +54,13 @@ export function AuthProvider({ children }) {
     setToken(null);
   }, []);
 
+  const devLogin = useCallback(() => {
+    const res = authService.devLogin();
+    setToken(res.token);
+    setUser(res.user);
+    return res;
+  }, []);
+
   const isAuthenticated = Boolean(
     token && user && user.role === 'SUPER_ADMIN' && user.scope === 'PLATFORM'
   );
@@ -64,6 +71,7 @@ export function AuthProvider({ children }) {
     isLoading,
     isAuthenticated,
     login,
+    devLogin,
     logout,
   };
 
