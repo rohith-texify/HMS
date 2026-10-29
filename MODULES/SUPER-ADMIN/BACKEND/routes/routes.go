@@ -40,6 +40,7 @@ func RegisterSuperAdminRoutes(
 	notificationService := services.NewNotificationService(db, repo, approvalService)
 	monitoringService := services.NewMonitoringService(db, repo)
 	supportService := services.NewSupportService(db, repo)
+	reportService := services.NewSuperAdminReportService(db, repo)
 
 	// Initialize handlers
 	collegeHandler := handlers.NewCollegeHandler(collegeService)
@@ -60,6 +61,7 @@ func RegisterSuperAdminRoutes(
 	notificationHandler := handlers.NewNotificationHandler(notificationService)
 	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
 	supportHandler := handlers.NewSupportHandler(supportService)
+	reportHandler := handlers.NewReportHandler(reportService)
 
 	// Super Admin API routes group
 	// Note: Auth and permission middleware should be applied at the router level
@@ -339,6 +341,16 @@ func RegisterSuperAdminRoutes(
 			support.POST("/grants/:id/revoke", requireManage, supportHandler.RevokeGrant)
 			support.GET("/diagnose-entitlement", requireView, supportHandler.DiagnoseEntitlement)
 			support.POST("/student-lookup", requireView, supportHandler.MaskedStudentLookup)
+		}
+
+		// Reports & Analytics (Module 20)
+		reports := superAdmin.Group("/reports")
+		{
+			reports.GET("/summary", requireView, reportHandler.GetSummary)
+			reports.GET("/college-usage", requireView, reportHandler.GetCollegeUsage)
+			reports.GET("/module-adoption", requireView, reportHandler.GetModuleAdoption)
+			reports.GET("/login-security", requireView, reportHandler.GetLoginSecurity)
+			reports.GET("/export/college-usage", requireView, reportHandler.ExportCollegeUsageCSV)
 		}
 	}
 }

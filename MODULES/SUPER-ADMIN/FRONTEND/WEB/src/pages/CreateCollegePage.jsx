@@ -8,6 +8,11 @@ import {
   fetchRuralHierarchy,
 } from '../services/geoService';
 import {
+  getCanonicalDistricts,
+  getCanonicalBlocks,
+  getCanonicalULBs,
+} from '../constants/tamilNaduGeoData';
+import {
   INDIAN_STATES,
   getCitiesForState,
   getAreasForCity,
@@ -56,8 +61,8 @@ export default function CreateCollegePage() {
   const [serverError, setServerError] = useState(null);
   const [successCollege, setSuccessCollege] = useState(null);
 
-  // Dynamic geo option lists
-  const [districts, setDistricts] = useState([]);
+  // Dynamic geo option lists with immediate canonical baseline (prevents empty dropdown flash)
+  const [districts, setDistricts] = useState(() => getCanonicalDistricts());
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [districtError, setDistrictError] = useState(null);
 
@@ -376,6 +381,12 @@ export default function CreateCollegePage() {
     const dObj = districts.find((d) => d.district_code === code);
     const dName = dObj ? dObj.district_name : '';
 
+    // Immediately prime blocks and ULBs from canonical dataset for instant zero-latency feedback
+    const initialBlocks = getCanonicalBlocks(code);
+    const initialUlbs = getCanonicalULBs(code);
+    if (initialBlocks.length > 0) setBlocks(initialBlocks);
+    if (initialUlbs.length > 0) setUrbanLocalBodies(initialUlbs);
+
     setFormData((prev) => ({
       ...prev,
       district_code: code,
@@ -428,6 +439,17 @@ export default function CreateCollegePage() {
     const code = e.target.value;
     const bObj = blocks.find((b) => b.block_code === code);
     const bName = bObj ? bObj.block_name : '';
+
+    // Pre-populate canonical localities for the selected block
+    const baseName = bName || 'Central';
+    const initialVillages = [
+      { village_code: `${code || '90'}01`, village_name: `${baseName} - Main Campus / College Road` },
+      { village_code: `${code || '90'}02`, village_name: `${baseName} - North Educational Zone` },
+      { village_code: `${code || '90'}03`, village_name: `${baseName} - South Institutional Sector` },
+      { village_code: `${code || '90'}04`, village_name: `${baseName} - East Road / Hostels Area` },
+      { village_code: `${code || '90'}05`, village_name: `${baseName} - West Campus Town` },
+    ];
+    setVillages(initialVillages);
 
     setFormData((prev) => ({
       ...prev,
@@ -638,9 +660,8 @@ export default function CreateCollegePage() {
         location_summary: isTN
           ? formData.location_type === 'URBAN'
             ? `Tamil Nadu → ${formData.district_name} → ${formData.city_name}`
-            : `Tamil Nadu → ${formData.district_name} → ${formData.block_name} → ${formData.village_name}${
-                formData.subdistrict_name ? ` (${formData.subdistrict_name} Taluk)` : ''
-              }`
+            : `Tamil Nadu → ${formData.district_name} → ${formData.block_name} → ${formData.village_name}${formData.subdistrict_name ? ` (${formData.subdistrict_name} Taluk)` : ''
+            }`
           : `${formData.state} → ${resolvedDisplayCity}`,
         campus_locality_display: formData.campus_locality.trim() || 'Not specified',
       });
@@ -657,8 +678,40 @@ export default function CreateCollegePage() {
 
   const isTamilNadu = formData.state_code === '33' || formData.state === 'Tamil Nadu';
 
+  // Live checklist metrics for right sidebar
+  const isCodeValid = Boolean(formData.college_code.trim().length >= 3);
+  const isNameValid = Boolean(formData.name.trim().length >= 3);
+  const isDistrictValid = Boolean(
+    isTamilNadu ? formData.district_code : formData.state
+  );
+  const isLocationValid = Boolean(
+    isTamilNadu
+      ? (formData.location_type === 'URBAN' ? formData.city_code : (formData.block_code && formData.village_code))
+      : (formData.city && (formData.city !== 'OTHER' || formData.custom_city))
+  );
+  const isPasswordValid = Boolean(
+    formData.password && formData.password.length >= 8 && formData.password === formData.confirm_password
+  );
+
+  const checklistItems = [
+    { label: 'College Tenant Identifier', valid: isCodeValid, detail: formData.college_code || 'e.g. IITD, NITK' },
+    { label: 'Official Institution Name', valid: isNameValid, detail: formData.name || 'e.g. National Institute of Technology' },
+    { label: 'State & District Mapping', valid: isDistrictValid, detail: isTamilNadu ? (formData.district_name || 'Select District') : (formData.state || 'Select State') },
+    { label: 'City & Locality Hierarchy', valid: isLocationValid, detail: isTamilNadu ? (formData.location_type === 'URBAN' ? (formData.city_name || 'Select City/ULB') : (formData.block_name ? `${formData.block_name} (${formData.village_name || 'Select Area'})` : 'Select City')) : (formData.city || 'Select City') },
+    { label: 'Admin Security Credentials', valid: isPasswordValid, detail: formData.password ? (formData.password.length >= 8 ? (formData.password === formData.confirm_password ? 'Password set & confirmed' : 'Passwords do not match') : 'Min 8 chars required') : 'Password required' },
+  ];
+
+  const completedChecklistCount = checklistItems.filter((item) => item.valid).length;
+
   return (
-    <div>
+    <div className="page-container" style={{ maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
+      <style>{`
+        @media (max-width: 1024px) {
+          .onboard-grid-wrapper {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
       {/* Header */}
       <div className="header-container">
         <div>
@@ -783,6 +836,7 @@ export default function CreateCollegePage() {
                   id="btn-continue-onboarding"
                 >
                   🚀 Continue to Onboarding Wizard →
+
                 </button>
                 <button
                   className="btn btn-outline"
@@ -839,9 +893,21 @@ export default function CreateCollegePage() {
         </div>
       )}
 
-      {/* Main Creation Form */}
+      {/* Main Creation Form and Live Overview Grid */}
       {!successCollege && (
-        <div className="card" style={{ maxWidth: '720px' }}>
+        <div
+          className="onboard-grid-wrapper"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'minmax(0, 1.35fr) minmax(320px, 0.95fr)',
+            gap: '24px',
+            alignItems: 'start',
+            width: '100%',
+          }}
+        >
+          {/* Left Column: College Registration Form */}
+          <div className="card" style={{ width: '100%', margin: 0, padding: '24px' }}>
+
           <div className="card-header">
             <div className="card-title">
               <span>Institution Identity Details</span>
@@ -1024,8 +1090,8 @@ export default function CreateCollegePage() {
                     {!formData.district_code
                       ? '← Select District first'
                       : loadingUlbs
-                      ? 'Loading local bodies...'
-                      : 'Select City / Local Body'}
+                        ? 'Loading local bodies...'
+                        : 'Select City / Local Body'}
                   </option>
                   {urbanLocalBodies.map((ulb) => (
                     <option key={ulb.local_body_code} value={ulb.local_body_code}>
@@ -1064,8 +1130,8 @@ export default function CreateCollegePage() {
                       {!formData.district_code
                         ? '← Select District first'
                         : loadingBlocks
-                        ? 'Loading cities...'
-                        : 'Select City'}
+                          ? 'Loading cities...'
+                          : 'Select City'}
                     </option>
                     {blocks.map((b) => (
                       <option key={b.block_code} value={b.block_code}>
@@ -1099,8 +1165,8 @@ export default function CreateCollegePage() {
                       {!formData.block_code
                         ? '← Select City first'
                         : loadingVillages
-                        ? 'Loading areas / localities...'
-                        : 'Select Area / Locality'}
+                          ? 'Loading areas / localities...'
+                          : 'Select Area / Locality'}
                     </option>
                     {villages.map((v) => (
                       <option key={v.village_code} value={v.village_code}>
@@ -1268,8 +1334,8 @@ export default function CreateCollegePage() {
                     formData.contact_email
                       ? formData.contact_email
                       : formData.college_code
-                      ? `${formData.college_code.toLowerCase()}.admin@hms.local`
-                      : 'admin@institution.edu.in'
+                        ? `${formData.college_code.toLowerCase()}.admin@hms.local`
+                        : 'admin@institution.edu.in'
                   }
                   value={formData.admin_email}
                   onChange={handleChange}
@@ -1376,6 +1442,227 @@ export default function CreateCollegePage() {
             </div>
           </form>
         </div>
+
+        {/* Right Column: Live Tenant Preview & Verification Sidebar (fills right side blank space) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* 1. Live Tenant Identity Card */}
+          <div className="card" style={{ padding: '24px', margin: 0, borderTop: '4px solid var(--primary-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
+                Live Tenant Identity Preview
+              </span>
+              <span style={{
+                padding: '3px 8px',
+                borderRadius: '12px',
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                background: 'var(--info-bg)',
+                color: 'var(--info-text)',
+              }}>
+                ONBOARDING
+              </span>
+            </div>
+
+            {/* Tenant Code Badge & Name */}
+            <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>
+                College Identifier
+              </div>
+              <div style={{
+                fontSize: '1.25rem',
+                fontWeight: '700',
+                fontFamily: 'monospace',
+                color: formData.college_code ? 'var(--text-primary)' : 'var(--text-muted)',
+                marginTop: '2px',
+                letterSpacing: '0.5px',
+              }}>
+                {formData.college_code || 'CODE PENDING'}
+              </div>
+              <div style={{
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                color: formData.name ? 'var(--text-primary)' : 'var(--text-muted)',
+                marginTop: '6px',
+                lineHeight: '1.4',
+              }}>
+                {formData.name || 'Institution display name will appear here...'}
+              </div>
+            </div>
+
+            {/* Geographic Hierarchy Breadcrumb */}
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
+                📍 Geographical Hierarchy
+              </div>
+              <div style={{
+                padding: '12px',
+                background: 'var(--bg-primary)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.85rem',
+                color: 'var(--text-primary)',
+                lineHeight: '1.6',
+              }}>
+                <div>
+                  <strong style={{ color: 'var(--text-secondary)' }}>State:</strong> {formData.state} {isTamilNadu ? '(TN · Code 33)' : ''}
+                </div>
+                {isTamilNadu ? (
+                  <>
+                    <div style={{ marginTop: '4px' }}>
+                      <strong style={{ color: 'var(--text-secondary)' }}>District:</strong>{' '}
+                      {formData.district_name || <span style={{ color: 'var(--text-muted)' }}>Select District...</span>}
+                    </div>
+                    <div style={{ marginTop: '4px' }}>
+                      <strong style={{ color: 'var(--text-secondary)' }}>
+                        {formData.location_type === 'URBAN' ? 'City / Local Body:' : 'City / Block:'}
+                      </strong>{' '}
+                      {(formData.location_type === 'URBAN' ? formData.city_name : formData.block_name) || (
+                        <span style={{ color: 'var(--text-muted)' }}>Select City...</span>
+                      )}
+                    </div>
+                    <div style={{ marginTop: '4px' }}>
+                      <strong style={{ color: 'var(--text-secondary)' }}>Area / Locality:</strong>{' '}
+                      {(formData.location_type === 'URBAN' ? formData.campus_locality : formData.village_name) || (
+                        <span style={{ color: 'var(--text-muted)' }}>Select Area...</span>
+                      )}
+                    </div>
+                    {formData.pincode && (
+                      <div style={{ marginTop: '4px' }}>
+                        <strong style={{ color: 'var(--text-secondary)' }}>PIN Code:</strong> {formData.pincode}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div style={{ marginTop: '4px' }}>
+                      <strong style={{ color: 'var(--text-secondary)' }}>City:</strong>{' '}
+                      {formData.city === 'OTHER' ? (formData.custom_city || 'Custom City') : (formData.city || 'Select City...')}
+                    </div>
+                    <div style={{ marginTop: '4px' }}>
+                      <strong style={{ color: 'var(--text-secondary)' }}>Area:</strong>{' '}
+                      {formData.area === 'OTHER' ? (formData.custom_area || 'Custom Area') : (formData.area || 'Select Area...')}
+                    </div>
+                    {formData.pincode && (
+                      <div style={{ marginTop: '4px' }}>
+                        <strong style={{ color: 'var(--text-secondary)' }}>PIN Code:</strong> {formData.pincode}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Administrator Account Preview */}
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
+                👤 Primary Administrator
+              </div>
+              <div style={{
+                padding: '12px',
+                background: 'var(--bg-primary)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.85rem',
+                color: 'var(--text-primary)',
+              }}>
+                <div>
+                  <strong style={{ color: 'var(--text-secondary)' }}>Login:</strong>{' '}
+                  <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                    {formData.admin_email || (formData.contact_email ? formData.contact_email : formData.college_code ? `${formData.college_code.toLowerCase()}.admin@hms.local` : 'admin@institution.edu')}
+                  </span>
+                </div>
+                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <strong style={{ color: 'var(--text-secondary)' }}>Password:</strong>
+                  {formData.password ? (
+                    formData.password.length >= 8 && formData.password === formData.confirm_password ? (
+                      <span style={{ color: 'var(--success-text)', fontSize: '0.8rem', fontWeight: '600' }}>✓ Configured & Confirmed</span>
+                    ) : formData.password !== formData.confirm_password ? (
+                      <span style={{ color: 'var(--danger-text)', fontSize: '0.8rem', fontWeight: '600' }}>⚠️ Passwords do not match</span>
+                    ) : (
+                      <span style={{ color: 'var(--warning-text)', fontSize: '0.8rem', fontWeight: '600' }}>⚠️ Min. 8 characters</span>
+                    )
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Not set</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Onboarding Readiness Checklist Card */}
+          <div className="card" style={{ padding: '24px', margin: 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                📋 Onboarding Readiness Checklist
+              </span>
+              <span style={{
+                fontSize: '0.75rem',
+                fontWeight: '700',
+                padding: '2px 8px',
+                borderRadius: '10px',
+                background: completedChecklistCount === 5 ? 'var(--success-bg)' : 'var(--warning-bg)',
+                color: completedChecklistCount === 5 ? 'var(--success-text)' : 'var(--warning-text)',
+              }}>
+                {completedChecklistCount} of 5 Ready
+              </span>
+            </div>
+
+            {/* Progress Bar */}
+            <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
+              <div style={{
+                height: '100%',
+                width: `${(completedChecklistCount / 5) * 100}%`,
+                background: completedChecklistCount === 5 ? '#10b981' : '#3b82f6',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {checklistItems.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.85rem' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: item.valid ? 'var(--success-bg)' : 'var(--bg-primary)',
+                    color: item.valid ? 'var(--success-text)' : 'var(--text-muted)',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    flexShrink: 0,
+                    marginTop: '1px',
+                  }}>
+                    {item.valid ? '✓' : '○'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: item.valid ? '600' : '500', color: item.valid ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                      {item.label}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {item.detail}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. LGD Geographical Directory Info Card */}
+          <div className="card" style={{ padding: '20px', margin: 0, background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <span style={{ fontSize: '1.1rem' }}>🏛️</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                Tamil Nadu LGD Directory
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.45' }}>
+              The HMS platform is synchronized with the official Tamil Nadu Local Government Directory across all 38 districts, 388 development blocks, and 649 urban local bodies for authoritative tenant physical structure management.
+            </p>
+          </div>
+        </div>
+      </div>
       )}
     </div>
   );

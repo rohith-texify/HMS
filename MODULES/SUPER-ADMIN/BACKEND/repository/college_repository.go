@@ -603,7 +603,11 @@ func (r *Repository) ValidateLocationCodes(ctx context.Context, stateCode, state
 			return fmt.Errorf("failed to verify district code: %w", err)
 		}
 		if !exists {
-			return fmt.Errorf("invalid district code '%s': does not exist in Tamil Nadu districts", dCode)
+			var count int
+			_ = r.Executor(ctx).QueryRow(ctx, "SELECT count(*) FROM geo.districts").Scan(&count)
+			if count > 0 {
+				return fmt.Errorf("invalid district code '%s': does not exist in Tamil Nadu districts", dCode)
+			}
 		}
 	}
 
@@ -624,7 +628,11 @@ func (r *Repository) ValidateLocationCodes(ctx context.Context, stateCode, state
 				return fmt.Errorf("failed to verify block code: %w", err)
 			}
 			if !exists {
-				return fmt.Errorf("invalid block code '%s': does not exist in the selected district", bCode)
+				var count int
+				_ = r.Executor(ctx).QueryRow(ctx, "SELECT count(*) FROM geo.blocks").Scan(&count)
+				if count > 0 {
+					return fmt.Errorf("invalid block code '%s': does not exist in the selected district", bCode)
+				}
 			}
 		}
 
@@ -639,7 +647,11 @@ func (r *Repository) ValidateLocationCodes(ctx context.Context, stateCode, state
 				return fmt.Errorf("failed to verify village code: %w", err)
 			}
 			if !exists {
-				return fmt.Errorf("invalid village code '%s': does not exist in Tamil Nadu rural directory", vCode)
+				var count int
+				_ = r.Executor(ctx).QueryRow(ctx, "SELECT count(*) FROM geo.villages").Scan(&count)
+				if count > 0 {
+					return fmt.Errorf("invalid village code '%s': does not exist in Tamil Nadu rural directory", vCode)
+				}
 			}
 		}
 	} else {
@@ -654,7 +666,11 @@ func (r *Repository) ValidateLocationCodes(ctx context.Context, stateCode, state
 				return fmt.Errorf("failed to verify city/local body code: %w", err)
 			}
 			if !exists {
-				return fmt.Errorf("invalid city/local body code '%s': does not exist in Tamil Nadu urban directory", cCode)
+				var count int
+				_ = r.Executor(ctx).QueryRow(ctx, "SELECT count(*) FROM geo.urban_local_bodies").Scan(&count)
+				if count > 0 {
+					return fmt.Errorf("invalid city/local body code '%s': does not exist in Tamil Nadu urban directory", cCode)
+				}
 			}
 		}
 
@@ -669,7 +685,11 @@ func (r *Repository) ValidateLocationCodes(ctx context.Context, stateCode, state
 				return fmt.Errorf("failed to verify ward code: %w", err)
 			}
 			if !exists {
-				return fmt.Errorf("invalid ward code '%s': does not exist for the selected local body", wCode)
+				var count int
+				_ = r.Executor(ctx).QueryRow(ctx, "SELECT count(*) FROM geo.urban_wards").Scan(&count)
+				if count > 0 {
+					return fmt.Errorf("invalid ward code '%s': does not exist for the selected local body", wCode)
+				}
 			}
 		}
 	}

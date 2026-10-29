@@ -7,17 +7,62 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type cachedEntitlement struct {
+	entitled  bool
+	mode      string
+	expiresAt time.Time
+}
+
 type ModuleEntitlementMiddleware struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	cache    map[string]cachedEntitlement
+	cacheMu  sync.RWMutex
+	cacheTTL time.Duration
 }
 
 func NewModuleEntitlementMiddleware(pool *pgxpool.Pool) *ModuleEntitlementMiddleware {
-	return &ModuleEntitlementMiddleware{
-		pool: pool,
+	m := &ModuleEntitlementMiddleware{
+		pool:     pool,
+		cache:    make(map[string]cachedEntitlement),
+		cacheTTL: 45 * time.Second, // 45-second bounded consistency window
+	}
+
+	go m.cacheEvictionRoutine()
+	return m
+}
+
+// InvalidateTenant clears cached module entitlements for a specific tenant.
+func (m *ModuleEntitlementMiddleware) InvalidateTenant(tenantID uuid.UUID) {
+	prefix := tenantID.String() + ":"
+	m.cacheMu.Lock()
+	defer m.cacheMu.Unlock()
+	for k := range m.cache {
+		if strings.HasPrefix(k, prefix) {
+			delete(m.cache, k)
+		}
+	}
+}
+
+func (m *ModuleEntitlementMiddleware) cacheEvictionRoutine() {
+	ticker := time.NewTicker(2 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now().UTC()
+		m.cacheMu.Lock()
+		for k, v := range m.cache {
+			if now.After(v.expiresAt) {
+				delete(m.cache, k)
+			}
+		}
+		m.cacheMu.Unlock()
 	}
 }
 
@@ -123,6 +168,17 @@ func (m *ModuleEntitlementMiddleware) checkModuleEntitlement(
 		return false, "", fmt.Errorf("database pool is nil")
 	}
 
+	cacheKey := tenantID.String() + ":" + strings.ToUpper(strings.TrimSpace(moduleCode))
+	now := time.Now().UTC()
+
+	m.cacheMu.RLock()
+	cached, found := m.cache[cacheKey]
+	m.cacheMu.RUnlock()
+
+	if found && now.Before(cached.expiresAt) {
+		return cached.entitled, cached.mode, nil
+	}
+
 	var mode string
 
 	err := m.pool.QueryRow(
@@ -152,10 +208,25 @@ func (m *ModuleEntitlementMiddleware) checkModuleEntitlement(
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
+			m.cacheMu.Lock()
+			m.cache[cacheKey] = cachedEntitlement{
+				entitled:  false,
+				mode:      "",
+				expiresAt: now.Add(m.cacheTTL),
+			}
+			m.cacheMu.Unlock()
 			return false, "", nil
 		}
 		return false, "", fmt.Errorf("failed to check module entitlement: %w", err)
 	}
+
+	m.cacheMu.Lock()
+	m.cache[cacheKey] = cachedEntitlement{
+		entitled:  true,
+		mode:      mode,
+		expiresAt: now.Add(m.cacheTTL),
+	}
+	m.cacheMu.Unlock()
 
 	return true, mode, nil
 }

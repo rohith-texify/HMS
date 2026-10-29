@@ -1,9 +1,12 @@
 package server
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/yourusername/hostel-management-system/API/internal/auth"
@@ -81,12 +84,14 @@ func NewRouter(
 	})
 
 	router.GET("/health/db", func(c *gin.Context) {
-		ctx := c.Request.Context()
+		pingCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+		defer cancel()
+
 		collegePool := db.GetCollegePool()
 		platformPool := db.GetPlatformPool()
 
-		collegeOK := collegePool != nil && collegePool.Ping(ctx) == nil
-		platformOK := platformPool != nil && platformPool.Ping(ctx) == nil
+		collegeOK := collegePool != nil && collegePool.Ping(pingCtx) == nil
+		platformOK := platformPool != nil && platformPool.Ping(pingCtx) == nil
 
 		if !collegeOK || !platformOK {
 			c.JSON(503, gin.H{
@@ -225,6 +230,8 @@ func NewRouter(
 	reportService := service.NewReportService(repository)
 	reportHandler := NewReportHandler(reportService)
 
+	bootstrapService := service.NewBootstrapService(db.GetPlatformPool())
+
 	// Platform-protected routes.
 	//
 	// These routes use JWT authentication and platform-scope
@@ -340,6 +347,65 @@ func NewRouter(
 				"data": gin.H{
 					"tenant_id": tenantID,
 				},
+			})
+		})
+
+		collegeProtected.GET("/bootstrap", func(c *gin.Context) {
+			tenantValue, exists := c.Get(middleware.TenantIDContextKey)
+			if !exists || tenantValue == nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "INTERNAL_ERROR",
+						"message": "tenant context not found",
+					},
+				})
+				return
+			}
+
+			var tenantID uuid.UUID
+			switch v := tenantValue.(type) {
+			case uuid.UUID:
+				tenantID = v
+			case string:
+				parsed, err := uuid.Parse(v)
+				if err != nil {
+					c.JSON(http.StatusBadRequest, gin.H{
+						"success": false,
+						"error": gin.H{
+							"code":    "INVALID_TENANT_ID",
+							"message": "invalid tenant id in context",
+						},
+					})
+					return
+				}
+				tenantID = parsed
+			default:
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "INTERNAL_ERROR",
+						"message": "unexpected tenant context type",
+					},
+				})
+				return
+			}
+
+			cfg, err := bootstrapService.GetCollegeBootstrapConfig(c.Request.Context(), tenantID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"error": gin.H{
+						"code":    "BOOTSTRAP_FAILED",
+						"message": "failed to retrieve college bootstrap configuration",
+					},
+				})
+				return
+			}
+
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"data":    cfg,
 			})
 		})
 

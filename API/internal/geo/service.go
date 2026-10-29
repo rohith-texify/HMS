@@ -26,7 +26,11 @@ func NewService(repo Repository) Service {
 }
 
 func (s *service) GetDistricts(ctx context.Context) ([]District, error) {
-	return s.repo.GetDistricts(ctx)
+	districts, err := s.repo.GetDistricts(ctx)
+	if err != nil || len(districts) == 0 {
+		return GetCanonicalDistricts(), nil
+	}
+	return districts, nil
 }
 
 func (s *service) GetSubdistrictsByDistrict(ctx context.Context, districtCode string) ([]Subdistrict, error) {
