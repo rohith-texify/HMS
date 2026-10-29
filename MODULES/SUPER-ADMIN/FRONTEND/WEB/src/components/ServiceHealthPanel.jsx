@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function ServiceHealthPanel({ health }) {
   if (!health) return null;
@@ -50,6 +51,12 @@ export default function ServiceHealthPanel({ health }) {
             <div>{getStatusBadge(check.status)}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+        <Link to="/monitoring" style={{ fontSize: '0.82rem', color: '#38bdf8', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Open Telemetry & Monitoring <span>→</span>
+        </Link>
       </div>
     </div>
   );

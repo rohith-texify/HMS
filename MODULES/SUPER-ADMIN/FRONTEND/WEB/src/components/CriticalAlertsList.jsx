@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 export default function CriticalAlertsList({ alerts }) {
   const hasAlerts = alerts && alerts.length > 0;
@@ -41,6 +42,12 @@ export default function CriticalAlertsList({ alerts }) {
           ))}
         </div>
       )}
+
+      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+        <Link to="/notifications" style={{ fontSize: '0.82rem', color: '#38bdf8', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+          Open Notification Hub <span>→</span>
+        </Link>
+      </div>
     </div>
   );
 }
