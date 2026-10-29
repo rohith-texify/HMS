@@ -135,50 +135,34 @@ func NewWithPool(pool *pgxpool.Pool) *Repository {
 	}
 }
 
-// ExecUsers executes an SQL statement on app.users, using the active transaction/pool,
-// with an automatic fallback to CollegePool if the platform connection pool encounters
-// PostgreSQL permission error SQLSTATE 42501 (permission denied for table users).
+// ExecUsers executes an SQL statement on app.users.
+// Because the platform application role lacks DML on app schema tables,
+// queries on app.users MUST route to CollegePool (which possesses full DML on app.users)
+// to avoid executing unauthorized statements on the platform transaction connection,
+// which would abort the transaction with SQLSTATE 25P02.
 func (r *Repository) ExecUsers(ctx context.Context, sql string, arguments ...interface{}) (pgconn.CommandTag, error) {
-	tag, err := r.Executor(ctx).Exec(ctx, sql, arguments...)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "42501" && r.CollegePool != nil {
-			return r.CollegePool.Exec(ctx, sql, arguments...)
+	if r != nil && r.CollegePool != nil {
+		tag, err := r.CollegePool.Exec(ctx, sql, arguments...)
+		if err == nil {
+			return tag, nil
 		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "42501" {
+			return r.Executor(ctx).Exec(ctx, sql, arguments...)
+		}
+		return tag, err
 	}
-	return tag, err
+	return r.Executor(ctx).Exec(ctx, sql, arguments...)
 }
 
-// QueryRowUsers executes a query returning a single row on app.users, using the active transaction/pool,
-// with an automatic fallback to CollegePool if the platform connection pool encounters
-// PostgreSQL permission error SQLSTATE 42501 (permission denied for table users).
+// QueryRowUsers executes a query returning a single row on app.users.
+// Routes directly to CollegePool to prevent poisoning and aborting contextual
+// platform control-plane transactions.
 func (r *Repository) QueryRowUsers(ctx context.Context, sql string, arguments ...interface{}) pgx.Row {
-	return &usersRowWrapper{
-		ctx:         ctx,
-		sql:         sql,
-		args:        arguments,
-		executorRow: r.Executor(ctx).QueryRow(ctx, sql, arguments...),
-		collegePool: r.CollegePool,
+	if r != nil && r.CollegePool != nil {
+		return r.CollegePool.QueryRow(ctx, sql, arguments...)
 	}
-}
-
-type usersRowWrapper struct {
-	ctx         context.Context
-	sql         string
-	args        []interface{}
-	executorRow pgx.Row
-	collegePool *pgxpool.Pool
-}
-
-func (w *usersRowWrapper) Scan(dest ...any) error {
-	err := w.executorRow.Scan(dest...)
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "42501" && w.collegePool != nil {
-			return w.collegePool.QueryRow(w.ctx, w.sql, w.args...).Scan(dest...)
-		}
-	}
-	return err
+	return r.Executor(ctx).QueryRow(ctx, sql, arguments...)
 }
 
 // Executor returns the appropriate database executor (transaction or pool).

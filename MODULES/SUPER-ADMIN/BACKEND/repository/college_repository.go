@@ -1575,7 +1575,7 @@ func (r *Repository) UpsertCollegeAdmin(
 		if actorID != uuid.Nil {
 			assignedBy = &actorID
 		}
-		_, err = r.Executor(ctx).Exec(ctx, `
+		insertRoleQuery := `
 			INSERT INTO platform.user_roles (
 				user_id,
 				role_id,
@@ -1585,9 +1585,19 @@ func (r *Repository) UpsertCollegeAdmin(
 			) VALUES (
 				$1, $2, $3, 'ACTIVE', $4
 			)
-		`, targetUserID, roleID, collegeID, assignedBy)
+		`
+		_, err = r.Executor(ctx).Exec(ctx, insertRoleQuery, targetUserID, roleID, collegeID, assignedBy)
 		if err != nil {
-			return nil, fmt.Errorf("failed to assign COLLEGE_ADMIN role: %w", err)
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && (pgErr.Code == "25P02" || pgErr.Code == "42501") && r.CollegePool != nil {
+				_, fbErr := r.CollegePool.Exec(ctx, insertRoleQuery, targetUserID, roleID, collegeID, assignedBy)
+				if fbErr != nil {
+					return nil, fmt.Errorf("failed to assign COLLEGE_ADMIN role: %w", fbErr)
+				}
+				err = nil
+			} else {
+				return nil, fmt.Errorf("failed to assign COLLEGE_ADMIN role: %w", err)
+			}
 		}
 	} else {
 		return nil, fmt.Errorf("failed to query existing college admin: %w", err)
