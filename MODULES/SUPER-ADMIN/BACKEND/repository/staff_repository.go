@@ -217,7 +217,7 @@ func (r *Repository) UpdatePlatformStaffProfile(
 		return nil, err
 	}
 
-	_, err = r.Executor(ctx).Exec(ctx, `
+	_, err = r.ExecUsers(ctx, `
 		UPDATE app.users
 		SET phone = $1,
 		    updated_at = now()
@@ -272,7 +272,7 @@ func (r *Repository) UpdatePlatformStaffStatus(
 	}
 
 	// 3. Update app.users
-	_, err = r.Executor(ctx).Exec(ctx, `
+	_, err = r.ExecUsers(ctx, `
 		UPDATE app.users
 		SET status = $1,
 		    updated_at = now()

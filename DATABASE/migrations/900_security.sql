@@ -708,6 +708,7 @@ BEGIN
         GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA platform TO hms_platform_app;
         GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA platform, app TO hms_platform_app;
         GRANT SELECT ON ALL TABLES IN SCHEMA app TO hms_platform_app;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON app.users TO hms_platform_app;
         GRANT SELECT, INSERT ON platform.audit_logs, platform.login_events TO hms_platform_app;
     END IF;
 END

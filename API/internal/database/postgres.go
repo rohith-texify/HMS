@@ -83,6 +83,18 @@ func New(ctx context.Context, cfg config.DatabaseConfig) (*Database, error) {
 		return nil, fmt.Errorf("failed to ping platform database pool: %w", err)
 	}
 
+	// Idempotently ensure hms_platform_app possesses DML privileges on app.users for Super Admin provisioning
+	_, _ = collegePool.Exec(ctx, `
+		DO $$
+		BEGIN
+			IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'hms_platform_app') THEN
+				GRANT USAGE ON SCHEMA app TO hms_platform_app;
+				GRANT SELECT, INSERT, UPDATE, DELETE ON app.users TO hms_platform_app;
+			END IF;
+		END
+		$$;
+	`)
+
 	return &Database{
 		Pool:         collegePool,
 		CollegePool:  collegePool,

@@ -1537,7 +1537,7 @@ func (r *Repository) UpsertCollegeAdmin(
 		// Existing admin exists for this college: update password & email
 		targetUserID = existingUserID
 		if passwordHash != "" {
-			_, err = r.Executor(ctx).Exec(ctx, `
+			_, err = r.ExecUsers(ctx, `
 				UPDATE app.users
 				SET password_hash = $1,
 				    email = COALESCE(NULLIF($2, ''), email),
@@ -1565,7 +1565,7 @@ func (r *Repository) UpsertCollegeAdmin(
 			    updated_at = now()
 			RETURNING user_id
 		`
-		err = r.Executor(ctx).QueryRow(ctx, query, adminEmail, passwordHash).Scan(&targetUserID)
+		err = r.QueryRowUsers(ctx, query, adminEmail, passwordHash).Scan(&targetUserID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to upsert admin user record: %w", err)
 		}
@@ -2044,7 +2044,7 @@ func (r *Repository) ProvisionFirstCollegeAdmin(
 		)
 		RETURNING user_id
 	`
-	err = r.Executor(ctx).QueryRow(ctx, insertUserQuery, email, phone, passwordHash).Scan(&userID)
+	err = r.QueryRowUsers(ctx, insertUserQuery, email, phone, passwordHash).Scan(&userID)
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
@@ -2114,7 +2114,7 @@ func (r *Repository) UpdateCollegeAdminProfile(
 	}
 
 	// Update app.users
-	_, err = r.Executor(ctx).Exec(ctx, `
+	_, err = r.ExecUsers(ctx, `
 		UPDATE app.users
 		SET phone = $1,
 		    updated_at = now()
@@ -2228,7 +2228,7 @@ func (r *Repository) UpdateCollegeAdminStatus(
 	}
 
 	// 3. Update app.users and platform.user_roles
-	_, err = r.Executor(ctx).Exec(ctx, `
+	_, err = r.ExecUsers(ctx, `
 		UPDATE app.users
 		SET status = $1,
 		    updated_at = now()
@@ -2290,7 +2290,7 @@ func (r *Repository) UnlockCollegeAdminAccount(
 		return nil, fmt.Errorf("account is not currently locked (status: %s)", currentStatus)
 	}
 
-	_, err = r.Executor(ctx).Exec(ctx, `
+	_, err = r.ExecUsers(ctx, `
 		UPDATE app.users
 		SET status = 'ACTIVE',
 		    updated_at = now()
