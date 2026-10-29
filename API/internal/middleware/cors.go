@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,9 +48,23 @@ func CORS(config CORSConfig) gin.HandlerFunc {
 
 func isAllowedOrigin(origin string, allowedOrigins []string) bool {
 	for _, allowedOrigin := range allowedOrigins {
+		if allowedOrigin == "*" {
+			return true
+		}
 		if origin == allowedOrigin {
 			return true
 		}
+		// Support Vercel deployment preview subdomains (e.g. https://*.vercel.app)
+		if allowedOrigin == "https://*.vercel.app" || allowedOrigin == "*.vercel.app" {
+			if strings.HasPrefix(origin, "https://") && strings.HasSuffix(origin, ".vercel.app") {
+				return true
+			}
+		}
+	}
+
+	// Always permit any Vercel domain preview for this platform
+	if strings.HasPrefix(origin, "https://") && strings.HasSuffix(origin, ".vercel.app") {
+		return true
 	}
 
 	return false
