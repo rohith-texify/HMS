@@ -108,3 +108,4 @@ func Run() {
 
 	logger.Info("server exited safely")
 }
+
