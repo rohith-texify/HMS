@@ -68,21 +68,23 @@ export default function CreateCollegePage() {
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [districtError, setDistrictError] = useState(null);
 
-  // Tamil Nadu unified Cities (Corporations, Municipalities, Towns, and Blocks) and Localities
-  const [tnCities, setTnCities] = useState(() => (formData.district_code ? getCanonicalCitiesForDistrict(formData.district_code) : []));
-  const [tnLocalities, setTnLocalities] = useState([]);
+  // Tamil Nadu unified Cities (Corporations, Municipalities, Towns, and Blocks) derived deterministically
+  const tnCities = useMemo(() => {
+    if (formData.state_code === '33' && formData.district_code) {
+      return getCanonicalCitiesForDistrict(formData.district_code);
+    }
+    return [];
+  }, [formData.state_code, formData.district_code]);
 
-  const [urbanLocalBodies, setUrbanLocalBodies] = useState([]);
-  const [loadingUlbs, setLoadingUlbs] = useState(false);
-  const [ulbError, setUlbError] = useState(null);
-
-  const [blocks, setBlocks] = useState([]);
-  const [loadingBlocks, setLoadingBlocks] = useState(false);
-  const [blockError, setBlockError] = useState(null);
-
-  const [villages, setVillages] = useState([]);
-  const [loadingVillages, setLoadingVillages] = useState(false);
-  const [villageError, setVillageError] = useState(null);
+  // Campus Localities derived deterministically from chosen city / block
+  const tnLocalities = useMemo(() => {
+    const code = formData.city_code || formData.block_code;
+    const name = formData.city_name || formData.block_name;
+    if (code) {
+      return getCanonicalLocalities(code, name);
+    }
+    return [];
+  }, [formData.city_code, formData.block_code, formData.city_name, formData.block_name]);
 
   // Active request tracking to prevent stale asynchronous responses
   const activeReqRef = useRef({
@@ -131,23 +133,6 @@ export default function CreateCollegePage() {
       setDistricts([]);
     }
   }, [formData.state_code]);
-
-  // Synchronize Tamil Nadu cities and local bodies immediately on district change
-  useEffect(() => {
-    if (formData.state_code === '33' && formData.district_code) {
-      const canonicalCities = getCanonicalCitiesForDistrict(formData.district_code);
-      setTnCities(canonicalCities);
-
-      const initialBlocks = getCanonicalBlocks(formData.district_code);
-      if (initialBlocks.length > 0) setBlocks(initialBlocks);
-
-      const initialUlbs = getCanonicalULBs(formData.district_code);
-      if (initialUlbs.length > 0) setUrbanLocalBodies(initialUlbs);
-    } else {
-      setTnCities([]);
-      setTnLocalities([]);
-    }
-  }, [formData.district_code, formData.state_code]);
 
 
 
@@ -303,11 +288,6 @@ export default function CreateCollegePage() {
     const dObj = districts.find((d) => d.district_code === code);
     const dName = dObj ? dObj.district_name : '';
 
-    // Immediately load unified cities and local bodies for this district
-    const canonicalCities = getCanonicalCitiesForDistrict(code);
-    setTnCities(canonicalCities);
-    setTnLocalities([]);
-
     setFormData((prev) => ({
       ...prev,
       district_code: code,
@@ -338,7 +318,6 @@ export default function CreateCollegePage() {
   const handleTnCityChange = (e) => {
     const rawVal = e.target.value;
     if (!rawVal) {
-      setTnLocalities([]);
       setFormData((prev) => ({
         ...prev,
         city_code: '',
@@ -355,10 +334,6 @@ export default function CreateCollegePage() {
     const [type, code] = rawVal.split(':');
     const matched = tnCities.find((c) => c.code === code && c.type === type);
     const cName = matched ? matched.name : '';
-
-    // Populate localities for this city immediately
-    const localities = getCanonicalLocalities(code, cName);
-    setTnLocalities(localities);
 
     if (type === 'URBAN') {
       setFormData((prev) => ({
@@ -596,7 +571,8 @@ export default function CreateCollegePage() {
   const isLocationValid = Boolean(
     isTamilNadu
       ? (formData.city_code || formData.block_code)
-      : (formData.city && (formData.city !== 'OTHER' || formData.custom_city))
+      : (formData.city && (formData.city !== 'OTHER' || formData.custom_city))  
+    
   );
   const isPasswordValid = Boolean(
     formData.password && formData.password.length >= 8 && formData.password === formData.confirm_password
@@ -997,9 +973,9 @@ export default function CreateCollegePage() {
                       name="city_selection"
                       className="form-control"
                       value={
-                        formData.location_type === 'URBAN' && formData.city_code
+                        formData.city_code
                           ? `URBAN:${formData.city_code}`
-                          : formData.location_type === 'RURAL' && formData.block_code
+                          : formData.block_code
                             ? `RURAL:${formData.block_code}`
                             : ''
                       }

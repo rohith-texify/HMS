@@ -12,6 +12,8 @@
     "MODULES/SUPER-ADMIN/FRONTEND/WEB"
   ],
   "scripts": {
+    "dev": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
+    "start": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "install:all": "npm install && npm run install:modules",
     "install:modules": "npm install --workspaces",
     "dev:student": "npm run dev --workspace=MODULES/STUDENT/FRONTEND/WEB",
