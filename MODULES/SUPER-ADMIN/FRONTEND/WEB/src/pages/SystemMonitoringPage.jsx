@@ -55,38 +55,39 @@ export default function SystemMonitoringPage() {
   const telemetry = metrics?.telemetry_signals;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="page-container space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-5">
+      <div className="header-container border-b border-gray-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Activity className="w-7 h-7 text-indigo-600" />
+          <h1 className="page-title flex items-center gap-2">
+            <Activity className="w-6 h-6 text-indigo-600" />
             System Monitoring & Telemetry
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="page-subtitle">
             Real-time platform service health, PostgreSQL pool status, and sanitized operational error tracking.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-xs font-medium text-gray-600 cursor-pointer bg-white px-3 py-2 border border-gray-300 rounded-lg shadow-sm">
+        <div className="quick-actions">
+          <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer bg-white px-3 py-2 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition">
             <input
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded text-indigo-600"
+              className="rounded text-indigo-600 focus:ring-indigo-500"
             />
             Auto-refresh (15s)
           </label>
           <button
             onClick={() => loadMetrics()}
             disabled={loading}
-            className="flex items-center gap-1.5 p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm transition-colors text-sm disabled:opacity-50"
+            className="btn btn-primary"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
       </div>
+
 
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex items-center gap-2">

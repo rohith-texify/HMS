@@ -127,38 +127,41 @@ export default function NotificationsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="page-container space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-200 pb-5">
+      <div className="header-container border-b border-gray-200 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Bell className="w-7 h-7 text-indigo-600" />
-            Notification / Communication Management
+          <h1 className="page-title flex items-center gap-2">
+            <Bell className="w-6 h-6 text-indigo-600" />
+            Notification & Broadcast Management
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Publish official company announcements and maintenance advisories to College Admin portals.
+          <p className="page-subtitle">
+            Publish official company announcements, advisories, and targeted maintenance broadcasts to College Admin portals.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="quick-actions">
           <button
             onClick={() => loadNotifications()}
-            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-600"
+            className="btn btn-outline"
             title="Refresh"
+            disabled={loading}
           >
-            <RefreshCw className="w-5 h-5" />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
           <button
             onClick={() => {
               setShowModal(true);
               handleAudiencePreview('SELECTED_COLLEGES', []);
             }}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors"
+            className="btn btn-primary"
           >
             <Send className="w-4 h-4" />
             Compose Announcement
           </button>
         </div>
       </div>
+
 
       {submitSuccess && (
         <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center justify-between">
@@ -181,15 +184,15 @@ export default function NotificationsPage() {
       )}
 
       {/* Filter Bar */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Filter className="w-4 h-4" />
+      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+          <Filter className="w-3.5 h-3.5 text-indigo-600" />
           Filters:
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="text-xs font-medium border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Statuses</option>
           <option value="PUBLISHED">Published</option>
@@ -200,7 +203,7 @@ export default function NotificationsPage() {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value)}
-          className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="text-xs font-medium border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
         >
           <option value="">All Categories</option>
           <option value="SYSTEM">System Notice</option>
@@ -209,14 +212,14 @@ export default function NotificationsPage() {
           <option value="FEATURE">Feature Release</option>
           <option value="GENERAL">General</option>
         </select>
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[220px]">
           <input
             type="text"
-            placeholder="Search notifications..."
+            placeholder="Search by title, message or creator..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && loadNotifications()}
-            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="w-full text-xs border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
         </div>
       </div>

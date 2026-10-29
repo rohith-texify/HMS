@@ -166,6 +166,15 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
 
         <NavLink
           onClick={handleLinkClick}
+          to="/reports"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>📊</span>
+          <span>Reports & Analytics</span>
+        </NavLink>
+
+        <NavLink
+          onClick={handleLinkClick}
           to="/support"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -173,6 +182,7 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
           <span>Support Console</span>
         </NavLink>
       </nav>
+
 
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #334155' }}>
         {user && (

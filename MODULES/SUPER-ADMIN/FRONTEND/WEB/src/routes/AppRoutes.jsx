@@ -25,6 +25,7 @@ import ChangeManagementPage from '../pages/ChangeManagementPage';
 import NotificationsPage from '../pages/NotificationsPage';
 import SystemMonitoringPage from '../pages/SystemMonitoringPage';
 import SupportTroubleshootingPage from '../pages/SupportTroubleshootingPage';
+import ReportsAnalyticsPage from '../pages/ReportsAnalyticsPage';
 
 // Component that redirects already authenticated Super Admins away from /login to /dashboard
 function LoginRoute() {
@@ -78,6 +79,8 @@ export default function AppRoutes() {
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/monitoring" element={<SystemMonitoringPage />} />
         <Route path="/support" element={<SupportTroubleshootingPage />} />
+        <Route path="/reports" element={<ReportsAnalyticsPage />} />
+        <Route path="/analytics" element={<ReportsAnalyticsPage />} />
       </Route>
 
       {/* Catch-all route */}

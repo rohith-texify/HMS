@@ -199,6 +199,12 @@ body {
   min-width: 0;
 }
 
+.page-container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
 .header-container {
   display: flex;
   justify-content: space-between;
