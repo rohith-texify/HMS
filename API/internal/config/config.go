@@ -53,7 +53,6 @@ type DatabaseConfig struct {
 	PlatformMinConns int32
 }
 
-
 type JWTConfig struct {
 	Secret             string
 	Issuer             string
@@ -165,6 +164,9 @@ func Load() (*Config, error) {
 	}
 	if rawDBURL == "" {
 		rawDBURL = strings.TrimSpace(os.Getenv("POSTGRESQL_URL"))
+	}
+	if rawDBURL == "" && os.Getenv("RENDER") != "" {
+		rawDBURL = "postgresql://hms_db_3way_user:D06mA7yWsJJvb1uKWroeHOHrYDOgcpAg@dpg-dbgb12qvcj2c73bmcm0g-a.oregon-postgres.render.com/hms_db_3way?sslmode=require"
 	}
 
 	dbHost := getTrimmedEnv("DB_HOST", getTrimmedEnv("PGHOST", getTrimmedEnv("POSTGRES_HOST", "localhost")))
