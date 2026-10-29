@@ -37,6 +37,9 @@ func RegisterSuperAdminRoutes(
 	systemSettingsService := services.NewSystemSettingsService(db, repo)
 	auditService := services.NewAuditService(db, repo)
 	changeManagementService := services.NewChangeManagementService(db, repo, approvalService)
+	notificationService := services.NewNotificationService(db, repo, approvalService)
+	monitoringService := services.NewMonitoringService(db, repo)
+	supportService := services.NewSupportService(db, repo)
 
 	// Initialize handlers
 	collegeHandler := handlers.NewCollegeHandler(collegeService)
@@ -54,6 +57,9 @@ func RegisterSuperAdminRoutes(
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(systemSettingsService)
 	auditHandler := handlers.NewAuditHandler(auditService)
 	changeManagementHandler := handlers.NewChangeManagementHandler(changeManagementService)
+	notificationHandler := handlers.NewNotificationHandler(notificationService)
+	monitoringHandler := handlers.NewMonitoringHandler(monitoringService)
+	supportHandler := handlers.NewSupportHandler(supportService)
 
 	// Super Admin API routes group
 	// Note: Auth and permission middleware should be applied at the router level
@@ -308,6 +314,31 @@ func RegisterSuperAdminRoutes(
 			changeSets.POST("/rollback", requireManage, changeManagementHandler.ProposeRollback)
 			changeSets.GET("/:id", requireView, changeManagementHandler.GetChangeSet)
 			changeSets.POST("/:id/withdraw", requireManage, changeManagementHandler.WithdrawChangeSet)
+		}
+
+		// Notification Management (Module 17)
+		notifications := superAdmin.Group("/notifications")
+		{
+			notifications.GET("", requireView, notificationHandler.ListNotifications)
+			notifications.POST("", requireManage, notificationHandler.CreateNotification)
+			notifications.POST("/preview-audience", requireView, notificationHandler.PreviewAudience)
+			notifications.POST("/:id/cancel", requireManage, notificationHandler.CancelNotification)
+		}
+
+		// System Monitoring (Module 18)
+		monitoring := superAdmin.Group("/monitoring")
+		{
+			monitoring.GET("/metrics", requireView, monitoringHandler.GetMetrics)
+		}
+
+		// Support & Troubleshooting (Module 19)
+		support := superAdmin.Group("/support")
+		{
+			support.GET("/grants", requireView, supportHandler.ListGrants)
+			support.POST("/grants", requireManage, supportHandler.CreateGrant)
+			support.POST("/grants/:id/revoke", requireManage, supportHandler.RevokeGrant)
+			support.GET("/diagnose-entitlement", requireView, supportHandler.DiagnoseEntitlement)
+			support.POST("/student-lookup", requireView, supportHandler.MaskedStudentLookup)
 		}
 	}
 }

@@ -115,6 +115,30 @@ export default function Sidebar() {
           <span>📜</span>
           <span>Audit Logs</span>
         </NavLink>
+
+        <NavLink
+          to="/notifications"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>📢</span>
+          <span>Notifications</span>
+        </NavLink>
+
+        <NavLink
+          to="/monitoring"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>📈</span>
+          <span>Monitoring</span>
+        </NavLink>
+
+        <NavLink
+          to="/support"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>🛠️</span>
+          <span>Support Console</span>
+        </NavLink>
       </nav>
 
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #334155' }}>

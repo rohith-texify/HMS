@@ -892,6 +892,26 @@ func (r *Repository) ExecuteOperation(
 		}
 		return nil
 
+	case "PLATFORM_NOTIFICATION_PUBLISH":
+		notifIDStr, ok := payload["notification_id"].(string)
+		if !ok || notifIDStr == "" {
+			return fmt.Errorf("notification_id is required for PLATFORM_NOTIFICATION_PUBLISH")
+		}
+		notifID, err := uuid.Parse(notifIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid notification_id: %w", err)
+		}
+		now := time.Now().UTC()
+		_, err = r.Executor(ctx).Exec(ctx, `
+			UPDATE app.platform_notifications
+			SET status = 'PUBLISHED', published_by = $1, published_at = $2, updated_at = $2
+			WHERE id = $3 AND status IN ('DRAFT', 'SCHEDULED')
+		`, actorID, now, notifID)
+		if err != nil {
+			return fmt.Errorf("execute PLATFORM_NOTIFICATION_PUBLISH: %w", err)
+		}
+		return nil
+
 	default:
 		return fmt.Errorf("unsupported approval operation type: %s", opType)
 	}
