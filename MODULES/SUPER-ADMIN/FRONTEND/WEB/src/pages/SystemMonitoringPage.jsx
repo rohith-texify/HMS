@@ -55,25 +55,24 @@ export default function SystemMonitoringPage() {
   const telemetry = metrics?.telemetry_signals;
 
   return (
-    <div className="page-container space-y-6">
+    <div className="page-container">
       {/* Header */}
-      <div className="header-container border-b border-gray-200 pb-5">
+      <div className="header-container">
         <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Activity className="w-6 h-6 text-indigo-600" />
-            System Monitoring & Telemetry
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>📈</span>
+            <span>System Monitoring & Telemetry</span>
           </h1>
           <p className="page-subtitle">
             Real-time platform service health, PostgreSQL pool status, and sanitized operational error tracking.
           </p>
         </div>
         <div className="quick-actions">
-          <label className="flex items-center gap-2 text-xs font-medium text-gray-700 cursor-pointer bg-white px-3 py-2 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', fontWeight: 500, color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: '#ffffff', padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
             <input
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
             />
             Auto-refresh (15s)
           </label>
@@ -82,123 +81,125 @@ export default function SystemMonitoringPage() {
             disabled={loading}
             className="btn btn-primary"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
         </div>
       </div>
 
-
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex items-center gap-2">
-          <AlertOctagon className="w-5 h-5 text-red-600" />
-          <span>{error}</span>
+        <div className="alert-banner error">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertOctagon size={18} />
+            <span>{error}</span>
+          </div>
         </div>
       )}
 
       {/* Primary Health Banners */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="stat-grid-4">
         {/* Overall Status */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div
-            className={`p-3 rounded-xl ${
-              serviceHealth?.overall_status === 'HEALTHY'
-                ? 'bg-green-100 text-green-700'
-                : serviceHealth?.overall_status === 'DEGRADED'
-                ? 'bg-amber-100 text-amber-700'
-                : 'bg-red-100 text-red-700'
-            }`}
-          >
-            {serviceHealth?.overall_status === 'HEALTHY' && <CheckCircle className="w-6 h-6" />}
-            {serviceHealth?.overall_status === 'DEGRADED' && <AlertTriangle className="w-6 h-6" />}
-            {serviceHealth?.overall_status !== 'HEALTHY' && serviceHealth?.overall_status !== 'DEGRADED' && (
-              <XCircle className="w-6 h-6" />
-            )}
-          </div>
-          <div>
-            <div className="text-xs text-gray-500 font-medium">Platform Status</div>
-            <div className="text-xl font-bold text-gray-900 mt-0.5">
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">Platform Status</span>
+            <span
+              className={`badge ${
+                serviceHealth?.overall_status === 'HEALTHY'
+                  ? 'badge-success'
+                  : serviceHealth?.overall_status === 'DEGRADED'
+                  ? 'badge-warning'
+                  : 'badge-danger'
+              }`}
+            >
               {serviceHealth?.overall_status || 'UNKNOWN'}
-            </div>
+            </span>
           </div>
+          <div className="stat-card-value">
+            {serviceHealth?.overall_status === 'HEALTHY' ? 'All Systems Nominal' : serviceHealth?.overall_status || 'UNKNOWN'}
+          </div>
+          <div className="stat-card-subtitle">Active multi-tenant routing</div>
         </div>
 
         {/* Database Total Connections */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-indigo-100 text-indigo-700 rounded-xl">
-            <Database className="w-6 h-6" />
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">DB Total Pool</span>
+            <span className="badge badge-info">PostgreSQL</span>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 font-medium">DB Total Connections</div>
-            <div className="text-xl font-bold text-gray-900 mt-0.5">
-              {(dbStats?.platform_pool_total_conns || 0) + (dbStats?.college_pool_total_conns || 0)}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-0.5">
-              Platform: {dbStats?.platform_pool_total_conns || 0} | College: {dbStats?.college_pool_total_conns || 0}
-            </div>
+          <div className="stat-card-value">
+            {(dbStats?.platform_pool_total_conns || 0) + (dbStats?.college_pool_total_conns || 0)} conns
+          </div>
+          <div className="stat-card-subtitle">
+            Platform: {dbStats?.platform_pool_total_conns || 0} | College: {dbStats?.college_pool_total_conns || 0}
           </div>
         </div>
 
         {/* Active Tenants */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-blue-100 text-blue-700 rounded-xl">
-            <Layers className="w-6 h-6" />
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">Tenant Instances</span>
+            <span className="badge badge-success">RLS Isolated</span>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 font-medium">Active Tenants</div>
-            <div className="text-xl font-bold text-gray-900 mt-0.5">
-              {tenantStats?.active || 0} / {tenantStats?.total_colleges || 0}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-0.5">
-              Onboarding: {tenantStats?.onboarding || 0} | Suspended: {tenantStats?.suspended || 0}
-            </div>
+          <div className="stat-card-value">
+            {tenantStats?.active || 0} / {tenantStats?.total_colleges || 0}
+          </div>
+          <div className="stat-card-subtitle">
+            Onboarding: {tenantStats?.onboarding || 0} | Suspended: {tenantStats?.suspended || 0}
           </div>
         </div>
 
         {/* Auth Telemetry */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex items-center gap-4">
-          <div className="p-3 bg-purple-100 text-purple-700 rounded-xl">
-            <ShieldCheck className="w-6 h-6" />
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">Auth Control Plane</span>
+            <span className="badge badge-success">Operational</span>
           </div>
-          <div>
-            <div className="text-xs text-gray-500 font-medium">Auth Service</div>
-            <div className="text-xl font-bold text-gray-900 mt-0.5">
-              {telemetry?.auth_service_status || 'OPERATIONAL'}
-            </div>
-            <div className="text-[11px] text-gray-400 mt-0.5">Stateless JWT + DB Audit</div>
+          <div className="stat-card-value">
+            {telemetry?.auth_service_status || 'OPERATIONAL'}
           </div>
+          <div className="stat-card-subtitle">Stateless JWT + DB Audit</div>
         </div>
       </div>
 
       {/* Probes & Integrations Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px', marginBottom: '24px' }}>
         {/* Service Probes */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Server className="w-5 h-5 text-indigo-600" />
-            Service Health Probes
-          </h2>
-          <div className="space-y-3">
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">
+              <span>⚡</span>
+              <span>Service Health Probes</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {serviceHealth?.checks?.map((probe, idx) => (
               <div
                 key={idx}
-                className="p-3.5 rounded-xl border border-gray-100 bg-gray-50 flex items-center justify-between"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  backgroundColor: 'var(--bg-primary)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                }}
               >
                 <div>
-                  <div className="font-semibold text-sm text-gray-800 capitalize">
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', textTransform: 'capitalize' }}>
                     {probe.service_name.replace(/_/g, ' ')}
                   </div>
-                  <div className="text-xs text-gray-500 mt-0.5">{probe.message}</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    {probe.message}
+                  </div>
                 </div>
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                  className={`badge ${
                     probe.status === 'HEALTHY'
-                      ? 'bg-green-100 text-green-800'
+                      ? 'badge-success'
                       : probe.status === 'DEGRADED'
-                      ? 'bg-amber-100 text-amber-800'
-                      : probe.status === 'NOT_CONFIGURED'
-                      ? 'bg-gray-200 text-gray-700'
-                      : 'bg-red-100 text-red-800'
+                      ? 'badge-warning'
+                      : 'badge-muted'
                   }`}
                 >
                   {probe.status}
@@ -209,50 +210,50 @@ export default function SystemMonitoringPage() {
         </div>
 
         {/* Telemetry & Infrastructure Architecture Signals */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-            <Cpu className="w-5 h-5 text-indigo-600" />
-            Infrastructure Telemetry Signals
-          </h2>
-          <div className="space-y-3 text-xs">
-            <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 flex justify-between items-center">
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">
+              <span>🖥️</span>
+              <span>Infrastructure Telemetry Signals</span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               <div>
-                <span className="font-semibold text-gray-800">PostgreSQL Platform Pool</span>
-                <p className="text-gray-500 mt-0.5">Control-plane metadata & audit connection pool</p>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>PostgreSQL Platform Pool</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Control-plane metadata & audit connection pool</div>
               </div>
-              <div className="text-right">
-                <span className="font-bold text-gray-900">{dbStats?.platform_pool_idle_conns || 0} idle</span> /{' '}
-                <span>{dbStats?.platform_pool_acquired_conns || 0} active</span>
+              <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
+                <strong>{dbStats?.platform_pool_idle_conns || 0} idle</strong> / {dbStats?.platform_pool_acquired_conns || 0} active
               </div>
             </div>
 
-            <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               <div>
-                <span className="font-semibold text-gray-800">PostgreSQL College Pool</span>
-                <p className="text-gray-500 mt-0.5">Tenant operational data pool (RLS scoped)</p>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>PostgreSQL College Pool</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Tenant operational data pool (RLS scoped)</div>
               </div>
-              <div className="text-right">
-                <span className="font-bold text-gray-900">{dbStats?.college_pool_idle_conns || 0} idle</span> /{' '}
-                <span>{dbStats?.college_pool_acquired_conns || 0} active</span>
+              <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
+                <strong>{dbStats?.college_pool_idle_conns || 0} idle</strong> / {dbStats?.college_pool_acquired_conns || 0} active
               </div>
             </div>
 
-            <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               <div>
-                <span className="font-semibold text-gray-800">Persistent Job Scheduler</span>
-                <p className="text-gray-500 mt-0.5">Background cron/queue provider</p>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Persistent Job Scheduler</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Background cron/queue provider</div>
               </div>
-              <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded font-semibold">
+              <span className="badge badge-muted">
                 {telemetry?.background_scheduler_status || 'NOT_CONFIGURED'}
               </span>
             </div>
 
-            <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 flex justify-between items-center">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
               <div>
-                <span className="font-semibold text-gray-800">Outbound Notification Gateway</span>
-                <p className="text-gray-500 mt-0.5">SMTP/SMS/Push delivery provider</p>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Outbound Notification Gateway</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>SMTP/SMS/Push delivery provider</div>
               </div>
-              <span className="px-2 py-0.5 bg-gray-200 text-gray-700 rounded font-semibold">
+              <span className="badge badge-muted">
                 {telemetry?.notification_provider_status || 'NOT_CONFIGURED'}
               </span>
             </div>
@@ -261,43 +262,59 @@ export default function SystemMonitoringPage() {
       </div>
 
       {/* Operational Error Stream */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4 text-amber-600" />
-            Recent Operational Errors (Sanitized Audit Log Stream)
-          </h2>
-          <span className="text-xs text-gray-500">Last 15 failures</span>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
+          <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>⚠️</span>
+            <span>Recent Operational Errors (Sanitized Audit Log Stream)</span>
+          </div>
+          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Last 15 failures</span>
         </div>
         {recentErrors.length === 0 ? (
-          <div className="p-8 text-center text-gray-500 text-sm">
-            No operational error records found in recent audit events.
+          <div className="empty-box" style={{ border: 'none', padding: '36px' }}>
+            <div className="empty-text">✓ No operational error records found in recent audit events.</div>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {recentErrors.map((err) => (
-              <div key={err.id} className="p-4 hover:bg-gray-50 transition-colors flex items-start justify-between gap-4 text-xs">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">{err.action}</span>
-                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[11px]">{err.module}</span>
-                    {err.college_code && (
-                      <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[11px] font-medium">
-                        {err.college_code}
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Action & Module</th>
+                  <th>College Tenant</th>
+                  <th>Sanitized Error Message</th>
+                  <th>Occurred At</th>
+                  <th style={{ textAlign: 'right' }}>Severity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentErrors.map((err) => (
+                  <tr key={err.id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{err.action}</div>
+                      <span className="badge badge-muted" style={{ fontSize: '0.72rem', marginTop: '2px' }}>{err.module}</span>
+                    </td>
+                    <td>
+                      {err.college_code ? (
+                        <span className="badge badge-info">{err.college_code}</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Platform Wide</span>
+                      )}
+                    </td>
+                    <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#b91c1c' }}>
+                      {err.error_message}
+                    </td>
+                    <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                      {new Date(err.occurred_at).toLocaleTimeString()}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span className={`badge ${err.severity === 'CRITICAL' ? 'badge-danger' : 'badge-warning'}`}>
+                        {err.severity}
                       </span>
-                    )}
-                  </div>
-                  <p className="text-gray-600 mt-1 font-mono text-[11px]">{err.error_message}</p>
-                </div>
-                <div className="text-right text-gray-400 whitespace-nowrap">
-                  <div className="flex items-center gap-1 justify-end">
-                    <Clock className="w-3 h-3" />
-                    {new Date(err.occurred_at).toLocaleTimeString()}
-                  </div>
-                  <span className="text-[10px] text-red-600 font-bold">{err.severity}</span>
-                </div>
-              </div>
-            ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

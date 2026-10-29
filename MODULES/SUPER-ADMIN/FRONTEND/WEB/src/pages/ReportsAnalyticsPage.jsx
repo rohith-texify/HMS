@@ -91,13 +91,13 @@ export default function ReportsAnalyticsPage() {
   });
 
   return (
-    <div className="page-container space-y-6">
+    <div className="page-container">
       {/* Page Header */}
-      <div className="header-container border-b border-gray-200 pb-5">
+      <div className="header-container">
         <div>
-          <h1 className="page-title flex items-center gap-2">
-            <BarChart3 className="w-6 h-6 text-indigo-600" />
-            Platform Reports & Analytics
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>📊</span>
+            <span>Platform Reports & Analytics</span>
           </h1>
           <p className="page-subtitle">
             Company-wide aggregate telemetry, verified 30-day active user counts, module adoption, and audited exports.
@@ -108,209 +108,187 @@ export default function ReportsAnalyticsPage() {
             onClick={loadAllData}
             disabled={loading}
             className="btn btn-outline"
-            title="Refresh"
+            title="Refresh reports data"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
           <button
             onClick={handleExportCsv}
             disabled={exporting || loading}
             className="btn btn-primary"
           >
-            <Download className="w-4 h-4" />
-            {exporting ? 'Generating CSV...' : 'Export Audited CSV'}
+            <Download size={14} />
+            <span>{exporting ? 'Generating CSV...' : 'Export Audited CSV'}</span>
           </button>
         </div>
       </div>
 
-
       {/* Small-Count Suppression & Privacy Notice */}
-      <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg shadow-sm flex items-start gap-3">
-        <Info className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-        <div className="text-xs sm:text-sm text-amber-800">
-          <span className="font-semibold">Privacy & Small-Count Suppression Active:</span>
-          {' '}Cohort aggregates with counts between 1 and 4 are suppressed to protect individual user privacy (displayed as{' '}
-          <span className="font-semibold underline">&lt; 5</span>). Student-level operational data (attendance, grievances, room leaves) remains strictly isolated in College Portals.
+      <div className="alert-banner warning" style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Info size={18} />
+          <div>
+            <strong>Privacy & Small-Count Suppression Active:</strong> Cohort aggregates with counts between 1 and 4 are suppressed to protect individual user privacy (displayed as <strong>&lt; 5</strong>).
+          </div>
         </div>
       </div>
 
       {/* Error state */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3 text-red-700 text-sm">
-          <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
-          <span>{error}</span>
+        <div className="alert-banner error">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} />
+            <span>{error}</span>
+          </div>
         </div>
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="stat-grid-4">
         {/* Total Colleges */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Total Institutions</span>
-            <span className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-              <Building2 className="w-5 h-5" />
-            </span>
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">Total Institutions</span>
+            <span className="badge badge-info">Tenants</span>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-extrabold text-gray-900">
-              {loading ? '...' : summary?.total_colleges ?? 0}
-            </div>
-            <div className="text-xs text-emerald-600 mt-1 font-medium flex items-center gap-1">
-              <CheckCircle className="w-3.5 h-3.5" />
-              {summary?.active_colleges ?? 0} active in production
-            </div>
+          <div className="stat-card-value">
+            {loading ? '...' : summary?.total_colleges ?? 0}
+          </div>
+          <div className="stat-card-subtitle" style={{ color: 'var(--success-text)', fontWeight: 600 }}>
+            ✓ {summary?.active_colleges ?? 0} active in production
           </div>
         </div>
 
         {/* 30-Day Active Users */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">30-Day Active Users</span>
-            <span className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-              <Users className="w-5 h-5" />
-            </span>
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">30-Day Active Users</span>
+            <span className="badge badge-success">Unique Logins</span>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-extrabold text-gray-900">
-              {loading ? (
-                '...'
-              ) : summary?.active_users_30d === -1 ? (
-                '< 5'
-              ) : (
-                summary?.active_users_30d ?? 0
-              )}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">
-              Exact unique auth logins in last 30d
-            </div>
+          <div className="stat-card-value">
+            {loading ? (
+              '...'
+            ) : summary?.active_users_30d === -1 ? (
+              '< 5'
+            ) : (
+              summary?.active_users_30d ?? 0
+            )}
           </div>
+          <div className="stat-card-subtitle">Exact verified logins last 30d</div>
         </div>
 
         {/* Total Platform Users */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">Platform Identities</span>
-            <span className="p-2 bg-purple-50 text-purple-600 rounded-lg">
-              <Lock className="w-5 h-5" />
-            </span>
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">Platform Identities</span>
+            <span className="badge badge-primary">Control Plane</span>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-extrabold text-gray-900">
-              {loading ? '...' : summary?.total_platform_users ?? 0}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">Super Admin & Platform staff</div>
+          <div className="stat-card-value">
+            {loading ? '...' : summary?.total_platform_users ?? 0}
           </div>
+          <div className="stat-card-subtitle">Super Admin & Platform staff</div>
         </div>
 
         {/* Catalog Modules */}
-        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:border-indigo-200 transition">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-500">System Modules</span>
-            <span className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-              <Layers className="w-5 h-5" />
-            </span>
+        <div className="stat-card">
+          <div className="stat-card-header">
+            <span className="stat-card-title">System Modules</span>
+            <span className="badge badge-warning">Capabilities</span>
           </div>
-          <div className="mt-3">
-            <div className="text-3xl font-extrabold text-gray-900">
-              {loading ? '...' : summary?.total_modules ?? 0}
-            </div>
-            <div className="text-xs text-gray-500 mt-1">Catalogue modules available</div>
+          <div className="stat-card-value">
+            {loading ? '...' : summary?.total_modules ?? 0}
           </div>
+          <div className="stat-card-subtitle">Catalogue modules available</div>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-gray-200 space-x-6 text-sm font-medium">
+      <div className="tab-group">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`pb-3 border-b-2 transition ${
-            activeTab === 'overview'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`tab-pill ${activeTab === 'overview' ? 'active' : ''}`}
         >
-          College Usage & Adoption
+          <span>🏛️</span>
+          <span>College Usage & Adoption</span>
         </button>
         <button
           onClick={() => setActiveTab('modules')}
-          className={`pb-3 border-b-2 transition ${
-            activeTab === 'modules'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`tab-pill ${activeTab === 'modules' ? 'active' : ''}`}
         >
-          Module Adoption Rates
+          <span>📦</span>
+          <span>Module Adoption Rates</span>
         </button>
         <button
           onClick={() => setActiveTab('security')}
-          className={`pb-3 border-b-2 transition ${
-            activeTab === 'security'
-              ? 'border-indigo-600 text-indigo-600 font-semibold'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`tab-pill ${activeTab === 'security' ? 'active' : ''}`}
         >
-          Authentication Security Trends
+          <span>🔒</span>
+          <span>Authentication Security Trends</span>
         </button>
       </div>
 
       {/* Tab 1: College Usage Table */}
       {activeTab === 'overview' && (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* Filters Bar */}
-          <div className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-            <div className="w-full sm:w-72">
-              <input
-                type="text"
-                placeholder="Search college name or code..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="w-full px-3.5 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <span className="text-xs font-medium text-gray-500 flex items-center gap-1">
-                <Filter className="w-3.5 h-3.5" /> Lifecycle:
-              </span>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              >
-                <option value="">All Statuses</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="ONBOARDING">ONBOARDING</option>
-                <option value="SUSPENDED">SUSPENDED</option>
-                <option value="DEACTIVATED">DEACTIVATED</option>
-              </select>
+          <div className="filter-card" style={{ marginBottom: 0 }}>
+            <div className="filter-grid">
+              <div className="filter-group" style={{ flex: '1 1 280px' }}>
+                <label className="filter-label" htmlFor="filter-college-search">Search Institutions</label>
+                <input
+                  id="filter-college-search"
+                  type="text"
+                  placeholder="Search college name or code..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="form-input"
+                  style={{ width: '100%' }}
+                />
+              </div>
+
+              <div className="filter-group">
+                <label className="filter-label" htmlFor="filter-college-status">Lifecycle Status</label>
+                <select
+                  id="filter-college-status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="form-select"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="ONBOARDING">ONBOARDING</option>
+                  <option value="SUSPENDED">SUSPENDED</option>
+                  <option value="DEACTIVATED">DEACTIVATED</option>
+                </select>
+              </div>
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
-                <thead className="bg-gray-50 text-gray-600 font-medium">
+          {/* Table Card */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="px-5 py-3.5">College Identifier</th>
-                    <th className="px-5 py-3.5">Lifecycle Status</th>
-                    <th className="px-5 py-3.5">Active Users (30d)</th>
-                    <th className="px-5 py-3.5">Campus Staff</th>
-                    <th className="px-5 py-3.5">Admins</th>
-                    <th className="px-5 py-3.5">Enabled Modules</th>
+                    <th>College Identifier</th>
+                    <th>Lifecycle Status</th>
+                    <th>Active Users (30d)</th>
+                    <th>Campus Staff</th>
+                    <th>Admins</th>
+                    <th>Enabled Modules</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-10 text-gray-500">
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                         Loading aggregate college data...
                       </td>
                     </tr>
                   ) : filteredColleges.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="text-center py-10 text-gray-400">
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                         No colleges found matching the selected filters.
                       </td>
                     </tr>
@@ -319,38 +297,38 @@ export default function ReportsAnalyticsPage() {
                       const renderSuppressed = (val) => {
                         if (val === -1) {
                           return (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                              &lt; 5
-                            </span>
+                            <span className="badge badge-muted">&lt; 5</span>
                           );
                         }
-                        return <span className="font-semibold text-gray-900">{val ?? 0}</span>;
+                        return <strong>{val ?? 0}</strong>;
                       };
 
                       return (
-                        <tr key={c.college_id} className="hover:bg-gray-50/60 transition">
-                          <td className="px-5 py-4">
-                            <div className="font-semibold text-gray-900">{c.college_name}</div>
-                            <div className="text-xs text-gray-400 font-mono">{c.college_code}</div>
+                        <tr key={c.college_id}>
+                          <td>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{c.college_name}</div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
+                              {c.college_code}
+                            </div>
                           </td>
-                          <td className="px-5 py-4">
+                          <td>
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              className={`badge ${
                                 c.status === 'ACTIVE'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  ? 'badge-success'
                                   : c.status === 'SUSPENDED'
-                                  ? 'bg-red-50 text-red-700 border border-red-200'
-                                  : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  ? 'badge-danger'
+                                  : 'badge-warning'
                               }`}
                             >
                               {c.status}
                             </span>
                           </td>
-                          <td className="px-5 py-4">{renderSuppressed(c.active_users_30d)}</td>
-                          <td className="px-5 py-4">{renderSuppressed(c.total_staff)}</td>
-                          <td className="px-5 py-4">{renderSuppressed(c.total_admins)}</td>
-                          <td className="px-5 py-4">
-                            <span className="font-semibold text-indigo-600">
+                          <td>{renderSuppressed(c.active_users_30d)}</td>
+                          <td>{renderSuppressed(c.total_staff)}</td>
+                          <td>{renderSuppressed(c.total_admins)}</td>
+                          <td>
+                            <span style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
                               {c.enabled_modules ?? 0}
                             </span>
                           </td>
@@ -367,49 +345,48 @@ export default function ReportsAnalyticsPage() {
 
       {/* Tab 2: Module Adoption */}
       {activeTab === 'modules' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
           {loading ? (
-            <div className="col-span-2 text-center py-10 text-gray-500">
+            <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px' }}>
               Loading module adoption figures...
             </div>
           ) : moduleAdoption.length === 0 ? (
-            <div className="col-span-2 text-center py-10 text-gray-400">
+            <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '32px' }}>
               No module adoption data recorded yet.
             </div>
           ) : (
             moduleAdoption.map((m) => (
-              <div
-                key={m.module_id}
-                className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3"
-              >
-                <div className="flex items-center justify-between">
+              <div key={m.module_id} className="card" style={{ gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h3 className="font-bold text-gray-900">{m.module_name}</h3>
-                    <span className="text-xs font-mono text-gray-400">{m.module_code}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xl font-extrabold text-indigo-600">
-                      {m.adoption_pct}%
+                    <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.module_name}</div>
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                      {m.module_code}
                     </span>
-                    <div className="text-xs text-gray-400">Adoption Rate</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--primary-color)' }}>
+                      {m.adoption_pct}%
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Adoption Rate</div>
                   </div>
                 </div>
 
                 {/* Progress bar */}
-                <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-primary)', borderRadius: '9999px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
                   <div
-                    className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, Math.max(0, m.adoption_pct))}%` }}
-                  ></div>
+                    style={{
+                      height: '100%',
+                      backgroundColor: 'var(--primary-color)',
+                      borderRadius: '9999px',
+                      width: `${Math.min(100, Math.max(0, m.adoption_pct))}%`,
+                    }}
+                  />
                 </div>
 
-                <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
-                  <span>
-                    Enabled: <strong className="text-gray-900">{m.enabled_colleges}</strong> institutions
-                  </span>
-                  <span>
-                    Total Active Target: <strong className="text-gray-900">{m.total_colleges}</strong>
-                  </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  <span>Enabled: <strong>{m.enabled_colleges}</strong> institutions</span>
+                  <span>Active Target: <strong>{m.total_colleges}</strong></span>
                 </div>
               </div>
             ))
@@ -419,19 +396,17 @@ export default function ReportsAnalyticsPage() {
 
       {/* Tab 3: Security & Login Activity */}
       {activeTab === 'security' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-            <span className="text-sm font-medium text-gray-700">Time Window:</span>
-            <div className="flex gap-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px' }}>
+            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Analysis Time Window:
+            </span>
+            <div style={{ display: 'flex', gap: '8px' }}>
               {[7, 14, 30].map((d) => (
                 <button
                   key={d}
                   onClick={() => setSecurityDays(d)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                    securityDays === d
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  className={`btn ${securityDays === d ? 'btn-primary' : 'btn-outline'} btn-sm`}
                 >
                   Last {d} Days
                 </button>
@@ -439,67 +414,56 @@ export default function ReportsAnalyticsPage() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
-              <thead className="bg-gray-50 text-gray-600 font-medium">
-                <tr>
-                  <th className="px-5 py-3.5">Date</th>
-                  <th className="px-5 py-3.5 text-emerald-600">Successful Logins</th>
-                  <th className="px-5 py-3.5 text-red-600">Failed Attempts</th>
-                  <th className="px-5 py-3.5 text-amber-600">Locked Events</th>
-                  <th className="px-5 py-3.5 text-gray-600">Blocked Attempts</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {loading ? (
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <td colSpan="5" className="text-center py-10 text-gray-500">
-                      Loading authentication security logs...
-                    </td>
+                    <th>Date</th>
+                    <th style={{ color: 'var(--success-text)' }}>Successful Logins</th>
+                    <th style={{ color: 'var(--danger-text)' }}>Failed Attempts</th>
+                    <th style={{ color: 'var(--warning-text)' }}>Locked Events</th>
+                    <th>Blocked Attempts</th>
                   </tr>
-                ) : loginSecurity.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" className="text-center py-10 text-gray-400">
-                      No authentication events recorded for the last {securityDays} days.
-                    </td>
-                  </tr>
-                ) : (
-                  loginSecurity.map((l) => (
-                    <tr key={l.day} className="hover:bg-gray-50/60 transition">
-                      <td className="px-5 py-3.5 font-medium text-gray-900">{l.day}</td>
-                      <td className="px-5 py-3.5 font-semibold text-emerald-600">
-                        {l.success_count}
-                      </td>
-                      <td className="px-5 py-3.5 font-semibold text-red-600">
-                        {l.failed_count}
-                      </td>
-                      <td className="px-5 py-3.5 font-semibold text-amber-600">
-                        {l.locked_count}
-                      </td>
-                      <td className="px-5 py-3.5 font-semibold text-gray-600">
-                        {l.blocked_count}
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '32px' }}>
+                        Loading authentication security logs...
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : loginSecurity.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                        No authentication events recorded for the last {securityDays} days.
+                      </td>
+                    </tr>
+                  ) : (
+                    loginSecurity.map((l) => (
+                      <tr key={l.day}>
+                        <td style={{ fontWeight: 600 }}>{l.day}</td>
+                        <td style={{ color: 'var(--success-text)', fontWeight: 600 }}>{l.success_count}</td>
+                        <td style={{ color: 'var(--danger-text)', fontWeight: 600 }}>{l.failed_count}</td>
+                        <td style={{ color: 'var(--warning-text)', fontWeight: 600 }}>{l.locked_count}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{l.blocked_count}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Blocked Features Clarification */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500 space-y-1">
-        <div className="font-semibold text-gray-700 flex items-center gap-1.5">
-          <HelpCircle className="w-4 h-4 text-gray-400" />
-          Infrastructure Availability Notes:
+      {/* Blocked Features Clarification Notice */}
+      <div className="notice-box" style={{ marginTop: '24px' }}>
+        <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--text-primary)' }}>
+          ℹ️ Infrastructure Availability Notes:
         </div>
-        <div>
-          • <strong>Saved Reports:</strong> Blocked — Schema change required (<code className="bg-gray-200 px-1 rounded">platform.saved_reports</code> does not exist).
-        </div>
-        <div>
-          • <strong>Scheduled Email Reports:</strong> Blocked — Persistent task queue and cron daemon infrastructure not configured (in-memory timers forbidden by architectural constraints).
-        </div>
+        <div>• <strong>Saved Reports:</strong> Blocked — Schema change required (<code style={{ backgroundColor: '#e2e8f0', padding: '1px 4px', borderRadius: '4px' }}>platform.saved_reports</code> does not exist).</div>
+        <div>• <strong>Scheduled Email Reports:</strong> Blocked — Persistent task queue and cron daemon infrastructure not configured (in-memory timers forbidden by architectural constraints).</div>
       </div>
     </div>
   );

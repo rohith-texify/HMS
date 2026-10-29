@@ -155,13 +155,13 @@ export default function SupportTroubleshootingPage() {
   };
 
   return (
-    <div className="page-container space-y-6">
+    <div className="page-container">
       {/* Header */}
-      <div className="header-container border-b border-gray-200 pb-5">
+      <div className="header-container">
         <div>
-          <h1 className="page-title flex items-center gap-2">
-            <Wrench className="w-6 h-6 text-indigo-600" />
-            Support & Diagnostic Troubleshooting Console
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span>🛠️</span>
+            <span>Support & Diagnostic Troubleshooting Console</span>
           </h1>
           <p className="page-subtitle">
             Time-boxed support grants, entitlement diagnosis, and audited privacy-masked student verification.
@@ -171,149 +171,164 @@ export default function SupportTroubleshootingPage() {
           <button
             onClick={() => loadGrants()}
             className="btn btn-outline"
-            title="Refresh"
+            title="Refresh grants list"
             disabled={loading}
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
           <button
             onClick={() => setShowGrantModal(true)}
             className="btn btn-primary"
+            id="btn-request-support-grant"
           >
-            <Shield className="w-4 h-4" />
-            Request Support Grant
+            <Shield size={14} />
+            <span>+ Request Support Grant</span>
           </button>
         </div>
       </div>
 
-
       {success && (
-        <div className="p-4 bg-green-50 border border-green-200 text-green-800 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <CheckCircle className="w-4 h-4 text-green-600" />
+        <div className="alert-banner success">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle size={18} />
             <span>{success}</span>
           </div>
-          <button onClick={() => setSuccess(null)} className="text-green-600 font-bold">✕</button>
+          <button
+            onClick={() => setSuccess(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: 'inherit' }}
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-800 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
-            <AlertTriangle className="w-4 h-4 text-red-600" />
+        <div className="alert-banner error">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={18} />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="text-red-600 font-bold">✕</button>
+          <button
+            onClick={() => setError(null)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: 'inherit' }}
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="tabs-container flex items-center border-b border-gray-200 gap-4 sm:gap-6 overflow-x-auto whitespace-nowrap">
+      <div className="tab-group">
         <button
           onClick={() => setActiveTab('GRANTS')}
-          className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 ${
-            activeTab === 'GRANTS'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`tab-pill ${activeTab === 'GRANTS' ? 'active' : ''}`}
         >
-          <Shield className="w-4 h-4" />
-          Time-Boxed Support Grants ({grants.length})
+          <span>🛡️</span>
+          <span>Time-Boxed Support Grants ({grants.length})</span>
         </button>
         <button
           onClick={() => setActiveTab('ENTITLEMENTS')}
-          className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 ${
-            activeTab === 'ENTITLEMENTS'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`tab-pill ${activeTab === 'ENTITLEMENTS' ? 'active' : ''}`}
         >
-          <Search className="w-4 h-4" />
-          Entitlement Diagnosis
+          <span>🔍</span>
+          <span>Entitlement Diagnosis</span>
         </button>
         <button
           onClick={() => setActiveTab('STUDENT_LOOKUP')}
-          className={`pb-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 flex-shrink-0 ${
-            activeTab === 'STUDENT_LOOKUP'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700'
-          }`}
+          className={`tab-pill ${activeTab === 'STUDENT_LOOKUP' ? 'active' : ''}`}
         >
-          <Eye className="w-4 h-4" />
-          Masked Student Lookup
+          <span>👁️</span>
+          <span>Masked Student Lookup</span>
         </button>
       </div>
 
-
       {/* Tab 1: Support Grants */}
       {activeTab === 'GRANTS' && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
             <div>
-              <h2 className="text-sm font-bold text-gray-900">Active & Historical Support Access Grants</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Active & Historical Support Access Grants</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                 Regulated platform grants authorizing restricted diagnostic access into tenant data without account takeover.
-              </p>
+              </div>
             </div>
-            <button onClick={() => loadGrants()} className="p-2 border rounded-lg hover:bg-gray-100 text-gray-600">
-              <RefreshCw className="w-4 h-4" />
+            <button
+              onClick={() => loadGrants()}
+              className="btn btn-outline btn-sm"
+              title="Refresh"
+            >
+              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
 
           {loading ? (
-            <div className="p-12 text-center text-gray-500">Loading grants...</div>
+            <div className="loading-box" style={{ border: 'none' }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Loading grants...</div>
+            </div>
           ) : grants.length === 0 ? (
-            <div className="p-12 text-center text-gray-500">
-              <Shield className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-              <p className="font-semibold text-gray-800">No support grants issued</p>
-              <p className="text-xs text-gray-500 mt-1">Create a time-boxed grant to perform tenant-scoped support operations.</p>
+            <div className="empty-box" style={{ border: 'none', padding: '56px 20px' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🛡️</div>
+              <div style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
+                No support grants issued
+              </div>
+              <div className="empty-text" style={{ marginBottom: '20px' }}>
+                Create a time-boxed grant to perform tenant-scoped support operations.
+              </div>
+              <button onClick={() => setShowGrantModal(true)} className="btn btn-primary">
+                + Request Support Grant
+              </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-gray-600">
-                <thead className="bg-gray-50 text-gray-700 font-semibold border-b border-gray-200">
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="py-3 px-4">College</th>
-                    <th className="py-3 px-4">Ticket Ref</th>
-                    <th className="py-3 px-4">Grantee</th>
-                    <th className="py-3 px-4">Reason</th>
-                    <th className="py-3 px-4">Validity Window</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th>College Tenant</th>
+                    <th>Ticket Ref</th>
+                    <th>Grantee</th>
+                    <th>Reason</th>
+                    <th>Validity Window</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody>
                   {grants.map((g) => (
-                    <tr key={g.grant_id} className="hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4 font-semibold text-gray-900">
+                    <tr key={g.grant_id}>
+                      <td style={{ fontWeight: 600 }}>
                         {g.college_name} ({g.college_code})
                       </td>
-                      <td className="py-3 px-4 font-mono font-medium text-indigo-600">{g.ticket_ref}</td>
-                      <td className="py-3 px-4 text-gray-700">{g.grantee_email}</td>
-                      <td className="py-3 px-4 text-gray-600 max-w-xs truncate">{g.reason}</td>
-                      <td className="py-3 px-4 text-[11px] text-gray-500">
+                      <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-color)' }}>
+                        {g.ticket_ref}
+                      </td>
+                      <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{g.grantee_email}</td>
+                      <td style={{ fontSize: '0.82rem', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {g.reason}
+                      </td>
+                      <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                         <div>Starts: {new Date(g.starts_at).toLocaleTimeString()}</div>
                         <div>Expires: {new Date(g.expires_at).toLocaleTimeString()}</div>
                       </td>
-                      <td className="py-3 px-4">
+                      <td>
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          className={`badge ${
                             g.is_active
-                              ? 'bg-green-100 text-green-800'
+                              ? 'badge-success'
                               : g.revoked_at
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-600'
+                              ? 'badge-danger'
+                              : 'badge-muted'
                           }`}
                         >
                           {g.is_active ? 'ACTIVE' : g.revoked_at ? 'REVOKED' : 'EXPIRED'}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td style={{ textAlign: 'right' }}>
                         {g.is_active && (
                           <button
                             onClick={() => handleRevokeGrant(g.grant_id)}
-                            className="text-red-600 hover:text-red-800 font-semibold text-xs"
+                            className="btn btn-outline btn-sm"
+                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
                           >
                             Revoke
                           </button>
@@ -330,19 +345,22 @@ export default function SupportTroubleshootingPage() {
 
       {/* Tab 2: Entitlement Diagnosis */}
       {activeTab === 'ENTITLEMENTS' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Search className="w-4 h-4 text-indigo-600" />
-              Diagnose Module Access
-            </h2>
-            <form onSubmit={handleDiagnoseEntitlement} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Target College</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">
+                <span>🔍</span>
+                <span>Diagnose Module Access</span>
+              </div>
+            </div>
+            <form onSubmit={handleDiagnoseEntitlement}>
+              <div className="form-group">
+                <label className="form-label">Target College</label>
                 <select
                   value={entitlementForm.college_id}
                   onChange={(e) => setEntitlementForm({ ...entitlementForm, college_id: e.target.value })}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className="form-select"
+                  style={{ width: '100%' }}
                 >
                   {colleges.map((col) => (
                     <option key={col.college_id} value={col.college_id}>
@@ -352,74 +370,79 @@ export default function SupportTroubleshootingPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Module Code</label>
+              <div className="form-group">
+                <label className="form-label">Module Code</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g., MESS_MANAGEMENT, SECURITY"
+                  placeholder="e.g. MESS_MANAGEMENT, SECURITY"
                   value={entitlementForm.module_code}
                   onChange={(e) => setEntitlementForm({ ...entitlementForm, module_code: e.target.value })}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 font-mono uppercase"
+                  className="form-input"
+                  style={{ width: '100%', fontFamily: 'monospace', textTransform: 'uppercase' }}
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '8px' }}
               >
                 {loading ? 'Evaluating...' : 'Run Access Diagnosis'}
               </button>
             </form>
           </div>
 
-          <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Diagnostic Evaluation Verdict</h2>
+          <div className="card" style={{ gridColumn: 'span 2' }}>
+            <div className="card-header">
+              <div className="card-title">Diagnostic Evaluation Verdict</div>
+            </div>
             {!diagnosticReport ? (
-              <div className="p-12 text-center text-gray-400 text-xs">
-                Select a college and enter a module code to evaluate access decision trees.
+              <div className="empty-box" style={{ border: 'none', padding: '36px' }}>
+                <div className="empty-text">Select a college and enter a module code to evaluate access decision trees.</div>
               </div>
             ) : (
-              <div className="space-y-4 text-xs">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div
-                  className={`p-4 rounded-xl border ${
-                    diagnosticReport.is_access_permitted
-                      ? 'bg-green-50 border-green-200 text-green-900'
-                      : 'bg-red-50 border-red-200 text-red-900'
-                  }`}
+                  className={`alert-banner ${diagnosticReport.is_access_permitted ? 'success' : 'error'}`}
+                  style={{ marginBottom: 0 }}
                 >
-                  <div className="font-bold text-sm mb-1">{diagnosticReport.evaluation_verdict}</div>
-                  <div className="text-[11px] opacity-80">
-                    Evaluated at: {new Date(diagnosticReport.evaluated_at).toLocaleString()}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.98rem' }}>{diagnosticReport.evaluation_verdict}</div>
+                    <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: '2px' }}>
+                      Evaluated at: {new Date(diagnosticReport.evaluated_at).toLocaleString()}
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <span className="text-gray-500">Module in Catalog:</span>{' '}
-                    <span className="font-semibold">{diagnosticReport.module_found ? 'YES' : 'NO'}</span>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Module in Catalog:</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.module_found ? 'YES' : 'NO'}</div>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <span className="text-gray-500">Catalog Status:</span>{' '}
-                    <span className="font-semibold">{diagnosticReport.module_active_in_catalog ? 'ACTIVE' : 'INACTIVE'}</span>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Catalog Status:</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.module_active_in_catalog ? 'ACTIVE' : 'INACTIVE'}</div>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <span className="text-gray-500">College Lifecycle:</span>{' '}
-                    <span className="font-semibold">{diagnosticReport.college_status}</span>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>College Lifecycle:</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.college_status}</div>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
-                    <span className="text-gray-500">Tenant Entitlement:</span>{' '}
-                    <span className="font-semibold">{diagnosticReport.entitlement_status}</span>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tenant Entitlement:</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.entitlement_status}</div>
                   </div>
                 </div>
 
                 {diagnosticReport.blockers?.length > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="font-semibold text-red-700">Identified Access Blockers:</span>
-                    <ul className="list-disc pl-5 text-gray-600 space-y-0.5">
+                  <div style={{ backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '8px', padding: '14px' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--danger-text)', fontSize: '0.88rem', marginBottom: '6px' }}>
+                      Identified Access Blockers:
+                    </div>
+                    <ul style={{ paddingLeft: '20px', fontSize: '0.82rem', color: 'var(--danger-text)' }}>
                       {diagnosticReport.blockers.map((b, idx) => (
-                        <li key={idx}>{b}</li>
+                        <li key={idx} style={{ marginTop: '2px' }}>{b}</li>
                       ))}
                     </ul>
                   </div>
@@ -432,19 +455,22 @@ export default function SupportTroubleshootingPage() {
 
       {/* Tab 3: Masked Student Lookup */}
       {activeTab === 'STUDENT_LOOKUP' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-              <Eye className="w-4 h-4 text-indigo-600" />
-              Audited Student Status Verification
-            </h2>
-            <form onSubmit={handleStudentLookup} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Target College</label>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          <div className="card">
+            <div className="card-header">
+              <div className="card-title">
+                <span>👁️</span>
+                <span>Audited Student Status Verification</span>
+              </div>
+            </div>
+            <form onSubmit={handleStudentLookup}>
+              <div className="form-group">
+                <label className="form-label">Target College</label>
                 <select
                   value={studentForm.college_id}
                   onChange={(e) => setStudentForm({ ...studentForm, college_id: e.target.value })}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className="form-select"
+                  style={{ width: '100%' }}
                 >
                   {colleges.map((col) => (
                     <option key={col.college_id} value={col.college_id}>
@@ -454,69 +480,74 @@ export default function SupportTroubleshootingPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Admission Number</label>
+              <div className="form-group">
+                <label className="form-label">Admission Number</label>
                 <input
                   type="text"
                   required
                   placeholder="Exact admission / roll no."
                   value={studentForm.admission_number}
                   onChange={(e) => setStudentForm({ ...studentForm, admission_number: e.target.value })}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500 font-mono"
+                  className="form-input"
+                  style={{ width: '100%', fontFamily: 'monospace' }}
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Troubleshooting Reason (Mandatory)</label>
+              <div className="form-group">
+                <label className="form-label">Troubleshooting Reason (Mandatory)</label>
                 <input
                   type="text"
                   required
                   placeholder="Ticket ref or support justification"
                   value={studentForm.reason}
                   onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-indigo-500"
+                  className="form-input"
+                  style={{ width: '100%' }}
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                className="btn btn-primary"
+                style={{ width: '100%', marginTop: '8px' }}
               >
                 {loading ? 'Searching...' : 'Search Masked Record'}
               </button>
             </form>
           </div>
 
-          <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-            <h2 className="text-sm font-bold text-gray-900 mb-3">Privacy-Preserving Verification Record</h2>
+          <div className="card" style={{ gridColumn: 'span 2' }}>
+            <div className="card-header">
+              <div className="card-title">Privacy-Preserving Verification Record</div>
+            </div>
             {!studentResult ? (
-              <div className="p-12 text-center text-gray-400 text-xs">
-                Enter an exact admission number and support justification to perform a privacy-redacted status lookup.
+              <div className="empty-box" style={{ border: 'none', padding: '36px' }}>
+                <div className="empty-text">Enter an exact admission number and support justification to perform a privacy-redacted status lookup.</div>
               </div>
             ) : (
-              <div className="space-y-4 text-xs">
-                <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-900 font-semibold flex items-center justify-between">
-                  <span>Student Found ({studentResult.college_code})</span>
-                  <span className="text-[11px] bg-indigo-200 px-2 py-0.5 rounded">Audited Access</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div className="alert-banner info" style={{ marginBottom: 0 }}>
+                  <div style={{ fontWeight: 600 }}>Student Found ({studentResult.college_code})</div>
+                  <span className="badge badge-info">Audited Access</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-500 text-[11px]">Admission Number</span>
-                    <div className="font-mono font-bold text-gray-900 mt-0.5">{studentResult.admission_number}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Admission Number</div>
+                    <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem', marginTop: '2px' }}>{studentResult.admission_number}</div>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-500 text-[11px]">Masked Name</span>
-                    <div className="font-semibold text-gray-900 mt-0.5">{studentResult.masked_name}</div>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Masked Name</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '2px' }}>{studentResult.masked_name}</div>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-500 text-[11px]">Academic Status</span>
-                    <div className="font-semibold text-gray-900 mt-0.5">{studentResult.student_status}</div>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Academic Status</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '2px' }}>{studentResult.student_status}</div>
                   </div>
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <span className="text-gray-500 text-[11px]">Hostel Bed Status</span>
-                    <div className="font-semibold text-gray-900 mt-0.5">{studentResult.hostel_status}</div>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Hostel Bed Status</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '2px' }}>{studentResult.hostel_status}</div>
                   </div>
                 </div>
               </div>
@@ -527,84 +558,95 @@ export default function SupportTroubleshootingPage() {
 
       {/* Grant Creation Modal */}
       {showGrantModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 max-w-md w-full p-6 space-y-4 animate-in fade-in">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-indigo-600" />
-                Issue Scoped Support Grant
-              </h2>
-              <button onClick={() => setShowGrantModal(false)} className="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+        <div className="modal-overlay">
+          <div className="modal-dialog" style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Shield size={18} color="var(--primary-color)" />
+                <span>Issue Scoped Support Grant</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGrantModal(false)}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleCreateGrant} className="space-y-3 text-xs">
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Target College</label>
-                <select
-                  value={grantForm.college_id}
-                  onChange={(e) => setGrantForm({ ...grantForm, college_id: e.target.value })}
-                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                >
-                  {colleges.map((col) => (
-                    <option key={col.college_id} value={col.college_id}>
-                      {col.name} ({col.college_code})
-                    </option>
-                  ))}
-                </select>
+            <form onSubmit={handleCreateGrant}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Target College</label>
+                  <select
+                    value={grantForm.college_id}
+                    onChange={(e) => setGrantForm({ ...grantForm, college_id: e.target.value })}
+                    className="form-select"
+                    style={{ width: '100%' }}
+                  >
+                    {colleges.map((col) => (
+                      <option key={col.college_id} value={col.college_id}>
+                        {col.name} ({col.college_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Duration (Minutes, Max 480)</label>
+                  <select
+                    value={grantForm.duration_minutes}
+                    onChange={(e) => setGrantForm({ ...grantForm, duration_minutes: Number(e.target.value) })}
+                    className="form-select"
+                    style={{ width: '100%' }}
+                  >
+                    <option value={30}>30 Minutes</option>
+                    <option value={60}>1 Hour</option>
+                    <option value={120}>2 Hours</option>
+                    <option value={240}>4 Hours</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Ticket Reference</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. TICKET-9821"
+                    value={grantForm.ticket_ref}
+                    onChange={(e) => setGrantForm({ ...grantForm, ticket_ref: e.target.value })}
+                    className="form-input"
+                    style={{ width: '100%', fontFamily: 'monospace' }}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Support Justification</label>
+                  <textarea
+                    required
+                    rows={3}
+                    placeholder="Explain why tenant diagnosis access is required..."
+                    value={grantForm.reason}
+                    onChange={(e) => setGrantForm({ ...grantForm, reason: e.target.value })}
+                    className="form-textarea"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Duration (Minutes, Max 480)</label>
-                <select
-                  value={grantForm.duration_minutes}
-                  onChange={(e) => setGrantForm({ ...grantForm, duration_minutes: Number(e.target.value) })}
-                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value={30}>30 Minutes</option>
-                  <option value={60}>1 Hour</option>
-                  <option value={120}>2 Hours</option>
-                  <option value={240}>4 Hours</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Ticket Reference</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g., TICKET-9821"
-                  value={grantForm.ticket_ref}
-                  onChange={(e) => setGrantForm({ ...grantForm, ticket_ref: e.target.value })}
-                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Support Justification</label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Explain why tenant diagnosis access is required..."
-                  value={grantForm.reason}
-                  onChange={(e) => setGrantForm({ ...grantForm, reason: e.target.value })}
-                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t">
+              <div className="modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowGrantModal(false)}
-                  className="px-3 py-1.5 border rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="btn btn-outline"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold disabled:opacity-50"
+                  className="btn btn-primary"
                 >
-                  Issue Grant
+                  {loading ? 'Issuing...' : 'Issue Grant'}
                 </button>
               </div>
             </form>
