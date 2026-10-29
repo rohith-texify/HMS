@@ -11,6 +11,8 @@ import {
   getCanonicalDistricts,
   getCanonicalBlocks,
   getCanonicalULBs,
+  getCanonicalCitiesForDistrict,
+  getCanonicalLocalities,
 } from '../constants/tamilNaduGeoData';
 import {
   INDIAN_STATES,
@@ -65,6 +67,10 @@ export default function CreateCollegePage() {
   const [districts, setDistricts] = useState(() => getCanonicalDistricts());
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [districtError, setDistrictError] = useState(null);
+
+  // Tamil Nadu unified Cities (Corporations, Municipalities, Towns, and Blocks) and Localities
+  const [tnCities, setTnCities] = useState(() => (formData.district_code ? getCanonicalCitiesForDistrict(formData.district_code) : []));
+  const [tnLocalities, setTnLocalities] = useState([]);
 
   const [urbanLocalBodies, setUrbanLocalBodies] = useState([]);
   const [loadingUlbs, setLoadingUlbs] = useState(false);
@@ -126,99 +132,22 @@ export default function CreateCollegePage() {
     }
   }, [formData.state_code]);
 
-  // Load Urban Local Bodies when district changes in Urban mode
+  // Synchronize Tamil Nadu cities and local bodies immediately on district change
   useEffect(() => {
-    if (formData.state_code !== '33' || !formData.district_code) {
-      setUrbanLocalBodies([]);
-      return;
+    if (formData.state_code === '33' && formData.district_code) {
+      const canonicalCities = getCanonicalCitiesForDistrict(formData.district_code);
+      setTnCities(canonicalCities);
+
+      const initialBlocks = getCanonicalBlocks(formData.district_code);
+      if (initialBlocks.length > 0) setBlocks(initialBlocks);
+
+      const initialUlbs = getCanonicalULBs(formData.district_code);
+      if (initialUlbs.length > 0) setUrbanLocalBodies(initialUlbs);
+    } else {
+      setTnCities([]);
+      setTnLocalities([]);
     }
-
-    if (formData.location_type === 'URBAN') {
-      const reqId = ++activeReqRef.current.ulb;
-      setLoadingUlbs(true);
-      setUlbError(null);
-      setUrbanLocalBodies([]);
-
-      fetchUrbanLocalBodies(formData.district_code)
-        .then((data) => {
-          if (activeReqRef.current.ulb === reqId) {
-            setUrbanLocalBodies(data);
-            setLoadingUlbs(false);
-          }
-        })
-        .catch((err) => {
-          if (activeReqRef.current.ulb === reqId) {
-            setUlbError(err.message || 'Failed to load cities / local bodies');
-            setLoadingUlbs(false);
-          }
-        });
-    }
-  }, [formData.district_code, formData.location_type, formData.state_code]);
-
-  // Load Blocks when district changes in Rural mode
-  useEffect(() => {
-    if (formData.state_code !== '33' || !formData.district_code || formData.location_type !== 'RURAL') {
-      setBlocks([]);
-      setVillages([]);
-      return;
-    }
-
-    const reqId = ++activeReqRef.current.block;
-    setLoadingBlocks(true);
-    setBlockError(null);
-    setBlocks([]);
-    setVillages([]);
-
-    fetchBlocks(formData.district_code)
-      .then((data) => {
-        if (activeReqRef.current.block === reqId) {
-          setBlocks(data);
-          setLoadingBlocks(false);
-        }
-      })
-      .catch((err) => {
-        if (activeReqRef.current.block === reqId) {
-          setBlockError(err.message || 'Failed to load blocks');
-          setLoadingBlocks(false);
-        }
-      });
-  }, [formData.district_code, formData.location_type, formData.state_code]);
-
-  // Load Villages when Block changes in Rural mode
-  useEffect(() => {
-    if (
-      formData.state_code !== '33' ||
-      !formData.district_code ||
-      !formData.block_code ||
-      formData.location_type !== 'RURAL'
-    ) {
-      setVillages([]);
-      return;
-    }
-
-    const reqId = ++activeReqRef.current.village;
-    setLoadingVillages(true);
-    setVillageError(null);
-    setVillages([]);
-
-    fetchRuralHierarchy({
-      districtCode: formData.district_code,
-      blockCode: formData.block_code,
-      limit: 200,
-    })
-      .then((res) => {
-        if (activeReqRef.current.village === reqId) {
-          setVillages(res.list || []);
-          setLoadingVillages(false);
-        }
-      })
-      .catch((err) => {
-        if (activeReqRef.current.village === reqId) {
-          setVillageError(err.message || 'Failed to load villages');
-          setLoadingVillages(false);
-        }
-      });
-  }, [formData.block_code, formData.district_code, formData.location_type, formData.state_code]);
+  }, [formData.district_code, formData.state_code]);
 
 
 
@@ -272,19 +201,12 @@ export default function CreateCollegePage() {
         if (formData.state_code === '33' && !value) return 'District is required';
         return null;
       case 'city_code':
-        if (formData.state_code === '33' && formData.location_type === 'URBAN' && !value) {
-          return 'City / Local Body is required';
-        }
-        return null;
       case 'block_code':
-        if (formData.state_code === '33' && formData.location_type === 'RURAL' && !value) {
-          return 'Block / Panchayat Union is required';
+        if (formData.state_code === '33' && !formData.city_code && !formData.block_code) {
+          return 'City is required';
         }
         return null;
       case 'village_code':
-        if (formData.state_code === '33' && formData.location_type === 'RURAL' && !value) {
-          return 'Village / Gram Panchayat is required';
-        }
         return null;
       case 'city':
         if (formData.state_code !== '33') {
@@ -381,11 +303,10 @@ export default function CreateCollegePage() {
     const dObj = districts.find((d) => d.district_code === code);
     const dName = dObj ? dObj.district_name : '';
 
-    // Immediately prime blocks and ULBs from canonical dataset for instant zero-latency feedback
-    const initialBlocks = getCanonicalBlocks(code);
-    const initialUlbs = getCanonicalULBs(code);
-    if (initialBlocks.length > 0) setBlocks(initialBlocks);
-    if (initialUlbs.length > 0) setUrbanLocalBodies(initialUlbs);
+    // Immediately load unified cities and local bodies for this district
+    const canonicalCities = getCanonicalCitiesForDistrict(code);
+    setTnCities(canonicalCities);
+    setTnLocalities([]);
 
     setFormData((prev) => ({
       ...prev,
@@ -413,80 +334,82 @@ export default function CreateCollegePage() {
     }));
   };
 
-  // City / Urban Local Body selection handler
-  const handleCityUlbChange = (e) => {
-    const code = e.target.value;
-    const ulbObj = urbanLocalBodies.find((u) => u.local_body_code === code);
-    const ulbName = ulbObj ? ulbObj.local_body_name : '';
+  // Unified Tamil Nadu City selection handler (Handles both Urban Local Bodies and Blocks)
+  const handleTnCityChange = (e) => {
+    const rawVal = e.target.value;
+    if (!rawVal) {
+      setTnLocalities([]);
+      setFormData((prev) => ({
+        ...prev,
+        city_code: '',
+        city_name: '',
+        block_code: '',
+        block_name: '',
+        village_code: '',
+        village_name: '',
+      }));
+      setErrors((prev) => ({ ...prev, city_code: 'City is required' }));
+      return;
+    }
 
-    setFormData((prev) => ({
-      ...prev,
-      city_code: code,
-      city_name: ulbName,
-      ward_code: '',
-      ward_name: '',
-    }));
+    const [type, code] = rawVal.split(':');
+    const matched = tnCities.find((c) => c.code === code && c.type === type);
+    const cName = matched ? matched.name : '';
+
+    // Populate localities for this city immediately
+    const localities = getCanonicalLocalities(code, cName);
+    setTnLocalities(localities);
+
+    if (type === 'URBAN') {
+      setFormData((prev) => ({
+        ...prev,
+        location_type: 'URBAN',
+        city_code: code,
+        city_name: cName,
+        block_code: '',
+        block_name: '',
+        village_code: `${code}01`,
+        village_name: `${cName} - Main Campus`,
+        campus_locality: prev.campus_locality || `${cName} - Main Campus`,
+      }));
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        location_type: 'RURAL',
+        block_code: code,
+        block_name: cName,
+        city_code: '',
+        city_name: '',
+        village_code: `${code}01`,
+        village_name: `${cName} - Campus Area`,
+        campus_locality: prev.campus_locality || `${cName} - Campus Area`,
+      }));
+    }
 
     setErrors((prev) => ({
       ...prev,
-      city_code: code ? null : 'City / Local Body is required',
-      ward_code: null,
-    }));
-  };
-
-  // Block selection handler (Rural)
-  const handleBlockChange = (e) => {
-    const code = e.target.value;
-    const bObj = blocks.find((b) => b.block_code === code);
-    const bName = bObj ? bObj.block_name : '';
-
-    // Pre-populate canonical localities for the selected block
-    const baseName = bName || 'Central';
-    const initialVillages = [
-      { village_code: `${code || '90'}01`, village_name: `${baseName} - Main Campus / College Road` },
-      { village_code: `${code || '90'}02`, village_name: `${baseName} - North Educational Zone` },
-      { village_code: `${code || '90'}03`, village_name: `${baseName} - South Institutional Sector` },
-      { village_code: `${code || '90'}04`, village_name: `${baseName} - East Road / Hostels Area` },
-      { village_code: `${code || '90'}05`, village_name: `${baseName} - West Campus Town` },
-    ];
-    setVillages(initialVillages);
-
-    setFormData((prev) => ({
-      ...prev,
-      block_code: code,
-      block_name: bName,
-      village_code: '',
-      village_name: '',
-      subdistrict_code: '',
-      subdistrict_name: '',
-    }));
-
-    setErrors((prev) => ({
-      ...prev,
-      block_code: code ? null : 'City is required',
+      city_code: null,
+      block_code: null,
       village_code: null,
     }));
   };
 
-  // Village selection handler (Rural)
-  const handleVillageChange = (e) => {
+  // Unified Tamil Nadu Area / Locality selection handler
+  const handleTnLocalityChange = (e) => {
     const code = e.target.value;
-    const vObj = villages.find((v) => v.village_code === code);
-    const vName = vObj ? vObj.village_name : '';
-    const sCode = vObj ? vObj.subdistrict_code || '' : '';
-    const sName = vObj ? vObj.subdistrict_name || '' : '';
+    const matched = tnLocalities.find((l) => l.code === code);
+    const lName = matched ? matched.name : '';
 
     setFormData((prev) => ({
       ...prev,
       village_code: code,
-      village_name: vName,
-      subdistrict_code: sCode,
-      subdistrict_name: sName,
+      village_name: lName,
+      campus_locality: lName || prev.campus_locality,
     }));
 
     setErrors((prev) => ({
       ...prev,
-      village_code: code ? null : 'Area / Locality is required',
+      village_code: null,
     }));
   };
 
@@ -538,17 +461,8 @@ export default function CreateCollegePage() {
       if (!formData.district_code) {
         formErrors.district_code = 'District is required';
       }
-      if (formData.location_type === 'URBAN') {
-        if (!formData.city_code) {
-          formErrors.city_code = 'City / Local Body is required';
-        }
-      } else {
-        if (!formData.block_code) {
-          formErrors.block_code = 'City is required';
-        }
-        if (!formData.village_code) {
-          formErrors.village_code = 'Area / Locality is required';
-        }
+      if (!formData.city_code && !formData.block_code) {
+        formErrors.city_code = 'City is required';
       }
     } else {
       if (!formData.city.trim()) {
@@ -577,11 +491,7 @@ export default function CreateCollegePage() {
     try {
       let resolvedDisplayCity = '';
       if (isTN) {
-        if (formData.location_type === 'URBAN') {
-          resolvedDisplayCity = formData.city_name || 'Tamil Nadu Urban';
-        } else {
-          resolvedDisplayCity = formData.village_name || formData.block_name || 'Tamil Nadu Rural';
-        }
+        resolvedDisplayCity = formData.city_name || formData.block_name || formData.village_name || 'Tamil Nadu';
       } else {
         const resolvedCity = formData.city === 'OTHER' ? formData.custom_city.trim() : formData.city.trim();
         const resolvedArea = formData.area === 'OTHER' ? formData.custom_area.trim() : formData.area.trim();
@@ -597,26 +507,25 @@ export default function CreateCollegePage() {
       };
 
       if (isTN) {
-        payload.location_type = formData.location_type;
+        payload.location_type = formData.location_type || 'URBAN';
         payload.state_code = '33';
         payload.district_code = formData.district_code;
 
-        if (formData.location_type === 'URBAN') {
+        if (formData.city_code) {
           payload.city_code = formData.city_code;
-          payload.ward_code = formData.ward_code;
-        } else {
+        }
+        if (formData.block_code) {
           payload.block_code = formData.block_code;
+        }
+        if (formData.village_code) {
           payload.village_code = formData.village_code;
-          if (formData.subdistrict_code) {
-            payload.subdistrict_code = formData.subdistrict_code;
-          }
         }
 
-        if (formData.campus_locality.trim()) {
-          const locStr = formData.pincode.trim()
-            ? `${formData.campus_locality.trim()} - ${formData.pincode.trim()}`
-            : formData.campus_locality.trim();
-          payload.campus_locality = locStr;
+        const effectiveLocality = formData.campus_locality.trim() || formData.village_name || '';
+        if (effectiveLocality) {
+          payload.campus_locality = formData.pincode.trim()
+            ? `${effectiveLocality} - ${formData.pincode.trim()}`
+            : effectiveLocality;
         } else if (formData.pincode.trim()) {
           payload.campus_locality = formData.pincode.trim();
         }
@@ -686,7 +595,7 @@ export default function CreateCollegePage() {
   );
   const isLocationValid = Boolean(
     isTamilNadu
-      ? (formData.location_type === 'URBAN' ? formData.city_code : (formData.block_code && formData.village_code))
+      ? (formData.city_code || formData.block_code)
       : (formData.city && (formData.city !== 'OTHER' || formData.custom_city))
   );
   const isPasswordValid = Boolean(
@@ -697,7 +606,7 @@ export default function CreateCollegePage() {
     { label: 'College Tenant Identifier', valid: isCodeValid, detail: formData.college_code || 'e.g. IITD, NITK' },
     { label: 'Official Institution Name', valid: isNameValid, detail: formData.name || 'e.g. National Institute of Technology' },
     { label: 'State & District Mapping', valid: isDistrictValid, detail: isTamilNadu ? (formData.district_name || 'Select District') : (formData.state || 'Select State') },
-    { label: 'City & Locality Hierarchy', valid: isLocationValid, detail: isTamilNadu ? (formData.location_type === 'URBAN' ? (formData.city_name || 'Select City/ULB') : (formData.block_name ? `${formData.block_name} (${formData.village_name || 'Select Area'})` : 'Select City')) : (formData.city || 'Select City') },
+    { label: 'City & Locality Hierarchy', valid: isLocationValid, detail: isTamilNadu ? ((formData.city_name || formData.block_name) ? `${formData.city_name || formData.block_name}${formData.village_name ? ` · ${formData.village_name}` : ''}` : 'Select City') : (formData.city || 'Select City') },
     { label: 'Admin Security Credentials', valid: isPasswordValid, detail: formData.password ? (formData.password.length >= 8 ? (formData.password === formData.confirm_password ? 'Password set & confirmed' : 'Passwords do not match') : 'Min 8 chars required') : 'Password required' },
   ];
 
@@ -706,7 +615,7 @@ export default function CreateCollegePage() {
   return (
     <div className="page-container" style={{ maxWidth: '1440px', width: '100%', margin: '0 auto' }}>
       <style>{`
-        @media (max-width: 1024px) {
+        @media (max-width: 860px) {
           .onboard-grid-wrapper {
             grid-template-columns: 1fr !important;
           }
@@ -897,9 +806,10 @@ export default function CreateCollegePage() {
       {!successCollege && (
         <div
           className="onboard-grid-wrapper"
+
           style={{
             display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1.35fr) minmax(320px, 0.95fr)',
+            gridTemplateColumns: 'minmax(0, 1.25fr) minmax(320px, 0.85fr)',
             gap: '24px',
             alignItems: 'start',
             width: '100%',
@@ -908,761 +818,718 @@ export default function CreateCollegePage() {
           {/* Left Column: College Registration Form */}
           <div className="card" style={{ width: '100%', margin: 0, padding: '24px' }}>
 
-          <div className="card-header">
-            <div className="card-title">
-              <span>Institution Identity Details</span>
-            </div>
-          </div>
-
-          {serverError && (
-            <div className="error-box" style={{ marginBottom: '20px', padding: '14px', textAlign: 'left' }}>
-              <strong>Error:</strong> {serverError}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label" htmlFor="field-college-code">
-                College Code <span className="required">*</span>
-              </label>
-              <input
-                id="field-college-code"
-                name="college_code"
-                type="text"
-                className="form-control"
-                placeholder="e.g. IITD, NITK, BITS-PIL, MIT-BLR"
-                value={formData.college_code}
-                onChange={handleChange}
-                disabled={submitting}
-                style={{ textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: '600' }}
-              />
-
-              {errors.college_code && <div className="form-error">{errors.college_code}</div>}
-            </div>
-
-            <div className="form-group">
-              <label className="form-label" htmlFor="field-college-name">
-                College Name <span className="required">*</span>
-              </label>
-              <input
-                id="field-college-name"
-                name="name"
-                type="text"
-                className="form-control"
-                placeholder="e.g. National Institute of Technology Karnataka"
-                value={formData.name}
-                onChange={handleChange}
-                disabled={submitting}
-              />
-
-              {errors.name && <div className="form-error">{errors.name}</div>}
-            </div>
-
-            {/* Geographical Hierarchy Section Header with Urban / Rural Switcher for Tamil Nadu */}
-            <div
-              style={{
-                marginTop: '16px',
-                marginBottom: '10px',
-                paddingBottom: '8px',
-                borderBottom: '1px solid var(--border-color)',
-              }}
-            >
-              <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                📍 Geographical Location & Campus Address
+            <div className="card-header">
+              <div className="card-title">
+                <span>Institution Identity Details</span>
               </div>
             </div>
 
-            {/* Row 1: State & District (or City for non-TN) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div className="form-group">
-                <label className="form-label" htmlFor="field-college-state">
-                  1. State / Union Territory <span className="required">*</span>
-                </label>
-                <select
-                  id="field-college-state"
-                  name="state"
-                  className="form-control"
-                  value={formData.state}
-                  onChange={handleStateChange}
-                  disabled={submitting}
-                >
-                  <option value="">Select State / UT</option>
-                  {INDIAN_STATES.map((st) => (
-                    <option key={st} value={st}>
-                      {st} {st === 'Tamil Nadu' ? '(LGD Database Enabled)' : ''}
-                    </option>
-                  ))}
-                </select>
-                {errors.state && <div className="form-error">{errors.state}</div>}
-              </div>
-
-              {/* If Tamil Nadu, display searchable District dropdown */}
-              {isTamilNadu ? (
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label className="form-label" htmlFor="field-college-district" style={{ marginBottom: 0 }}>
-                      2. District <span className="required">*</span>
-                    </label>
-                    {loadingDistricts && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>⏳ Loading...</span>
-                    )}
-                  </div>
-
-                  <select
-                    id="field-college-district"
-                    name="district_code"
-                    className="form-control"
-                    value={formData.district_code}
-                    onChange={handleDistrictChange}
-                    disabled={submitting || loadingDistricts}
-                  >
-                    <option value="">{loadingDistricts ? 'Loading districts...' : 'Select District'}</option>
-                    {districts.map((d) => (
-                      <option key={d.district_code} value={d.district_code}>
-                        {d.district_name}
-                      </option>
-                    ))}
-                  </select>
-                  {districtError && <div className="form-error">{districtError}</div>}
-                  {errors.district_code && <div className="form-error">{errors.district_code}</div>}
-                </div>
-              ) : (
-                /* Non-TN: Standard City selection */
-                <div className="form-group">
-                  <label className="form-label" htmlFor="field-college-city">
-                    2. City <span className="required">*</span>
-                  </label>
-                  <select
-                    id="field-college-city"
-                    name="city"
-                    className="form-control"
-                    value={formData.city}
-                    onChange={handleNonTNCityChange}
-                    disabled={submitting || !formData.state}
-                  >
-                    <option value="">{formData.state ? 'Select City' : '← Select State first'}</option>
-                    {availableCities.map((ct) => (
-                      <option key={ct} value={ct}>
-                        {ct}
-                      </option>
-                    ))}
-                    {formData.state && <option value="OTHER">+ Other / Specify City</option>}
-                  </select>
-                  {formData.city === 'OTHER' && (
-                    <input
-                      id="field-college-custom-city"
-                      name="custom_city"
-                      type="text"
-                      className="form-control"
-                      style={{ marginTop: '8px' }}
-                      placeholder="Enter city name..."
-                      value={formData.custom_city}
-                      onChange={handleChange}
-                      disabled={submitting}
-                    />
-                  )}
-                  {errors.city && <div className="form-error">{errors.city}</div>}
-                </div>
-              )}
-            </div>
-
-            {/* Row 2: Tamil Nadu Urban Path (City/Local Body) */}
-            {isTamilNadu && formData.location_type === 'URBAN' && (
-              <div className="form-group">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className="form-label" htmlFor="field-college-city" style={{ marginBottom: 0 }}>
-                    3. City / Local Body <span className="required">*</span>
-                  </label>
-                  {loadingUlbs && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>⏳ Loading...</span>
-                  )}
-                </div>
-
-                <select
-                  id="field-college-city"
-                  name="city_code"
-                  className="form-control"
-                  value={formData.city_code}
-                  onChange={handleCityUlbChange}
-                  disabled={submitting || !formData.district_code || loadingUlbs}
-                >
-                  <option value="">
-                    {!formData.district_code
-                      ? '← Select District first'
-                      : loadingUlbs
-                        ? 'Loading local bodies...'
-                        : 'Select City / Local Body'}
-                  </option>
-                  {urbanLocalBodies.map((ulb) => (
-                    <option key={ulb.local_body_code} value={ulb.local_body_code}>
-                      {ulb.local_body_name}
-                      {ulb.local_body_type_name ? ` (${ulb.local_body_type_name})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {ulbError && <div className="form-error">{ulbError}</div>}
-                {errors.city_code && <div className="form-error">{errors.city_code}</div>}
+            {serverError && (
+              <div className="error-box" style={{ marginBottom: '20px', padding: '14px', textAlign: 'left' }}>
+                <strong>Error:</strong> {serverError}
               </div>
             )}
 
-            {/* Row 2: Tamil Nadu Rural Path (Block & Village) */}
-            {isTamilNadu && formData.location_type === 'RURAL' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label className="form-label" htmlFor="field-college-block" style={{ marginBottom: 0 }}>
-                      3. City <span className="required">*</span>
-                    </label>
-                    {loadingBlocks && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>⏳ Loading...</span>
-                    )}
-                  </div>
-
-                  <select
-                    id="field-college-block"
-                    name="block_code"
-                    className="form-control"
-                    value={formData.block_code}
-                    onChange={handleBlockChange}
-                    disabled={submitting || !formData.district_code || loadingBlocks}
-                  >
-                    <option value="">
-                      {!formData.district_code
-                        ? '← Select District first'
-                        : loadingBlocks
-                          ? 'Loading cities...'
-                          : 'Select City'}
-                    </option>
-                    {blocks.map((b) => (
-                      <option key={b.block_code} value={b.block_code}>
-                        {b.block_name}
-                      </option>
-                    ))}
-                  </select>
-                  {blockError && <div className="form-error">{blockError}</div>}
-                  {errors.block_code && <div className="form-error">{errors.block_code}</div>}
-                </div>
-
-                <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <label className="form-label" htmlFor="field-college-village" style={{ marginBottom: 0 }}>
-                      4. Area / Locality <span className="required">*</span>
-                    </label>
-                    {loadingVillages && (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>⏳ Loading...</span>
-                    )}
-                  </div>
-
-                  <select
-                    id="field-college-village"
-                    name="village_code"
-                    className="form-control"
-                    value={formData.village_code}
-                    onChange={handleVillageChange}
-                    disabled={submitting || !formData.block_code || loadingVillages}
-                  >
-                    <option value="">
-                      {!formData.block_code
-                        ? '← Select City first'
-                        : loadingVillages
-                          ? 'Loading areas / localities...'
-                          : 'Select Area / Locality'}
-                    </option>
-                    {villages.map((v) => (
-                      <option key={v.village_code} value={v.village_code}>
-                        {v.village_name}
-                        {v.subdistrict_name ? ` (${v.subdistrict_name} Taluk)` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {villageError && <div className="form-error">{villageError}</div>}
-                  {errors.village_code && <div className="form-error">{errors.village_code}</div>}
-                </div>
-              </div>
-            )}
-
-            {/* Row 3: Campus Locality / Street Address & PIN Code */}
-            {isTamilNadu ? (
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="field-college-campus-locality">
-                    5. Campus Locality / Street Address
-                  </label>
-                  <input
-                    id="field-college-campus-locality"
-                    name="campus_locality"
-                    type="text"
-                    className="form-control"
-                    value={formData.campus_locality}
-                    onChange={handleChange}
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="field-college-pincode">
-                    6. PIN Code
-                  </label>
-                  <input
-                    id="field-college-pincode"
-                    name="pincode"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    className="form-control"
-                    value={formData.pincode}
-                    onChange={handleChange}
-                    disabled={submitting}
-                  />
-                  {errors.pincode && <div className="form-error">{errors.pincode}</div>}
-                </div>
-              </div>
-            ) : (
-              /* Non-TN: Area / Campus Locality & PIN Code */
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
-                <div className="form-group">
-                  <label className="form-label" htmlFor="field-college-area">
-                    3. Area / Campus Locality
-                  </label>
-                  <select
-                    id="field-college-area"
-                    name="area"
-                    className="form-control"
-                    value={formData.area}
-                    onChange={handleNonTNAreaChange}
-                    disabled={submitting || !formData.city}
-                  >
-                    <option value="">{formData.city ? 'Select Area / Campus Locality' : '← Select City first'}</option>
-                    {availableAreas.map((ar) => (
-                      <option key={ar} value={ar}>
-                        {ar}
-                      </option>
-                    ))}
-                    {formData.city && <option value="OTHER">+ Other / Custom Locality</option>}
-                  </select>
-                  {formData.area === 'OTHER' && (
-                    <input
-                      id="field-college-custom-area"
-                      name="custom_area"
-                      type="text"
-                      className="form-control"
-                      style={{ marginTop: '8px' }}
-                      value={formData.custom_area}
-                      onChange={handleChange}
-                      disabled={submitting}
-                    />
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="field-college-pincode">
-                    4. PIN Code
-                  </label>
-                  <input
-                    id="field-college-pincode"
-                    name="pincode"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    className="form-control"
-                    value={formData.pincode}
-                    onChange={handleChange}
-                    disabled={submitting}
-                  />
-                  {errors.pincode && <div className="form-error">{errors.pincode}</div>}
-                </div>
-              </div>
-            )}
-
-            {/* Primary Contact Email */}
-            <div className="form-group">
-              <label className="form-label" htmlFor="field-college-email">
-                Primary Contact Email
-              </label>
-              <input
-                id="field-college-email"
-                name="contact_email"
-                type="email"
-                className="form-control"
-                placeholder="e.g. admin@college.edu.in"
-                value={formData.contact_email}
-                onChange={handleChange}
-                disabled={submitting}
-              />
-
-              {errors.contact_email && <div className="form-error">{errors.contact_email}</div>}
-            </div>
-
-            {/* College Administrator Account & Password Creation */}
-            <div
-              style={{
-                marginTop: '10px',
-                marginBottom: '20px',
-                padding: '16px',
-                backgroundColor: 'var(--bg-primary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div>
-                  <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                    🔐 College Administrator Credentials
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={generateStrongPassword}
-                  disabled={submitting}
-                  style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                >
-                  ⚡ Generate Password
-                </button>
-              </div>
-
+            <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label className="form-label" htmlFor="field-admin-email">
-                  Administrator Login Email / Username
+                <label className="form-label" htmlFor="field-college-code">
+                  College Code <span className="required">*</span>
                 </label>
                 <input
-                  id="field-admin-email"
-                  name="admin_email"
-                  type="email"
+                  id="field-college-code"
+                  name="college_code"
+                  type="text"
                   className="form-control"
-                  placeholder={
-                    formData.contact_email
-                      ? formData.contact_email
-                      : formData.college_code
-                        ? `${formData.college_code.toLowerCase()}.admin@hms.local`
-                        : 'admin@institution.edu.in'
-                  }
-                  value={formData.admin_email}
+                  placeholder="e.g. IITD, NITK, BITS-PIL, MIT-BLR"
+                  value={formData.college_code}
+                  onChange={handleChange}
+                  disabled={submitting}
+                  style={{ textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: '600' }}
+                />
+
+                {errors.college_code && <div className="form-error">{errors.college_code}</div>}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="field-college-name">
+                  College Name <span className="required">*</span>
+                </label>
+                <input
+                  id="field-college-name"
+                  name="name"
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. National Institute of Technology Karnataka"
+                  value={formData.name}
                   onChange={handleChange}
                   disabled={submitting}
                 />
 
-                {errors.admin_email && <div className="form-error">{errors.admin_email}</div>}
+                {errors.name && <div className="form-error">{errors.name}</div>}
               </div>
 
+              {/* Geographical Hierarchy Section Header with Urban / Rural Switcher for Tamil Nadu */}
+              <div
+                style={{
+                  marginTop: '16px',
+                  marginBottom: '10px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid var(--border-color)',
+                }}
+              >
+                <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  📍 Geographical Location & Campus Address
+                </div>
+              </div>
+
+              {/* Row 1: State & District (or City for non-TN) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="field-password">
-                    Admin Password <span className="required">*</span>
+                  <label className="form-label" htmlFor="field-college-state">
+                    1. State / Union Territory <span className="required">*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      id="field-password"
-                      name="password"
-                      type={showPassword ? 'text' : 'password'}
+                  <select
+                    id="field-college-state"
+                    name="state"
+                    className="form-control"
+                    value={formData.state}
+                    onChange={handleStateChange}
+                    disabled={submitting}
+                  >
+                    <option value="">Select State / UT</option>
+                    {INDIAN_STATES.map((st) => (
+                      <option key={st} value={st}>
+                        {st} {st === 'Tamil Nadu' ? '(LGD Database Enabled)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.state && <div className="form-error">{errors.state}</div>}
+                </div>
+
+                {/* If Tamil Nadu, display searchable District dropdown */}
+                {isTamilNadu ? (
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" htmlFor="field-college-district" style={{ marginBottom: 0 }}>
+                        2. District <span className="required">*</span>
+                      </label>
+                      {loadingDistricts && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--primary-color)' }}>⏳ Loading...</span>
+                      )}
+                    </div>
+
+                    <select
+                      id="field-college-district"
+                      name="district_code"
                       className="form-control"
-                      placeholder="Min. 8 characters"
-                      value={formData.password}
-                      onChange={handleChange}
-                      disabled={submitting}
-                      style={{ paddingRight: '42px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                      }}
-                      title={showPassword ? 'Hide password' : 'Show password'}
+                      value={formData.district_code}
+                      onChange={handleDistrictChange}
+                      disabled={submitting || loadingDistricts}
                     >
-                      {showPassword ? '🙈' : '👁️'}
-                    </button>
+                      <option value="">{loadingDistricts ? 'Loading districts...' : 'Select District'}</option>
+                      {districts.map((d) => (
+                        <option key={d.district_code} value={d.district_code}>
+                          {d.district_name}
+                        </option>
+                      ))}
+                    </select>
+                    {districtError && <div className="form-error">{districtError}</div>}
+                    {errors.district_code && <div className="form-error">{errors.district_code}</div>}
+                  </div>
+                ) : (
+                  /* Non-TN: Standard City selection */
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-college-city">
+                      2. City <span className="required">*</span>
+                    </label>
+                    <select
+                      id="field-college-city"
+                      name="city"
+                      className="form-control"
+                      value={formData.city}
+                      onChange={handleNonTNCityChange}
+                      disabled={submitting || !formData.state}
+                    >
+                      <option value="">{formData.state ? 'Select City' : '← Select State first'}</option>
+                      {availableCities.map((ct) => (
+                        <option key={ct} value={ct}>
+                          {ct}
+                        </option>
+                      ))}
+                      {formData.state && <option value="OTHER">+ Other / Specify City</option>}
+                    </select>
+                    {formData.city === 'OTHER' && (
+                      <input
+                        id="field-college-custom-city"
+                        name="custom_city"
+                        type="text"
+                        className="form-control"
+                        style={{ marginTop: '8px' }}
+                        placeholder="Enter city name..."
+                        value={formData.custom_city}
+                        onChange={handleChange}
+                        disabled={submitting}
+                      />
+                    )}
+                    {errors.city && <div className="form-error">{errors.city}</div>}
+                  </div>
+                )}
+              </div>
+
+              {/* Row 2: Tamil Nadu Unified City & Area Selection */}
+              {isTamilNadu && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {/* 3. City Selection */}
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" htmlFor="field-college-city" style={{ marginBottom: 0 }}>
+                        3. City <span className="required">*</span>
+                      </label>
+                      {formData.district_code && tnCities.length > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {tnCities.length} locations
+                        </span>
+                      )}
+                    </div>
+
+                    <select
+                      id="field-college-city"
+                      name="city_selection"
+                      className="form-control"
+                      value={
+                        formData.location_type === 'URBAN' && formData.city_code
+                          ? `URBAN:${formData.city_code}`
+                          : formData.location_type === 'RURAL' && formData.block_code
+                            ? `RURAL:${formData.block_code}`
+                            : ''
+                      }
+                      onChange={handleTnCityChange}
+                      disabled={submitting || !formData.district_code}
+                    >
+                      <option value="">
+                        {!formData.district_code ? '← Select District first' : 'Select City'}
+                      </option>
+                      {tnCities.map((c) => (
+                        <option key={`${c.type}:${c.code}`} value={`${c.type}:${c.code}`}>
+                          {c.name} ({c.category})
+                        </option>
+                      ))}
+                    </select>
+                    {errors.city_code && <div className="form-error">{errors.city_code}</div>}
                   </div>
 
-                  {errors.password && <div className="form-error">{errors.password}</div>}
+                  {/* 4. Area / Locality Selection */}
+                  <div className="form-group">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label className="form-label" htmlFor="field-college-area" style={{ marginBottom: 0 }}>
+                        4. Area / Locality <span className="required">*</span>
+                      </label>
+                    </div>
+
+                    <select
+                      id="field-college-area"
+                      name="village_code"
+                      className="form-control"
+                      value={formData.village_code}
+                      onChange={handleTnLocalityChange}
+                      disabled={submitting || (!formData.city_code && !formData.block_code)}
+                    >
+                      <option value="">
+                        {!formData.city_code && !formData.block_code
+                          ? '← Select City first'
+                          : 'Select Area / Locality'}
+                      </option>
+                      {tnLocalities.map((l) => (
+                        <option key={l.code} value={l.code}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.village_code && <div className="form-error">{errors.village_code}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Row 3: Campus Locality / Street Address & PIN Code */}
+              {isTamilNadu ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-college-campus-locality">
+                      5. Campus Locality / Street Address
+                    </label>
+                    <input
+                      id="field-college-campus-locality"
+                      name="campus_locality"
+                      type="text"
+                      className="form-control"
+                      value={formData.campus_locality}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-college-pincode">
+                      6. PIN Code
+                    </label>
+                    <input
+                      id="field-college-pincode"
+                      name="pincode"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="form-control"
+                      value={formData.pincode}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    {errors.pincode && <div className="form-error">{errors.pincode}</div>}
+                  </div>
+                </div>
+              ) : (
+                /* Non-TN: Area / Campus Locality & PIN Code */
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-college-area">
+                      3. Area / Campus Locality
+                    </label>
+                    <select
+                      id="field-college-area"
+                      name="area"
+                      className="form-control"
+                      value={formData.area}
+                      onChange={handleNonTNAreaChange}
+                      disabled={submitting || !formData.city}
+                    >
+                      <option value="">{formData.city ? 'Select Area / Campus Locality' : '← Select City first'}</option>
+                      {availableAreas.map((ar) => (
+                        <option key={ar} value={ar}>
+                          {ar}
+                        </option>
+                      ))}
+                      {formData.city && <option value="OTHER">+ Other / Custom Locality</option>}
+                    </select>
+                    {formData.area === 'OTHER' && (
+                      <input
+                        id="field-college-custom-area"
+                        name="custom_area"
+                        type="text"
+                        className="form-control"
+                        style={{ marginTop: '8px' }}
+                        value={formData.custom_area}
+                        onChange={handleChange}
+                        disabled={submitting}
+                      />
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-college-pincode">
+                      4. PIN Code
+                    </label>
+                    <input
+                      id="field-college-pincode"
+                      name="pincode"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="form-control"
+                      value={formData.pincode}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    {errors.pincode && <div className="form-error">{errors.pincode}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Primary Contact Email */}
+              <div className="form-group">
+                <label className="form-label" htmlFor="field-college-email">
+                  Primary Contact Email
+                </label>
+                <input
+                  id="field-college-email"
+                  name="contact_email"
+                  type="email"
+                  className="form-control"
+                  placeholder="e.g. admin@college.edu.in"
+                  value={formData.contact_email}
+                  onChange={handleChange}
+                  disabled={submitting}
+                />
+
+                {errors.contact_email && <div className="form-error">{errors.contact_email}</div>}
+              </div>
+
+              {/* College Administrator Account & Password Creation */}
+              <div
+                style={{
+                  marginTop: '10px',
+                  marginBottom: '20px',
+                  padding: '16px',
+                  backgroundColor: 'var(--bg-primary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <div>
+                    <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                      🔐 College Administrator Credentials
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={generateStrongPassword}
+                    disabled={submitting}
+                    style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                  >
+                    ⚡ Generate Password
+                  </button>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="field-confirm-password">
-                    Confirm Password <span className="required">*</span>
+                  <label className="form-label" htmlFor="field-admin-email">
+                    Administrator Login Email / Username
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <input
-                      id="field-confirm-password"
-                      name="confirm_password"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      className="form-control"
-                      placeholder="Re-type password"
-                      value={formData.confirm_password}
-                      onChange={handleChange}
-                      disabled={submitting}
-                      style={{ paddingRight: '42px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                      }}
-                      title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showConfirmPassword ? '🙈' : '👁️'}
-                    </button>
+                  <input
+                    id="field-admin-email"
+                    name="admin_email"
+                    type="email"
+                    className="form-control"
+                    placeholder={
+                      formData.contact_email
+                        ? formData.contact_email
+                        : formData.college_code
+                          ? `${formData.college_code.toLowerCase()}.admin@hms.local`
+                          : 'admin@institution.edu.in'
+                    }
+                    value={formData.admin_email}
+                    onChange={handleChange}
+                    disabled={submitting}
+                  />
+
+                  {errors.admin_email && <div className="form-error">{errors.admin_email}</div>}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-password">
+                      Admin Password <span className="required">*</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        id="field-password"
+                        name="password"
+                        type={showPassword ? 'text' : 'password'}
+                        className="form-control"
+                        placeholder="Min. 8 characters"
+                        value={formData.password}
+                        onChange={handleChange}
+                        disabled={submitting}
+                        style={{ paddingRight: '42px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          color: 'var(--text-secondary)',
+                        }}
+                        title={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+
+                    {errors.password && <div className="form-error">{errors.password}</div>}
                   </div>
-                  {errors.confirm_password && <div className="form-error">{errors.confirm_password}</div>}
+
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="field-confirm-password">
+                      Confirm Password <span className="required">*</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        id="field-confirm-password"
+                        name="confirm_password"
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        className="form-control"
+                        placeholder="Re-type password"
+                        value={formData.confirm_password}
+                        onChange={handleChange}
+                        disabled={submitting}
+                        style={{ paddingRight: '42px' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          fontSize: '0.9rem',
+                          color: 'var(--text-secondary)',
+                        }}
+                        title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showConfirmPassword ? '🙈' : '👁️'}
+                      </button>
+                    </div>
+                    {errors.confirm_password && <div className="form-error">{errors.confirm_password}</div>}
+                  </div>
                 </div>
               </div>
-            </div>
 
 
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <Link to="/colleges" className="btn btn-outline" disabled={submitting}>
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                id="btn-submit-create-college"
-                disabled={submitting}
-              >
-                {submitting ? 'Creating College...' : 'Create College Tenant'}
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Right Column: Live Tenant Preview & Verification Sidebar (fills right side blank space) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* 1. Live Tenant Identity Card */}
-          <div className="card" style={{ padding: '24px', margin: 0, borderTop: '4px solid var(--primary-color)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
-                Live Tenant Identity Preview
-              </span>
-              <span style={{
-                padding: '3px 8px',
-                borderRadius: '12px',
-                fontSize: '0.75rem',
-                fontWeight: '700',
-                background: 'var(--info-bg)',
-                color: 'var(--info-text)',
-              }}>
-                ONBOARDING
-              </span>
-            </div>
-
-            {/* Tenant Code Badge & Name */}
-            <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>
-                College Identifier
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <Link to="/colleges" className="btn btn-outline" disabled={submitting}>
+                  Cancel
+                </Link>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  id="btn-submit-create-college"
+                  disabled={submitting}
+                >
+                  {submitting ? 'Creating College...' : 'Create College Tenant'}
+                </button>
               </div>
-              <div style={{
-                fontSize: '1.25rem',
-                fontWeight: '700',
-                fontFamily: 'monospace',
-                color: formData.college_code ? 'var(--text-primary)' : 'var(--text-muted)',
-                marginTop: '2px',
-                letterSpacing: '0.5px',
-              }}>
-                {formData.college_code || 'CODE PENDING'}
-              </div>
-              <div style={{
-                fontSize: '0.95rem',
-                fontWeight: '600',
-                color: formData.name ? 'var(--text-primary)' : 'var(--text-muted)',
-                marginTop: '6px',
-                lineHeight: '1.4',
-              }}>
-                {formData.name || 'Institution display name will appear here...'}
-              </div>
-            </div>
+            </form>
+          </div>
 
-            {/* Geographic Hierarchy Breadcrumb */}
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
-                📍 Geographical Hierarchy
+          {/* Right Column: Live Tenant Preview & Verification Sidebar (fills right side blank space) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* 1. Live Tenant Identity Card */}
+            <div className="card" style={{ padding: '24px', margin: 0, borderTop: '4px solid var(--primary-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
+                  Live Tenant Identity Preview
+                </span>
+                <span style={{
+                  padding: '3px 8px',
+                  borderRadius: '12px',
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  background: 'var(--info-bg)',
+                  color: 'var(--info-text)',
+                }}>
+                  ONBOARDING
+                </span>
               </div>
-              <div style={{
-                padding: '12px',
-                background: 'var(--bg-primary)',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.85rem',
-                color: 'var(--text-primary)',
-                lineHeight: '1.6',
-              }}>
-                <div>
-                  <strong style={{ color: 'var(--text-secondary)' }}>State:</strong> {formData.state} {isTamilNadu ? '(TN · Code 33)' : ''}
+
+              {/* Tenant Code Badge & Name */}
+              <div style={{ marginBottom: '16px', padding: '14px', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>
+                  College Identifier
                 </div>
-                {isTamilNadu ? (
-                  <>
-                    <div style={{ marginTop: '4px' }}>
-                      <strong style={{ color: 'var(--text-secondary)' }}>District:</strong>{' '}
-                      {formData.district_name || <span style={{ color: 'var(--text-muted)' }}>Select District...</span>}
-                    </div>
-                    <div style={{ marginTop: '4px' }}>
-                      <strong style={{ color: 'var(--text-secondary)' }}>
-                        {formData.location_type === 'URBAN' ? 'City / Local Body:' : 'City / Block:'}
-                      </strong>{' '}
-                      {(formData.location_type === 'URBAN' ? formData.city_name : formData.block_name) || (
-                        <span style={{ color: 'var(--text-muted)' }}>Select City...</span>
-                      )}
-                    </div>
-                    <div style={{ marginTop: '4px' }}>
-                      <strong style={{ color: 'var(--text-secondary)' }}>Area / Locality:</strong>{' '}
-                      {(formData.location_type === 'URBAN' ? formData.campus_locality : formData.village_name) || (
-                        <span style={{ color: 'var(--text-muted)' }}>Select Area...</span>
-                      )}
-                    </div>
-                    {formData.pincode && (
+                <div style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  fontFamily: 'monospace',
+                  color: formData.college_code ? 'var(--text-primary)' : 'var(--text-muted)',
+                  marginTop: '2px',
+                  letterSpacing: '0.5px',
+                }}>
+                  {formData.college_code || 'CODE PENDING'}
+                </div>
+                <div style={{
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  color: formData.name ? 'var(--text-primary)' : 'var(--text-muted)',
+                  marginTop: '6px',
+                  lineHeight: '1.4',
+                }}>
+                  {formData.name || 'Institution display name will appear here...'}
+                </div>
+              </div>
+
+              {/* Geographic Hierarchy Breadcrumb */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  📍 Geographical Hierarchy
+                </div>
+                <div style={{
+                  padding: '12px',
+                  background: 'var(--bg-primary)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-primary)',
+                  lineHeight: '1.6',
+                }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-secondary)' }}>State:</strong> {formData.state} {isTamilNadu ? '(TN · Code 33)' : ''}
+                  </div>
+                  {isTamilNadu ? (
+                    <>
                       <div style={{ marginTop: '4px' }}>
-                        <strong style={{ color: 'var(--text-secondary)' }}>PIN Code:</strong> {formData.pincode}
+                        <strong style={{ color: 'var(--text-secondary)' }}>District:</strong>{' '}
+                        {formData.district_name || <span style={{ color: 'var(--text-muted)' }}>Select District...</span>}
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <div style={{ marginTop: '4px' }}>
-                      <strong style={{ color: 'var(--text-secondary)' }}>City:</strong>{' '}
-                      {formData.city === 'OTHER' ? (formData.custom_city || 'Custom City') : (formData.city || 'Select City...')}
-                    </div>
-                    <div style={{ marginTop: '4px' }}>
-                      <strong style={{ color: 'var(--text-secondary)' }}>Area:</strong>{' '}
-                      {formData.area === 'OTHER' ? (formData.custom_area || 'Custom Area') : (formData.area || 'Select Area...')}
-                    </div>
-                    {formData.pincode && (
                       <div style={{ marginTop: '4px' }}>
-                        <strong style={{ color: 'var(--text-secondary)' }}>PIN Code:</strong> {formData.pincode}
+                        <strong style={{ color: 'var(--text-secondary)' }}>City:</strong>{' '}
+                        {(formData.city_name || formData.block_name) || (
+                          <span style={{ color: 'var(--text-muted)' }}>Select City...</span>
+                        )}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Administrator Account Preview */}
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
-                👤 Primary Administrator
-              </div>
-              <div style={{
-                padding: '12px',
-                background: 'var(--bg-primary)',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                fontSize: '0.85rem',
-                color: 'var(--text-primary)',
-              }}>
-                <div>
-                  <strong style={{ color: 'var(--text-secondary)' }}>Login:</strong>{' '}
-                  <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-                    {formData.admin_email || (formData.contact_email ? formData.contact_email : formData.college_code ? `${formData.college_code.toLowerCase()}.admin@hms.local` : 'admin@institution.edu')}
-                  </span>
-                </div>
-                <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <strong style={{ color: 'var(--text-secondary)' }}>Password:</strong>
-                  {formData.password ? (
-                    formData.password.length >= 8 && formData.password === formData.confirm_password ? (
-                      <span style={{ color: 'var(--success-text)', fontSize: '0.8rem', fontWeight: '600' }}>✓ Configured & Confirmed</span>
-                    ) : formData.password !== formData.confirm_password ? (
-                      <span style={{ color: 'var(--danger-text)', fontSize: '0.8rem', fontWeight: '600' }}>⚠️ Passwords do not match</span>
-                    ) : (
-                      <span style={{ color: 'var(--warning-text)', fontSize: '0.8rem', fontWeight: '600' }}>⚠️ Min. 8 characters</span>
-                    )
+                      <div style={{ marginTop: '4px' }}>
+                        <strong style={{ color: 'var(--text-secondary)' }}>Area / Locality:</strong>{' '}
+                        {(formData.village_name || formData.campus_locality) || (
+                          <span style={{ color: 'var(--text-muted)' }}>Select Area...</span>
+                        )}
+                      </div>
+                      {formData.pincode && (
+                        <div style={{ marginTop: '4px' }}>
+                          <strong style={{ color: 'var(--text-secondary)' }}>PIN Code:</strong> {formData.pincode}
+                        </div>
+                      )}
+                    </>
                   ) : (
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Not set</span>
+                    <>
+                      <div style={{ marginTop: '4px' }}>
+                        <strong style={{ color: 'var(--text-secondary)' }}>City:</strong>{' '}
+                        {formData.city === 'OTHER' ? (formData.custom_city || 'Custom City') : (formData.city || 'Select City...')}
+                      </div>
+                      <div style={{ marginTop: '4px' }}>
+                        <strong style={{ color: 'var(--text-secondary)' }}>Area:</strong>{' '}
+                        {formData.area === 'OTHER' ? (formData.custom_area || 'Custom Area') : (formData.area || 'Select Area...')}
+                      </div>
+                      {formData.pincode && (
+                        <div style={{ marginTop: '4px' }}>
+                          <strong style={{ color: 'var(--text-secondary)' }}>PIN Code:</strong> {formData.pincode}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* 2. Onboarding Readiness Checklist Card */}
-          <div className="card" style={{ padding: '24px', margin: 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                📋 Onboarding Readiness Checklist
-              </span>
-              <span style={{
-                fontSize: '0.75rem',
-                fontWeight: '700',
-                padding: '2px 8px',
-                borderRadius: '10px',
-                background: completedChecklistCount === 5 ? 'var(--success-bg)' : 'var(--warning-bg)',
-                color: completedChecklistCount === 5 ? 'var(--success-text)' : 'var(--warning-text)',
-              }}>
-                {completedChecklistCount} of 5 Ready
-              </span>
-            </div>
-
-            {/* Progress Bar */}
-            <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
-              <div style={{
-                height: '100%',
-                width: `${(completedChecklistCount / 5) * 100}%`,
-                background: completedChecklistCount === 5 ? '#10b981' : '#3b82f6',
-                transition: 'width 0.3s ease',
-              }} />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {checklistItems.map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.85rem' }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '20px',
-                    height: '20px',
-                    borderRadius: '50%',
-                    background: item.valid ? 'var(--success-bg)' : 'var(--bg-primary)',
-                    color: item.valid ? 'var(--success-text)' : 'var(--text-muted)',
-                    fontSize: '0.75rem',
-                    fontWeight: '700',
-                    flexShrink: 0,
-                    marginTop: '1px',
-                  }}>
-                    {item.valid ? '✓' : '○'}
-                  </span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: item.valid ? '600' : '500', color: item.valid ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                      {item.label}
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.detail}
-                    </div>
+              {/* Administrator Account Preview */}
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  👤 Primary Administrator
+                </div>
+                <div style={{
+                  padding: '12px',
+                  background: 'var(--bg-primary)',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-primary)',
+                }}>
+                  <div>
+                    <strong style={{ color: 'var(--text-secondary)' }}>Login:</strong>{' '}
+                    <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                      {formData.admin_email || (formData.contact_email ? formData.contact_email : formData.college_code ? `${formData.college_code.toLowerCase()}.admin@hms.local` : 'admin@institution.edu')}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <strong style={{ color: 'var(--text-secondary)' }}>Password:</strong>
+                    {formData.password ? (
+                      formData.password.length >= 8 && formData.password === formData.confirm_password ? (
+                        <span style={{ color: 'var(--success-text)', fontSize: '0.8rem', fontWeight: '600' }}>✓ Configured & Confirmed</span>
+                      ) : formData.password !== formData.confirm_password ? (
+                        <span style={{ color: 'var(--danger-text)', fontSize: '0.8rem', fontWeight: '600' }}>⚠️ Passwords do not match</span>
+                      ) : (
+                        <span style={{ color: 'var(--warning-text)', fontSize: '0.8rem', fontWeight: '600' }}>⚠️ Min. 8 characters</span>
+                      )
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Not set</span>
+                    )}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
 
-          {/* 3. LGD Geographical Directory Info Card */}
-          <div className="card" style={{ padding: '20px', margin: 0, background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <span style={{ fontSize: '1.1rem' }}>🏛️</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                Tamil Nadu LGD Directory
-              </span>
+            {/* 2. Onboarding Readiness Checklist Card */}
+            <div className="card" style={{ padding: '24px', margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  📋 Onboarding Readiness Checklist
+                </span>
+                <span style={{
+                  fontSize: '0.75rem',
+                  fontWeight: '700',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  background: completedChecklistCount === 5 ? 'var(--success-bg)' : 'var(--warning-bg)',
+                  color: completedChecklistCount === 5 ? 'var(--success-text)' : 'var(--warning-text)',
+                }}>
+                  {completedChecklistCount} of 5 Ready
+                </span>
+              </div>
+
+              {/* Progress Bar */}
+              <div style={{ height: '6px', background: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden', marginBottom: '16px' }}>
+                <div style={{
+                  height: '100%',
+                  width: `${(completedChecklistCount / 5) * 100}%`,
+                  background: completedChecklistCount === 5 ? '#10b981' : '#3b82f6',
+                  transition: 'width 0.3s ease',
+                }} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {checklistItems.map((item, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.85rem' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '20px',
+                      height: '20px',
+                      borderRadius: '50%',
+                      background: item.valid ? 'var(--success-bg)' : 'var(--bg-primary)',
+                      color: item.valid ? 'var(--success-text)' : 'var(--text-muted)',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      flexShrink: 0,
+                      marginTop: '1px',
+                    }}>
+                      {item.valid ? '✓' : '○'}
+                    </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: item.valid ? '600' : '500', color: item.valid ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                        {item.label}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.detail}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.45' }}>
-              The HMS platform is synchronized with the official Tamil Nadu Local Government Directory across all 38 districts, 388 development blocks, and 649 urban local bodies for authoritative tenant physical structure management.
-            </p>
+
+            {/* 3. LGD Geographical Directory Info Card */}
+            <div className="card" style={{ padding: '20px', margin: 0, background: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '1.1rem' }}>🏛️</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                  Tamil Nadu LGD Directory
+                </span>
+              </div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.45' }}>
+                The HMS platform is synchronized with the official Tamil Nadu Local Government Directory across all 38 districts, 388 development blocks, and 649 urban local bodies for authoritative tenant physical structure management.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
       )}
     </div>
   );

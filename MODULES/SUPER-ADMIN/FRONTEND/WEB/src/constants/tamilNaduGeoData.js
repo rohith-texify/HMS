@@ -263,3 +263,64 @@ export function getCanonicalULBs(districtCode) {
   if (!districtCode) return [];
   return CANONICAL_TN_ULBS[districtCode] || [];
 }
+
+/**
+ * Returns unified list of Cities (Corporations, Municipalities, Towns, and Blocks) for a Tamil Nadu district
+ * @param {string} districtCode
+ */
+export function getCanonicalCitiesForDistrict(districtCode) {
+  if (!districtCode) return [];
+  const ulbs = CANONICAL_TN_ULBS[districtCode] || [];
+  const blocks = CANONICAL_TN_BLOCKS[districtCode] || [];
+  const list = [];
+  const seen = new Set();
+
+  // 1. Urban Local Bodies (Corporations, Municipalities, Towns)
+  ulbs.forEach((u) => {
+    const key = u.local_body_name.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      list.push({
+        code: String(u.local_body_code),
+        name: u.local_body_name,
+        type: 'URBAN',
+        category: 'City / Municipality',
+      });
+    }
+  });
+
+  // 2. Development Blocks
+  blocks.forEach((b) => {
+    const key = b.block_name.toLowerCase().trim();
+    if (!seen.has(key)) {
+      seen.add(key);
+      list.push({
+        code: String(b.block_code),
+        name: b.block_name,
+        type: 'RURAL',
+        category: 'Block / Taluk',
+      });
+    }
+  });
+
+  return list.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Returns canonical campus localities for a selected city / block
+ * @param {string} code
+ * @param {string} name
+ */
+export function getCanonicalLocalities(code, name) {
+  const base = name ? name.trim() : 'Campus';
+  const prefix = code || '01';
+  return [
+    { code: `${prefix}01`, name: `${base} - Main Campus / College Road` },
+    { code: `${prefix}02`, name: `${base} - Academic & Research Zone` },
+    { code: `${prefix}03`, name: `${base} - North Campus / Hostels` },
+    { code: `${prefix}04`, name: `${base} - South Campus / Sports Complex` },
+    { code: `${prefix}05`, name: `${base} - Tech & Innovation Hub` },
+    { code: `${prefix}06`, name: `${base} - Central Institutional Town` },
+  ];
+}
+

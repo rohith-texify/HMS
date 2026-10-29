@@ -3,6 +3,8 @@ import {
   getCanonicalDistricts,
   getCanonicalBlocks,
   getCanonicalULBs,
+  getCanonicalCitiesForDistrict,
+  getCanonicalLocalities,
 } from '../constants/tamilNaduGeoData';
 
 // In-memory cache for fast repeated selections
