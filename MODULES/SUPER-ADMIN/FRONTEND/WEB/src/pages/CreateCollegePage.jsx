@@ -71,7 +71,7 @@ export default function CreateCollegePage() {
   // Tamil Nadu unified Cities (Corporations, Municipalities, Towns, and Blocks) derived deterministically
   const tnCities = useMemo(() => {
     if (formData.state_code === '33' && formData.district_code) {
-      return getCanonicalCitiesForDistrict(formData.district_code);
+      return getCanonicalCitiesForDistrict(String(formData.district_code));
     }
     return [];
   }, [formData.state_code, formData.district_code]);
@@ -284,25 +284,58 @@ export default function CreateCollegePage() {
 
   // District selection handler
   const handleDistrictChange = (e) => {
-    const code = e.target.value;
-    const dObj = districts.find((d) => d.district_code === code);
+    const code = String(e.target.value);
+    const dObj = districts.find((d) => String(d.district_code) === code);
     const dName = dObj ? dObj.district_name : '';
 
-    setFormData((prev) => ({
-      ...prev,
-      district_code: code,
-      district_name: dName,
-      city_code: '',
-      city_name: '',
-      ward_code: '',
-      ward_name: '',
-      block_code: '',
-      block_name: '',
-      village_code: '',
-      village_name: '',
-      subdistrict_code: '',
-      subdistrict_name: '',
-    }));
+    // Auto-derive cities for selected district and auto-select primary city matching district
+    const available = code ? getCanonicalCitiesForDistrict(code) : [];
+    const defaultCity = available.find(
+      (c) => c.name.toLowerCase() === dName.toLowerCase()
+    ) || available[0];
+
+    setFormData((prev) => {
+      const next = {
+        ...prev,
+        district_code: code,
+        district_name: dName,
+        ward_code: '',
+        ward_name: '',
+        subdistrict_code: '',
+        subdistrict_name: '',
+      };
+
+      if (defaultCity) {
+        if (defaultCity.type === 'URBAN') {
+          next.location_type = 'URBAN';
+          next.city_code = defaultCity.code;
+          next.city_name = defaultCity.name;
+          next.block_code = '';
+          next.block_name = '';
+          next.village_code = `${defaultCity.code}01`;
+          next.village_name = `${defaultCity.name} - Main Campus`;
+          next.campus_locality = prev.campus_locality || `${defaultCity.name} - Main Campus`;
+        } else {
+          next.location_type = 'RURAL';
+          next.block_code = defaultCity.code;
+          next.block_name = defaultCity.name;
+          next.city_code = '';
+          next.city_name = '';
+          next.village_code = `${defaultCity.code}01`;
+          next.village_name = `${defaultCity.name} - Campus Area`;
+          next.campus_locality = prev.campus_locality || `${defaultCity.name} - Campus Area`;
+        }
+      } else {
+        next.city_code = '';
+        next.city_name = '';
+        next.block_code = '';
+        next.block_name = '';
+        next.village_code = '';
+        next.village_name = '';
+      }
+
+      return next;
+    });
 
     setErrors((prev) => ({
       ...prev,
@@ -1028,6 +1061,39 @@ export default function CreateCollegePage() {
                         </option>
                       ))}
                     </select>
+
+                    {/* Quick 1-Click Interactive City Cards / Badges */}
+                    {formData.district_code && tnCities.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                        {tnCities.map((c) => {
+                          const isSelected =
+                            (c.type === 'URBAN' && formData.city_code === c.code) ||
+                            (c.type === 'RURAL' && formData.block_code === c.code);
+                          return (
+                            <button
+                              key={`pill-${c.type}-${c.code}`}
+                              type="button"
+                              onClick={() => {
+                                handleTnCityChange({ target: { value: `${c.type}:${c.code}` } });
+                              }}
+                              style={{
+                                padding: '4px 9px',
+                                fontSize: '0.74rem',
+                                borderRadius: '14px',
+                                border: isSelected ? '1.5px solid var(--primary-color, #2563eb)' : '1px solid var(--border-color, #cbd5e1)',
+                                background: isSelected ? '#eff6ff' : 'var(--bg-primary, #ffffff)',
+                                color: isSelected ? '#1d4ed8' : 'var(--text-secondary, #475569)',
+                                fontWeight: isSelected ? '700' : '500',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {isSelected ? '✓ ' : ''}{c.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     {errors.city_code && <div className="form-error">{errors.city_code}</div>}
                   </div>
 
@@ -1058,6 +1124,37 @@ export default function CreateCollegePage() {
                         </option>
                       ))}
                     </select>
+
+                    {/* Quick 1-Click Interactive Locality Cards / Badges */}
+                    {(formData.city_code || formData.block_code) && tnLocalities.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px' }}>
+                        {tnLocalities.slice(0, 3).map((l) => {
+                          const isSelected = formData.village_code === l.code;
+                          return (
+                            <button
+                              key={`loc-${l.code}`}
+                              type="button"
+                              onClick={() => {
+                                handleTnLocalityChange({ target: { value: l.code } });
+                              }}
+                              style={{
+                                padding: '4px 9px',
+                                fontSize: '0.74rem',
+                                borderRadius: '14px',
+                                border: isSelected ? '1.5px solid var(--primary-color, #2563eb)' : '1px solid var(--border-color, #cbd5e1)',
+                                background: isSelected ? '#eff6ff' : 'var(--bg-primary, #ffffff)',
+                                color: isSelected ? '#1d4ed8' : 'var(--text-secondary, #475569)',
+                                fontWeight: isSelected ? '700' : '500',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                              }}
+                            >
+                              {isSelected ? '✓ ' : ''}{l.name.replace(/ - /g, ' · ')}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                     {errors.village_code && <div className="form-error">{errors.village_code}</div>}
                   </div>
                 </div>

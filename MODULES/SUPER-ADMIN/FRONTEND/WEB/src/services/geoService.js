@@ -24,6 +24,13 @@ export async function fetchDistricts(signal) {
     }
   }
 
+  // In development, canonical dataset is authoritative, instant, and offline-safe
+  if (import.meta.env.DEV) {
+    const canonical = getCanonicalDistricts();
+    cache.set(cacheKey, canonical);
+    return canonical;
+  }
+
   try {
     const res = await api.get('/geo/districts', { signal });
     const data = res?.data;
@@ -93,6 +100,12 @@ export async function fetchBlocks(districtCode, signal) {
     }
   }
 
+  if (import.meta.env.DEV) {
+    const fallbackBlocks = getCanonicalBlocks(districtCode);
+    cache.set(cacheKey, fallbackBlocks);
+    return fallbackBlocks;
+  }
+
   try {
     const res = await api.get('/geo/blocks', {
       params: { district_code: districtCode },
@@ -130,6 +143,12 @@ export async function fetchUrbanLocalBodies(districtCode, signal) {
     if (Array.isArray(cached) && cached.length > 0) {
       return cached;
     }
+  }
+
+  if (import.meta.env.DEV) {
+    const fallbackUlbs = getCanonicalULBs(districtCode);
+    cache.set(cacheKey, fallbackUlbs);
+    return fallbackUlbs;
   }
 
   try {

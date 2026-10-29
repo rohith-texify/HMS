@@ -12,8 +12,15 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     const initAuth = async () => {
-      const activeToken = authService.getToken();
-      const currentUser = authService.getCurrentUser();
+      let activeToken = authService.getToken();
+      let currentUser = authService.getCurrentUser();
+
+      // In local dev mode, auto-bootstrap Super Admin session if absent
+      if (import.meta.env.DEV && (!activeToken || !currentUser)) {
+        const devSession = authService.devLogin();
+        activeToken = devSession.token;
+        currentUser = devSession.user;
+      }
 
       if (activeToken && currentUser) {
         setUser(currentUser);

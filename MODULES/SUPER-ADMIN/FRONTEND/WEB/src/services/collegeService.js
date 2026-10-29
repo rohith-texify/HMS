@@ -19,15 +19,47 @@ export async function fetchCollegesList({ search, status, limit = 20, offset = 0
     params.search = search.trim();
   }
 
-  const res = await api.get('/super-admin/colleges', { params, signal });
-  return {
-    colleges: res.data?.colleges || [],
-    meta: res.meta || {
-      total: res.data?.colleges?.length || 0,
-      limit,
-      offset,
-    },
-  };
+  try {
+    const res = await api.get('/super-admin/colleges', { params, signal });
+    return {
+      colleges: res.data?.colleges || [],
+      meta: res.meta || {
+        total: res.data?.colleges?.length || 0,
+        limit,
+        offset,
+      },
+    };
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn('Dev mode: Returning demo colleges on fetch error:', err?.message || err);
+      return {
+        colleges: [
+          {
+            id: 'col-demo-1',
+            college_id: 'col-demo-1',
+            college_code: 'IITM',
+            name: 'Indian Institute of Technology Madras',
+            state: 'Tamil Nadu',
+            city: 'Chennai',
+            status: 'ACTIVE',
+            created_at: new Date().toISOString(),
+          },
+          {
+            id: 'col-demo-2',
+            college_id: 'col-demo-2',
+            college_code: 'NITT',
+            name: 'National Institute of Technology Tiruchirappalli',
+            state: 'Tamil Nadu',
+            city: 'Tiruchirappalli',
+            status: 'ACTIVE',
+            created_at: new Date().toISOString(),
+          },
+        ],
+        meta: { total: 2, limit, offset },
+      };
+    }
+    throw err;
+  }
 }
 
 /**

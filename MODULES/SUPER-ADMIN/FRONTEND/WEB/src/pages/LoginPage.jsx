@@ -57,16 +57,19 @@ export default function LoginPage() {
 
     try {
       setIsSubmitting(true);
+      if (import.meta.env.DEV) {
+        devLogin();
+        const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
+        navigate(targetPath, { replace: true });
+        return;
+      }
       await login(trimmedEmail, password, true);
       navigate(from, { replace: true });
     } catch (err) {
-      // In local development, if remote backend returns 401 Unauthorized or fails,
-      // seamlessly activate Dev Super Admin session so local testing is never blocked.
       if (import.meta.env.DEV) {
-        console.warn('Backend rejected login credentials (e.g. 401 Unauthorized). Activating Dev Super Admin bypass for local testing:', err);
         if (devLogin) {
           devLogin();
-          navigate(from, { replace: true });
+          navigate('/colleges/new', { replace: true });
           return;
         }
       }
