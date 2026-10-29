@@ -77,6 +77,14 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          to="/change-sets"
+          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+        >
+          <span>🔄</span>
+          <span>Change Sets</span>
+        </NavLink>
+
+        <NavLink
           to="/modules"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >

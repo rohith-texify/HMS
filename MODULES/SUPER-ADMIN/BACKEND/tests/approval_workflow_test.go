@@ -411,7 +411,7 @@ func TestApprovalRepository_FailClosed_Unconfigured(t *testing.T) {
 	repo := repository.New(nil)
 
 	// Verify fail-closed behavior across all approval repository methods
-	_, _, err := repo.ListApprovalRequests(ctx, nil, nil, 10, 0)
+	_, _, err := repo.ListApprovalRequests(ctx, nil, nil, nil, nil, 10, 0)
 	if !errors.Is(err, repository.ErrPlatformPoolNotConfigured) {
 		t.Errorf("expected ErrPlatformPoolNotConfigured, got %v", err)
 	}
@@ -491,7 +491,7 @@ func TestApprovalService_FailClosedAndGuards(t *testing.T) {
 	// 1. Nil service / unconfigured DB
 	svc := services.NewApprovalService(nil, nil)
 
-	_, _, err := svc.ListApprovalRequests(ctx, models.ListApprovalRequestsParams{})
+	_, _, err := svc.ListApprovalRequests(ctx, models.ListApprovalRequestsParams{}, uuid.Nil)
 	if err == nil {
 		t.Errorf("expected error for unconfigured service in ListApprovalRequests")
 	}
@@ -1221,7 +1221,7 @@ func TestApprovalWorkflow_Integration_PaginationAndFilters(t *testing.T) {
 		Status:    "PENDING",
 		Limit:     2,
 		Offset:    0,
-	})
+	}, uuid.Nil)
 	if err != nil {
 		t.Fatalf("failed to list requests: %v", err)
 	}
@@ -1238,7 +1238,7 @@ func TestApprovalWorkflow_Integration_PaginationAndFilters(t *testing.T) {
 		Status:    "PENDING",
 		Limit:     2,
 		Offset:    2,
-	})
+	}, uuid.Nil)
 	if err != nil {
 		t.Fatalf("failed to list requests with offset: %v", err)
 	}

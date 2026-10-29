@@ -72,7 +72,9 @@ func (h *ApprovalHandler) ListApprovalRequests(c *gin.Context) {
 		return
 	}
 
-	requests, meta, err := h.service.ListApprovalRequests(c.Request.Context(), params)
+	actorID, _, _ := getAuthenticatedActor(c)
+
+	requests, meta, err := h.service.ListApprovalRequests(c.Request.Context(), params, actorID)
 	if err != nil {
 		respondError(c, err)
 		return
@@ -81,6 +83,38 @@ func (h *ApprovalHandler) ListApprovalRequests(c *gin.Context) {
 	response.WithMeta(c, http.StatusOK, map[string]interface{}{
 		"approval_requests": requests,
 	}, meta)
+}
+
+// CancelApprovalRequest handles POST /super-admin/approvals/:id/cancel - withdraw/cancel a pending request.
+func (h *ApprovalHandler) CancelApprovalRequest(c *gin.Context) {
+	requestID, err := validators.ValidateRequestID(c.Param("id"))
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	actorID, actorRole, err := getAuthenticatedActor(c)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	var body models.CancelApprovalRequestInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		respondError(c, validators.NewValidationError("Invalid request body. Reason is required"))
+		return
+	}
+
+	result, err := h.service.CancelApprovalRequest(c.Request.Context(), requestID, actorID, actorRole, body.Reason)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	response.OK(c, map[string]interface{}{
+		"message":          "Approval request cancelled successfully",
+		"approval_request": result,
+	})
 }
 
 // GetApprovalRequest handles GET /super-admin/approvals/:id - retrieve a single approval request with steps.

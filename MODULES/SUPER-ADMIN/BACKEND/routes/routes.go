@@ -36,6 +36,7 @@ func RegisterSuperAdminRoutes(
 	accessControlService := services.NewAccessControlService(db, repo)
 	systemSettingsService := services.NewSystemSettingsService(db, repo)
 	auditService := services.NewAuditService(db, repo)
+	changeManagementService := services.NewChangeManagementService(db, repo, approvalService)
 
 	// Initialize handlers
 	collegeHandler := handlers.NewCollegeHandler(collegeService)
@@ -52,6 +53,7 @@ func RegisterSuperAdminRoutes(
 	accessControlHandler := handlers.NewAccessControlHandler(accessControlService)
 	systemSettingsHandler := handlers.NewSystemSettingsHandler(systemSettingsService)
 	auditHandler := handlers.NewAuditHandler(auditService)
+	changeManagementHandler := handlers.NewChangeManagementHandler(changeManagementService)
 
 	// Super Admin API routes group
 	// Note: Auth and permission middleware should be applied at the router level
@@ -204,6 +206,7 @@ func RegisterSuperAdminRoutes(
 			approvals.POST("", requireManage, approvalHandler.CreateApprovalRequest)
 			approvals.GET("/:id", requireView, approvalHandler.GetApprovalRequest)
 			approvals.POST("/:id/execute", requireManage, approvalHandler.ExecuteApprovalRequest)
+			approvals.POST("/:id/cancel", requireManage, approvalHandler.CancelApprovalRequest)
 			approvals.POST("/steps/:step_id/decision", requireManage, approvalHandler.ProcessApprovalDecision)
 		}
 
@@ -295,6 +298,16 @@ func RegisterSuperAdminRoutes(
 			auditLogs.POST("/exports", requireManage, auditHandler.RequestExport)
 			auditLogs.POST("/exports/:id/decision", requireManage, auditHandler.ProcessExportDecision)
 			auditLogs.GET("/:id", requireView, auditHandler.GetAuditLog)
+		}
+
+		// Configuration Change Management (Module 15)
+		changeSets := superAdmin.Group("/change-sets")
+		{
+			changeSets.GET("", requireView, changeManagementHandler.ListChangeSets)
+			changeSets.POST("", requireManage, changeManagementHandler.ProposeChangeSet)
+			changeSets.POST("/rollback", requireManage, changeManagementHandler.ProposeRollback)
+			changeSets.GET("/:id", requireView, changeManagementHandler.GetChangeSet)
+			changeSets.POST("/:id/withdraw", requireManage, changeManagementHandler.WithdrawChangeSet)
 		}
 	}
 }

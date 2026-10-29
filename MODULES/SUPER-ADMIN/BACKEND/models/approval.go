@@ -77,10 +77,17 @@ type ApprovalDecisionRequest struct {
 
 // ListApprovalRequestsParams represents query parameters for listing approval requests.
 type ListApprovalRequestsParams struct {
-	Status    string     `form:"status" binding:"omitempty,oneof=PENDING APPROVED REJECTED CANCELLED EXPIRED EXECUTED"`
-	CollegeID *uuid.UUID `form:"college_id"`
-	Limit     int        `form:"limit" binding:"omitempty,min=1,max=100"`
-	Offset    int        `form:"offset" binding:"omitempty,min=0"`
+	Status      string     `form:"status" binding:"omitempty,oneof=PENDING APPROVED REJECTED CANCELLED EXPIRED EXECUTED"`
+	CollegeID   *uuid.UUID `form:"college_id"`
+	RequestedBy *uuid.UUID `form:"requested_by"`
+	Inbox       bool       `form:"inbox"`
+	Limit       int        `form:"limit" binding:"omitempty,min=1,max=100"`
+	Offset      int        `form:"offset" binding:"omitempty,min=0"`
+}
+
+// CancelApprovalRequestInput represents the payload for cancelling/withdrawing an approval request.
+type CancelApprovalRequestInput struct {
+	Reason string `json:"reason" binding:"required,max=500"`
 }
 
 // CreateApprovalStepInput represents an individual step definition when creating an approval request.

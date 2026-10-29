@@ -16,6 +16,8 @@ func (r *Repository) ListApprovalRequests(
 	ctx context.Context,
 	status *string,
 	collegeID *uuid.UUID,
+	requestedBy *uuid.UUID,
+	excludeRequester *uuid.UUID,
 	limit, offset int,
 ) ([]models.ApprovalRequest, int, error) {
 	// Build the WHERE clause based on optional filters
@@ -34,6 +36,18 @@ func (r *Repository) ListApprovalRequests(
 	if collegeID != nil {
 		conditions = append(conditions, fmt.Sprintf("college_id = $%d", argPos))
 		args = append(args, *collegeID)
+		argPos++
+	}
+
+	if requestedBy != nil {
+		conditions = append(conditions, fmt.Sprintf("requested_by = $%d", argPos))
+		args = append(args, *requestedBy)
+		argPos++
+	}
+
+	if excludeRequester != nil {
+		conditions = append(conditions, fmt.Sprintf("requested_by != $%d", argPos))
+		args = append(args, *excludeRequester)
 		argPos++
 	}
 

@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +38,7 @@ func NewApprovalService(
 func (s *ApprovalService) ListApprovalRequests(
 	ctx context.Context,
 	params models.ListApprovalRequestsParams,
+	authenticatedActorID uuid.UUID,
 ) ([]models.ApprovalRequest, *models.PaginationMeta, error) {
 	if s == nil || s.repo == nil {
 		return nil, nil, apierrors.New(
@@ -65,8 +68,20 @@ func (s *ApprovalService) ListApprovalRequests(
 		statusFilter = &params.Status
 	}
 
+	var requestedByFilter *uuid.UUID
+	var excludeRequesterFilter *uuid.UUID
+
+	if params.RequestedBy != nil && *params.RequestedBy != uuid.Nil {
+		requestedByFilter = params.RequestedBy
+	}
+
+	// If Inbox view is requested, exclude own requests so approvers only see requests made by others (Maker-Checker)
+	if params.Inbox && authenticatedActorID != uuid.Nil {
+		excludeRequesterFilter = &authenticatedActorID
+	}
+
 	// Call repository
-	requests, total, err := s.repo.ListApprovalRequests(ctx, statusFilter, params.CollegeID, limit, offset)
+	requests, total, err := s.repo.ListApprovalRequests(ctx, statusFilter, params.CollegeID, requestedByFilter, excludeRequesterFilter, limit, offset)
 	if err != nil {
 		return nil, nil, apierrors.New(
 			apierrors.InternalError,
@@ -77,6 +92,113 @@ func (s *ApprovalService) ListApprovalRequests(
 	meta := models.NewPaginationMeta(limit, offset, total)
 
 	return requests, meta, nil
+}
+
+// CancelApprovalRequest allows the requester (or an authorized admin) to withdraw/cancel a pending approval request.
+func (s *ApprovalService) CancelApprovalRequest(
+	ctx context.Context,
+	requestID uuid.UUID,
+	actorUserID uuid.UUID,
+	actorRole string,
+	reason string,
+) (*models.ApprovalRequestWithSteps, error) {
+	if s == nil || s.repo == nil || s.db == nil {
+		return nil, apierrors.New(apierrors.InternalError, "Approval service is not configured")
+	}
+
+	if requestID == uuid.Nil {
+		return nil, apierrors.New(apierrors.ValidationError, "Request ID is required")
+	}
+
+	if actorUserID == uuid.Nil {
+		return nil, apierrors.New(apierrors.Unauthorized, "Authenticated actor user ID is required")
+	}
+
+	trimmedReason := strings.TrimSpace(reason)
+	if trimmedReason == "" {
+		return nil, apierrors.New(apierrors.ValidationError, "Cancellation reason is required")
+	}
+
+	ctx = database.WithPlatformUserID(ctx, actorUserID)
+	ctx = database.WithPlatformReason(ctx, trimmedReason)
+
+	var result *models.ApprovalRequestWithSteps
+
+	err := s.db.WithPlatformTransaction(ctx, func(txCtx context.Context, _ pgx.Tx) error {
+		request, err := s.repo.GetApprovalRequestByIDForUpdate(txCtx, requestID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return apierrors.New(apierrors.NotFound, "Approval request not found")
+			}
+			return apierrors.New(apierrors.InternalError, fmt.Sprintf("Failed to load approval request: %v", err))
+		}
+
+		if request.Status != "PENDING" {
+			return apierrors.New(
+				apierrors.Conflict,
+				fmt.Sprintf("Cannot cancel approval request with status '%s'. Only PENDING requests can be cancelled/withdrawn.", request.Status),
+			)
+		}
+
+		// Requester can always cancel/withdraw their own request. Other platform admins can cancel if authorized.
+		if request.RequestedBy != actorUserID && actorRole != "SUPER_ADMIN" && actorRole != "PLATFORM_OWNER" {
+			return apierrors.New(
+				apierrors.Forbidden,
+				"Only the original requester or a platform super administrator can withdraw this approval request",
+			)
+		}
+
+		if err := s.repo.UpdateApprovalRequestStatus(txCtx, requestID, "CANCELLED"); err != nil {
+			return apierrors.New(apierrors.InternalError, fmt.Sprintf("Failed to update request status: %v", err))
+		}
+
+		// Record audit log
+		if auditErr := s.repo.RecordApprovalAudit(txCtx, models.ApprovalAuditParams{
+			CollegeID:   request.CollegeID,
+			ActorUserID: actorUserID,
+			ActorRole:   actorRole,
+			Module:      "platform_approvals",
+			Action:      "APPROVAL_REQUEST_CANCELLED",
+			EntityType:  "APPROVAL_REQUEST",
+			EntityID:    requestID,
+			OldData: models.JSONB{
+				"status": request.Status,
+			},
+			NewData: models.JSONB{
+				"status": "CANCELLED",
+			},
+			Reason:   &trimmedReason,
+			Severity: "WARN",
+		}); auditErr != nil {
+			return apierrors.New(apierrors.InternalError, fmt.Sprintf("Failed to record cancellation audit: %v", auditErr))
+		}
+
+		updatedReq, err := s.repo.GetApprovalRequestByID(txCtx, requestID)
+		if err != nil {
+			return apierrors.New(apierrors.InternalError, "Failed to load updated request")
+		}
+
+		steps, err := s.repo.GetApprovalStepsByRequestID(txCtx, requestID)
+		if err != nil {
+			return apierrors.New(apierrors.InternalError, "Failed to load approval steps")
+		}
+
+		result = &models.ApprovalRequestWithSteps{
+			ApprovalRequest: *updatedReq,
+			Steps:           steps,
+		}
+		return nil
+	})
+
+	if err != nil {
+		var apiErr *apierrors.APIError
+		if errors.As(err, &apiErr) {
+			return nil, apiErr
+		}
+		return nil, apierrors.New(apierrors.InternalError, fmt.Sprintf("Failed to cancel request: %v", err))
+	}
+
+	return result, nil
 }
 
 // GetApprovalRequest retrieves a single approval request with its steps.
