@@ -24,12 +24,9 @@ export async function fetchDistricts(signal) {
     }
   }
 
-  // In development, canonical dataset is authoritative, instant, and offline-safe
-  if (import.meta.env.DEV) {
-    const canonical = getCanonicalDistricts();
-    cache.set(cacheKey, canonical);
-    return canonical;
-  }
+  // Canonical dataset is authoritative, instant, and offline-resilient across dev and production
+  const canonical = getCanonicalDistricts();
+  cache.set(cacheKey, canonical);
 
   try {
     const res = await api.get('/geo/districts', { signal });
@@ -42,13 +39,9 @@ export async function fetchDistricts(signal) {
     if (err?.name === 'CanceledError' || err?.isCanceled) {
       throw err;
     }
-    console.warn('Network district fetch failed, using canonical Tamil Nadu districts:', err?.message || err);
   }
 
-  // Authoritative fallback: All 38 Tamil Nadu districts
-  const fallback = getCanonicalDistricts();
-  cache.set(cacheKey, fallback);
-  return fallback;
+  return canonical;
 }
 
 /**
@@ -100,11 +93,7 @@ export async function fetchBlocks(districtCode, signal) {
     }
   }
 
-  if (import.meta.env.DEV) {
-    const fallbackBlocks = getCanonicalBlocks(districtCode);
-    cache.set(cacheKey, fallbackBlocks);
-    return fallbackBlocks;
-  }
+  const fallbackBlocks = getCanonicalBlocks(districtCode);
 
   try {
     const res = await api.get('/geo/blocks', {
@@ -120,8 +109,6 @@ export async function fetchBlocks(districtCode, signal) {
     if (err?.name === 'CanceledError' || err?.isCanceled) throw err;
   }
 
-  // Canonical fallback for Tamil Nadu blocks by district
-  const fallbackBlocks = getCanonicalBlocks(districtCode);
   if (fallbackBlocks.length > 0) {
     cache.set(cacheKey, fallbackBlocks);
     return fallbackBlocks;
@@ -145,11 +132,7 @@ export async function fetchUrbanLocalBodies(districtCode, signal) {
     }
   }
 
-  if (import.meta.env.DEV) {
-    const fallbackUlbs = getCanonicalULBs(districtCode);
-    cache.set(cacheKey, fallbackUlbs);
-    return fallbackUlbs;
-  }
+  const fallbackUlbs = getCanonicalULBs(districtCode);
 
   try {
     const res = await api.get('/geo/urban-local-bodies', {
@@ -165,11 +148,9 @@ export async function fetchUrbanLocalBodies(districtCode, signal) {
     if (err?.name === 'CanceledError' || err?.isCanceled) throw err;
   }
 
-  // Canonical fallback for Tamil Nadu ULBs by district
-  const fallbackULBs = getCanonicalULBs(districtCode);
-  if (fallbackULBs.length > 0) {
-    cache.set(cacheKey, fallbackULBs);
-    return fallbackULBs;
+  if (fallbackUlbs.length > 0) {
+    cache.set(cacheKey, fallbackUlbs);
+    return fallbackUlbs;
   }
   return [];
 }

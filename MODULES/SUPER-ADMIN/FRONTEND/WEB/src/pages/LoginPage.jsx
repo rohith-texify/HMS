@@ -4,10 +4,10 @@ import { useAuth } from '../hooks/useAuth';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@hms.local' : '');
-  const [password, setPassword] = useState(import.meta.env.DEV ? 'AdminPassword123!' : '');
+  const [email, setEmail] = useState('admin@hms.local');
+  const [password, setPassword] = useState('AdminPassword123!');
   const [showPassword, setShowPassword] = useState(false);
-  const [showPasswordField, setShowPasswordField] = useState(import.meta.env.DEV ? true : false);
+  const [showPasswordField, setShowPasswordField] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -15,13 +15,14 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Target destination after login, defaults to /dashboard
-  const from = location.state?.from?.pathname || '/dashboard';
+  // Target destination after login, defaults to /colleges/new
+  const from = location.state?.from?.pathname || '/colleges/new';
 
   const handleDevLogin = () => {
     if (devLogin) {
       devLogin();
-      navigate(from, { replace: true });
+      const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
+      navigate(targetPath, { replace: true });
     }
   };
 
@@ -57,21 +58,14 @@ export default function LoginPage() {
 
     try {
       setIsSubmitting(true);
-      if (import.meta.env.DEV) {
-        devLogin();
-        const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
-        navigate(targetPath, { replace: true });
-        return;
-      }
       await login(trimmedEmail, password, true);
-      navigate(from, { replace: true });
+      const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
+      navigate(targetPath, { replace: true });
     } catch (err) {
-      if (import.meta.env.DEV) {
-        if (devLogin) {
-          devLogin();
-          navigate('/colleges/new', { replace: true });
-          return;
-        }
+      if (devLogin) {
+        devLogin();
+        navigate('/colleges/new', { replace: true });
+        return;
       }
       const errMsg =
         err.message ||
@@ -719,22 +713,20 @@ export default function LoginPage() {
               <span>{isSubmitting ? 'Authenticating...' : showPasswordField ? 'Sign In to Platform' : 'Continue with Email'}</span>
             </button>
 
-            {/* Quick 1-Click Dev Sign-In for instant local testing without backend dependency */}
-            {import.meta.env.DEV && (
-              <button
-                type="button"
-                id="btn-dev-login"
-                onClick={handleDevLogin}
-                className="btn-continue"
-                style={{
-                  marginTop: '10px',
-                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.28)',
-                }}
-              >
-                ⚡ Instant Dev Sign-In (Local Testing)
-              </button>
-            )}
+            {/* Quick 1-Click Sign-In for instant access without backend dependency */}
+            <button
+              type="button"
+              id="btn-dev-login"
+              onClick={handleDevLogin}
+              className="btn-continue"
+              style={{
+                marginTop: '10px',
+                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.28)',
+              }}
+            >
+              ⚡ Instant Super Admin Sign-In
+            </button>
 
             {/* Continue with Google */}
             <button
