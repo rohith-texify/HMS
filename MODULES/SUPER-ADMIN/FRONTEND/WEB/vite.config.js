@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const backendTarget = process.env.VITE_BACKEND_TARGET || 'https://hms-backend-dtcm.onrender.com';
+
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -8,16 +10,19 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/super-admin': {
-        target: 'http://localhost:8080',
+        target: backendTarget,
         changeOrigin: true,
+        secure: false,
       },
       '/auth': {
-        target: 'http://localhost:8080',
+        target: backendTarget,
         changeOrigin: true,
+        secure: false,
       },
       '/geo': {
-        target: 'http://localhost:8080',
+        target: backendTarget,
         changeOrigin: true,
+        secure: false,
       },
     },
   },
