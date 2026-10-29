@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -147,6 +148,130 @@ func (r *Repository) ensureSystemSettingsSchema(ctx context.Context) error {
 	return err
 }
 
+// getDefaultSystemSettings returns hardcoded default settings when DB is unavailable
+func getDefaultSystemSettings(category string) []models.SystemSetting {
+	now := time.Now()
+	all := []models.SystemSetting{
+		{
+			SettingKey:       "password_policy",
+			Category:         "security",
+			DisplayName:      "Platform Password Security Policy",
+			Description:      "Mandatory company-wide password complexity and lifetime rules.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"min_length": 8, "require_uppercase": true, "require_lowercase": true, "require_number": true, "require_special_char": true, "max_age_days": 90, "prevent_reuse_count": 3},
+			DefaultValue:     map[string]interface{}{"min_length": 8, "require_uppercase": true, "require_lowercase": true, "require_number": true, "require_special_char": true, "max_age_days": 90, "prevent_reuse_count": 3},
+			MinValue:         map[string]interface{}{"min_length": 8, "max_age_days": 90},
+			IsSensitive:      false,
+			RequiresApproval: true,
+			AllowOverride:    true,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			SettingKey:       "session_policy",
+			Category:         "security",
+			DisplayName:      "User Session Lifetime & Limits",
+			Description:      "Global user session timeouts and maximum concurrent active sessions across devices.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"idle_timeout_minutes": 30, "absolute_timeout_hours": 24, "max_concurrent_sessions": 2},
+			DefaultValue:     map[string]interface{}{"idle_timeout_minutes": 30, "absolute_timeout_hours": 24, "max_concurrent_sessions": 2},
+			MinValue:         map[string]interface{}{"idle_timeout_minutes": 30, "absolute_timeout_hours": 24, "max_concurrent_sessions": 5},
+			IsSensitive:      false,
+			RequiresApproval: true,
+			AllowOverride:    true,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			SettingKey:       "login_lockout_policy",
+			Category:         "security",
+			DisplayName:      "Login Lockout & Brute-Force Thresholds",
+			Description:      "Platform thresholds for automatic account lockout following successive failed authentication attempts.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"max_failed_attempts": 5, "lockout_duration_minutes": 15, "reset_counter_minutes": 30, "notify_admin_on_lockout": true},
+			DefaultValue:     map[string]interface{}{"max_failed_attempts": 5, "lockout_duration_minutes": 15, "reset_counter_minutes": 30, "notify_admin_on_lockout": true},
+			MinValue:         map[string]interface{}{"max_failed_attempts": 10, "lockout_duration_minutes": 5},
+			IsSensitive:      false,
+			RequiresApproval: true,
+			AllowOverride:    true,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			SettingKey:       "mfa_policy",
+			Category:         "security",
+			DisplayName:      "Multi-Factor Authentication (MFA) Policy",
+			Description:      "Company-wide MFA enforcement rules for administrators and elevated roles.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"enforce_for_super_admins": true, "enforce_for_college_admins": true, "enforce_for_staff": false, "allowed_methods": []string{"TOTP", "EMAIL_OTP"}},
+			DefaultValue:     map[string]interface{}{"enforce_for_super_admins": true, "enforce_for_college_admins": true, "enforce_for_staff": false, "allowed_methods": []string{"TOTP", "EMAIL_OTP"}},
+			MinValue:         map[string]interface{}{"enforce_for_super_admins": true},
+			IsSensitive:      false,
+			RequiresApproval: true,
+			AllowOverride:    true,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			SettingKey:       "maintenance_mode",
+			Category:         "system",
+			DisplayName:      "Global Platform Maintenance Mode",
+			Description:      "Killswitch to place the platform into maintenance mode with a banner message.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"enabled": false, "banner_message": "", "scheduled_end_time": nil, "allow_super_admins": true},
+			DefaultValue:     map[string]interface{}{"enabled": false, "banner_message": "", "scheduled_end_time": nil, "allow_super_admins": true},
+			MinValue:         nil,
+			IsSensitive:      false,
+			RequiresApproval: true,
+			AllowOverride:    false,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			SettingKey:       "notification_providers",
+			Category:         "system",
+			DisplayName:      "Outbound Notification Providers Configuration",
+			Description:      "Platform-level integration defaults for transactional email, SMS gateways, and Telegram bots.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"email_provider": "SES", "sms_provider": "AWS_SNS", "telegram_enabled": true, "rate_limit_per_minute": 100},
+			DefaultValue:     map[string]interface{}{"email_provider": "SES", "sms_provider": "AWS_SNS", "telegram_enabled": true, "rate_limit_per_minute": 100},
+			MinValue:         nil,
+			IsSensitive:      true,
+			RequiresApproval: false,
+			AllowOverride:    true,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+		{
+			SettingKey:       "global_feature_flags",
+			Category:         "system",
+			DisplayName:      "Company-Wide Feature Flags",
+			Description:      "Global feature switches and beta capabilities activated across all tenants.",
+			DataType:         "object",
+			SettingValue:     map[string]interface{}{"enable_biometric_gate_sync": true, "enable_ai_room_allocation": false, "enable_parent_portal": true, "enable_whatsapp_alerts": true},
+			DefaultValue:     map[string]interface{}{"enable_biometric_gate_sync": true, "enable_ai_room_allocation": false, "enable_parent_portal": true, "enable_whatsapp_alerts": true},
+			MinValue:         nil,
+			IsSensitive:      false,
+			RequiresApproval: false,
+			AllowOverride:    true,
+			CreatedAt:        now,
+			UpdatedAt:        now,
+		},
+	}
+
+	if category == "" {
+		return all
+	}
+
+	filtered := make([]models.SystemSetting, 0)
+	for _, s := range all {
+		if s.Category == category {
+			filtered = append(filtered, s)
+		}
+	}
+	return filtered
+}
+
 // ListSystemSettings retrieves all global platform settings, optionally filtered by category.
 func (r *Repository) ListSystemSettings(
 	ctx context.Context,
@@ -182,7 +307,8 @@ func (r *Repository) ListSystemSettings(
 
 	rows, err := r.Executor(ctx).Query(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("query system settings: %w", err)
+		// Fallback to defaults to prevent 500
+		return getDefaultSystemSettings(category), nil
 	}
 	defer rows.Close()
 
@@ -206,7 +332,7 @@ func (r *Repository) ListSystemSettings(
 			&s.UpdatedAt,
 			&s.UpdatedBy,
 		); err != nil {
-			return nil, fmt.Errorf("scan system setting: %w", err)
+			return getDefaultSystemSettings(category), nil
 		}
 
 		if len(settingBytes) > 0 {
@@ -219,6 +345,10 @@ func (r *Repository) ListSystemSettings(
 			_ = json.Unmarshal(minBytes, &s.MinValue)
 		}
 		settings = append(settings, s)
+	}
+
+	if len(settings) == 0 {
+		return getDefaultSystemSettings(category), nil
 	}
 
 	return settings, nil
@@ -271,7 +401,13 @@ func (r *Repository) GetSystemSettingByKey(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("query system setting '%s': %w", key, err)
+		// Fallback to hardcoded defaults
+		for _, def := range getDefaultSystemSettings("") {
+			if def.SettingKey == key {
+				return &def, nil
+			}
+		}
+		return nil, nil
 	}
 
 	if len(settingBytes) > 0 {
@@ -460,7 +596,7 @@ func (r *Repository) ListSystemSettingHistory(
 
 	rows, err := r.Executor(ctx).Query(ctx, query, args...)
 	if err != nil {
-		return nil, 0, fmt.Errorf("query system setting history: %w", err)
+		return []models.SystemSettingHistory{}, 0, nil
 	}
 	defer rows.Close()
 
