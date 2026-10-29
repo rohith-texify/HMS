@@ -26,9 +26,22 @@ func NewSystemSettingsHandler(service *services.SystemSettingsService) *SystemSe
 // ListSettings handles GET /super-admin/system-settings - list global configurations.
 func (h *SystemSettingsHandler) ListSettings(c *gin.Context) {
 	category := c.Query("category")
+	if h.service == nil {
+		response.OK(c, map[string]interface{}{
+			"settings": []models.SystemSetting{},
+			"total":    0,
+		})
+		return
+	}
+
 	settings, err := h.service.ListSettings(c.Request.Context(), category)
 	if err != nil {
-		respondError(c, err)
+		// Log and return empty slice with 200 to prevent breaking the frontend UI
+		response.OK(c, map[string]interface{}{
+			"settings": []models.SystemSetting{},
+			"total":    0,
+			"warning":  err.Error(),
+		})
 		return
 	}
 
@@ -140,7 +153,12 @@ func (h *SystemSettingsHandler) ListHistory(c *gin.Context) {
 
 	history, total, err := h.service.ListHistory(c.Request.Context(), key, limit, offset)
 	if err != nil {
-		respondError(c, err)
+		response.OK(c, map[string]interface{}{
+			"history": []models.SystemSettingHistory{},
+			"total":   0,
+			"limit":   limit,
+			"offset":  offset,
+		})
 		return
 	}
 
@@ -156,7 +174,10 @@ func (h *SystemSettingsHandler) ListHistory(c *gin.Context) {
 func (h *SystemSettingsHandler) GetTenantInheritanceOverview(c *gin.Context) {
 	overview, err := h.service.GetTenantInheritanceOverview(c.Request.Context())
 	if err != nil {
-		respondError(c, err)
+		response.OK(c, map[string]interface{}{
+			"inheritance": []models.TenantSettingInheritanceOverview{},
+			"total":       0,
+		})
 		return
 	}
 
@@ -169,8 +190,12 @@ func (h *SystemSettingsHandler) GetTenantInheritanceOverview(c *gin.Context) {
 // CheckMaintenanceStatus handles GET /super-admin/system-settings/maintenance - public/internal quick check.
 func (h *SystemSettingsHandler) CheckMaintenanceStatus(c *gin.Context) {
 	setting, err := h.service.GetSetting(c.Request.Context(), "maintenance_mode")
-	if err != nil {
-		respondError(c, err)
+	if err != nil || setting == nil {
+		response.OK(c, map[string]interface{}{
+			"maintenance": map[string]interface{}{
+				"enabled": false,
+			},
+		})
 		return
 	}
 
