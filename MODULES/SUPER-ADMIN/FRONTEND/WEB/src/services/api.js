@@ -62,8 +62,22 @@ api.interceptors.response.use(
     const responseData = error.response?.data;
     const message = responseData?.error?.message || error.message || 'An unexpected error occurred';
     const code = responseData?.error?.code || 'NETWORK_ERROR';
+    const status = error.response?.status || 500;
+
+    // When access token is expired or invalid (401), clear stale credentials
+    // and seamlessly redirect to /login so the user isn't stuck with repeated failures
+    if (status === 401 && !window.location.pathname.startsWith('/login')) {
+      localStorage.removeItem('hms_token');
+      localStorage.removeItem('hms_user');
+      localStorage.removeItem('token');
+      sessionStorage.removeItem('hms_token');
+      sessionStorage.removeItem('hms_user');
+      sessionStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+
     return Promise.reject({
-      status: error.response?.status || 500,
+      status,
       code,
       message,
       name: error.name || 'Error',
