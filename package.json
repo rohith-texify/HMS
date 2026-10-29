@@ -23,6 +23,7 @@
     "dev:security": "npm run dev --workspace=MODULES/SECURITY/FRONTEND/WEB",
     "dev:super-admin": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "build:all": "npm run build --workspaces",
+    "build": "npm run build --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "devDependencies": {
