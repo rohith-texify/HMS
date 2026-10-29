@@ -2,18 +2,36 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen = false, onClose = () => {} }) {
   const { user, logout } = useAuth();
+
+  const handleLinkClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-title">
-        <span>🛡️</span>
-        <span>HMS Platform</span>
+    <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
+      <div className="sidebar-header">
+        <div className="sidebar-title">
+          <span>🛡️</span>
+          <span>HMS Platform</span>
+        </div>
+        <button
+          type="button"
+          className="sidebar-close-btn"
+          onClick={onClose}
+          aria-label="Close sidebar"
+        >
+          ✕
+        </button>
       </div>
 
       <nav className="sidebar-nav">
         <NavLink
           to="/dashboard"
+          onClick={handleLinkClick}
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
           <span>📊</span>
@@ -21,6 +39,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/onboarding"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -29,6 +48,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/colleges"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -37,6 +57,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/staff"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -45,6 +66,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/roles"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -53,6 +75,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/permissions"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -61,6 +84,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/access-control"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -69,6 +93,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/approvals"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -77,6 +102,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/change-sets"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -85,6 +111,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/modules"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -93,6 +120,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/applications"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -101,6 +129,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/system-settings"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -109,6 +138,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/audit-logs"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -117,6 +147,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/notifications"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -125,6 +156,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/monitoring"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
@@ -133,6 +165,7 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
+          onClick={handleLinkClick}
           to="/support"
           className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
         >
