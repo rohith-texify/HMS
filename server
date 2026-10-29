@@ -17,3 +17,4 @@ fi
 
 echo "Binary not found"
 exit 1
+
