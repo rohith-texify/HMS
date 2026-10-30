@@ -93,6 +93,17 @@ func (m *PermissionMiddleware) RequirePermission(
 			return
 		}
 
+		// Platform Super Administrators have all platform permissions by definition
+		roleValue, _ := c.Get(auth.ContextRoleKey)
+		scopeValue, _ := c.Get(auth.ContextScopeKey)
+		if role, rOk := roleValue.(string); rOk && role == "SUPER_ADMIN" {
+			if scope, sOk := scopeValue.(string); sOk && scope == auth.ScopePlatform {
+				c.Set(PermissionKey, code)
+				c.Next()
+				return
+			}
+		}
+
 		if m.permissionService == nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
 				"success": false,

@@ -1589,8 +1589,11 @@ func (r *Repository) UpsertCollegeAdmin(
 		_, err = r.Executor(ctx).Exec(ctx, insertRoleQuery, targetUserID, roleID, collegeID, assignedBy)
 		if err != nil {
 			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && (pgErr.Code == "25P02" || pgErr.Code == "42501") && r.CollegePool != nil {
-				_, fbErr := r.CollegePool.Exec(ctx, insertRoleQuery, targetUserID, roleID, collegeID, assignedBy)
+			if errors.As(err, &pgErr) && (pgErr.Code == "25P02" || pgErr.Code == "42501") && r.Pool != nil {
+				_, fbErr := r.Pool.Exec(ctx, insertRoleQuery, targetUserID, roleID, collegeID, assignedBy)
+				if fbErr != nil && r.CollegePool != nil {
+					_, fbErr = r.CollegePool.Exec(ctx, insertRoleQuery, targetUserID, roleID, collegeID, assignedBy)
+				}
 				if fbErr != nil {
 					return nil, fmt.Errorf("failed to assign COLLEGE_ADMIN role: %w", fbErr)
 				}

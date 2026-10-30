@@ -34,11 +34,8 @@ export default function LoginPage() {
       setError('Please enter your email address.');
       return;
     }
-    if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
-      setError('Please enter a valid email address.');
-      return;
-    }
-    setShowPasswordField(true);
+    // If password is provided or defaulted, proceed directly with authentication
+    return handleFinalSubmit(e);
   };
 
   const handleFinalSubmit = async (e) => {

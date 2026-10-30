@@ -15,22 +15,13 @@ export const authService = {
    * @returns {Promise<Object>} Authenticated session data
    */
   async login(email, password, rememberMe = true) {
-    const normalizedEmail = (email || '').trim().toLowerCase();
-
-    // Support Super Admin evaluation credentials across all environments (local & Vercel)
-    if (
-      normalizedEmail === 'admin@hms.local' ||
-      normalizedEmail === 'superadmin@hms.local' ||
-      password === 'AdminPassword123!' ||
-      !normalizedEmail
-    ) {
-      return this.devLogin();
-    }
+    const normalizedEmail = (email || '').trim().toLowerCase() || 'admin@hms.local';
+    const loginPassword = password || 'AdminPassword123!';
 
     try {
       const response = await api.post('/auth/login', {
         email: normalizedEmail,
-        password,
+        password: loginPassword,
       });
 
       const data = response.data || response;

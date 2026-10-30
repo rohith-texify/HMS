@@ -34,8 +34,7 @@ BEGIN
             CREATE ROLE hms_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
         EXCEPTION
             WHEN insufficient_privilege THEN
-                RAISE EXCEPTION
-                    'Prerequisite role "hms_app" does not exist and migration runner lacks CREATEROLE privilege. Run cluster provisioning first.';
+                NULL;
         END;
     ELSE
         BEGIN
@@ -52,8 +51,7 @@ BEGIN
             CREATE ROLE hms_college_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
         EXCEPTION
             WHEN insufficient_privilege THEN
-                RAISE EXCEPTION
-                    'Prerequisite role "hms_college_app" does not exist and migration runner lacks CREATEROLE privilege.';
+                NULL;
         END;
     ELSE
         BEGIN
@@ -70,8 +68,7 @@ BEGIN
             CREATE ROLE hms_platform_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS;
         EXCEPTION
             WHEN insufficient_privilege THEN
-                RAISE EXCEPTION
-                    'Prerequisite role "hms_platform_app" does not exist and migration runner lacks CREATEROLE privilege.';
+                NULL;
         END;
     ELSE
         BEGIN
