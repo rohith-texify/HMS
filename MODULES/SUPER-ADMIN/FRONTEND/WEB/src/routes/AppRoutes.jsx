@@ -32,20 +32,66 @@ import ReportsAnalyticsPage from '../pages/ReportsAnalyticsPage';
 function LoginRoute() {
   const { isAuthenticated, isLoading } = useAuth();
 
+  // Show loading screen while checking authentication
   if (isLoading) {
-    return null;
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#f5f5f5',
+          fontFamily: 'inherit',
+        }}
+      >
+        <div style={{ fontSize: '18px', color: '#666' }}>Loading...</div>
+      </div>
+    );
   }
 
+  // If already authenticated, redirect to dashboard
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 
+  // Show login page for unauthenticated users
   return <LoginPage />;
+}
+
+// Component for root path - redirects to either login or dashboard
+function RootRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          backgroundColor: '#f5f5f5',
+          fontFamily: 'inherit',
+        }}
+      >
+        <div style={{ fontSize: '18px', color: '#666' }}>Loading...</div>
+      </div>
+    );
+  }
+
+  // Redirect based on authentication status
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
 }
 
 export default function AppRoutes() {
   return (
     <Routes>
+      {/* Root route - redirects to login or dashboard based on auth */}
+      <Route path="/" element={<RootRoute />} />
+
       {/* Public Authentication Route - NOT protected */}
       <Route path="/login" element={<LoginRoute />} />
 
@@ -57,7 +103,6 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/onboarding" element={<OnboardingListPage />} />
         <Route path="/colleges" element={<CollegesPage />} />
@@ -90,8 +135,8 @@ export default function AppRoutes() {
         <Route path="/analytics" element={<ReportsAnalyticsPage />} />
       </Route>
 
-      {/* Catch-all route - redirects to login if not authenticated */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch-all route - redirects to login if not authenticated, dashboard if authenticated */}
+      <Route path="*" element={<RootRoute />} />
     </Routes>
   );
 }

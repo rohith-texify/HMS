@@ -12,20 +12,28 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     const initAuth = async () => {
-      const activeToken = authService.getToken();
-      const currentUser = authService.getCurrentUser();
+      try {
+        const activeToken = authService.getToken();
+        const currentUser = authService.getCurrentUser();
 
-      if (activeToken && currentUser) {
-        setUser(currentUser);
-        setToken(activeToken);
-      } else {
+        if (activeToken && currentUser) {
+          setUser(currentUser);
+          setToken(activeToken);
+        } else {
+          // Clear any stale auth data
+          authService.logout();
+          setUser(null);
+          setToken(null);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
         authService.logout();
         setUser(null);
         setToken(null);
-      }
-
-      if (isMounted) {
-        setIsLoading(false);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -54,6 +62,7 @@ export function AuthProvider({ children }) {
     setToken(null);
   }, []);
 
+  // Check if user is authenticated AND is SUPER_ADMIN
   const isAuthenticated = Boolean(
     token && user && (user.role === 'SUPER_ADMIN' || user.roleCode === 'SUPER_ADMIN')
   );
