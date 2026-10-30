@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from '../layouts/AdminLayout';
+import ProtectedRoute from './ProtectedRoute';
 import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import CollegesPage from '../pages/CollegesPage';
@@ -45,11 +46,17 @@ function LoginRoute() {
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Public Authentication Route */}
+      {/* Public Authentication Route - NOT protected */}
       <Route path="/login" element={<LoginRoute />} />
 
-      {/* Protected Super Admin Platform Routes */}
-      <Route element={<AdminLayout />}>
+      {/* Protected Super Admin Platform Routes - wrapped in ProtectedRoute */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/onboarding" element={<OnboardingListPage />} />
@@ -83,7 +90,7 @@ export default function AppRoutes() {
         <Route path="/analytics" element={<ReportsAnalyticsPage />} />
       </Route>
 
-      {/* Catch-all route */}
+      {/* Catch-all route - redirects to login if not authenticated */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
