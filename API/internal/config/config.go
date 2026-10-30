@@ -221,7 +221,14 @@ func Load() (*Config, error) {
 
 	port := strings.TrimSpace(os.Getenv("PORT"))
 	if port == "" {
-		port = getTrimmedEnv("SERVER_PORT", "8080")
+		port = getTrimmedEnv("SERVER_PORT", "")
+	}
+	if port == "" {
+		if os.Getenv("RENDER") != "" || os.Getenv("RENDER_SERVICE_ID") != "" || os.Getenv("IS_RENDER") != "" {
+			port = "10000"
+		} else {
+			port = "8080"
+		}
 	}
 
 	collegeUser := getTrimmedEnv("DB_COLLEGE_USER", dbUser)

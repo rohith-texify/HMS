@@ -5,6 +5,8 @@ services:
     buildCommand: ./build.sh
     startCommand: ./server
     envVars:
+      - key: PORT
+        value: 10000
       - key: APP_ENV
         value: production
 

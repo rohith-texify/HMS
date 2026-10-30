@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -35,7 +37,25 @@ func Run() {
 		)
 	}
 
-	ctx := context.Background()
+	port := strings.TrimSpace(cfg.Server.Port)
+	if port == "" {
+		port = "10000"
+	}
+
+	// Immediately bind to 0.0.0.0 to satisfy Render IPv4 port scanning without timeout
+	bindAddr := "0.0.0.0:" + port
+	listener, err := net.Listen("tcp", bindAddr)
+	if err != nil {
+		logger.Warn("failed to bind 0.0.0.0, falling back to all interfaces", zap.Error(err))
+		listener, err = net.Listen("tcp", ":"+port)
+		if err != nil {
+			logger.Fatal("failed to bind port", zap.String("port", port), zap.Error(err))
+		}
+	}
+	logger.Info("TCP socket listening immediately for health checks and port scans", zap.String("address", listener.Addr().String()))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
 
 	db, err := database.New(ctx, cfg.Database)
 	if err != nil {
@@ -49,7 +69,7 @@ func Run() {
 	logger.Info("PostgreSQL connection established")
 
 	// Non-blocking initialization of baseline schemas and platform Super Admin accounts
-	database.AutoMigrateAndSeed(ctx, db.PlatformPool, logger)
+	database.AutoMigrateAndSeed(context.Background(), db.PlatformPool, logger)
 
 	jwtService := auth.NewJWTService(
 		cfg.JWT.Secret,
@@ -73,7 +93,7 @@ func Run() {
 	)
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.Server.Port,
+		Addr:    bindAddr,
 		Handler: router,
 
 		ReadHeaderTimeout: 5 * time.Second,
@@ -85,11 +105,11 @@ func Run() {
 
 	logger.Info(
 		"starting HMS API server",
-		zap.String("address", ":"+cfg.Server.Port),
+		zap.String("address", listener.Addr().String()),
 	)
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("failed to start HMS API server", zap.Error(err))
 		}
 	}()
@@ -99,8 +119,8 @@ func Run() {
 	<-quit
 	logger.Info("shutting down server...")
 
-	ctxShutDown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctxShutDown, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
 
 	if err := srv.Shutdown(ctxShutDown); err != nil {
 		logger.Fatal("server forced to shutdown", zap.Error(err))
@@ -111,4 +131,3 @@ func Run() {
 
 	logger.Info("server exited safely")
 }
-
