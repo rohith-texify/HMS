@@ -45,9 +45,9 @@ export default function ReportsAnalyticsPage() {
       ]);
 
       setSummary(sumRes?.data || sumRes || null);
-      setCollegeUsage(usageRes?.data || usageRes || []);
-      setModuleAdoption(adoptRes?.data || adoptRes || []);
-      setLoginSecurity(secRes?.data || secRes || []);
+      setCollegeUsage(Array.isArray(usageRes?.data) ? usageRes.data : Array.isArray(usageRes) ? usageRes : []);
+      setModuleAdoption(Array.isArray(adoptRes?.data) ? adoptRes.data : Array.isArray(adoptRes) ? adoptRes : []);
+      setLoginSecurity(Array.isArray(secRes?.data) ? secRes.data : Array.isArray(secRes) ? secRes : []);
     } catch (err) {
       console.error('Failed to load reports:', err);
       setError(err?.response?.data?.error || err.message || 'Failed to load report data');
@@ -81,14 +81,16 @@ export default function ReportsAnalyticsPage() {
     }
   };
 
-  const filteredColleges = collegeUsage.filter((c) => {
-    if (!searchFilter) return true;
-    const term = searchFilter.toLowerCase();
-    return (
-      (c.college_name && c.college_name.toLowerCase().includes(term)) ||
-      (c.college_code && c.college_code.toLowerCase().includes(term))
-    );
-  });
+  const filteredColleges = Array.isArray(collegeUsage) 
+    ? collegeUsage.filter((c) => {
+        if (!searchFilter) return true;
+        const term = searchFilter.toLowerCase();
+        return (
+          (c.college_name && c.college_name.toLowerCase().includes(term)) ||
+          (c.college_code && c.college_code.toLowerCase().includes(term))
+        );
+      })
+    : [];
 
   return (
     <div className="page-container">
