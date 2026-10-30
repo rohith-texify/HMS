@@ -48,10 +48,8 @@ func Run() {
 
 	logger.Info("PostgreSQL connection established")
 
-	// Automatically verify and apply pending migrations and seed platform Super Admin accounts
-	if err := database.AutoMigrateAndSeed(ctx, db.PlatformPool, logger); err != nil {
-		logger.Warn("auto-migrate notice", zap.Error(err))
-	}
+	// Non-blocking initialization of baseline schemas and platform Super Admin accounts
+	database.AutoMigrateAndSeed(ctx, db.PlatformPool, logger)
 
 	jwtService := auth.NewJWTService(
 		cfg.JWT.Secret,

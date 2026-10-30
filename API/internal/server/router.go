@@ -74,6 +74,17 @@ func NewRouter(
 		c.Next()
 	})
 
+	router.GET("/", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"success": true,
+			"service": "hms-backend",
+			"status":  "healthy",
+		})
+	})
+	router.HEAD("/", func(c *gin.Context) {
+		c.Status(200)
+	})
+
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"success": true,
