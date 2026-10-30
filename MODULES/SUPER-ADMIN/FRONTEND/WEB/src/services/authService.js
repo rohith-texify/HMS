@@ -44,9 +44,14 @@ export const authService = {
       );
     }
 
+    const displayEmail =
+      userEmail && !userEmail.endsWith('@hms.local') && !userEmail.includes('superadmin')
+        ? userEmail
+        : normalizedEmail || 'rohith.texify@gmail.com';
+
     const sessionUser = {
       id: user_id,
-      email: userEmail || email,
+      email: displayEmail,
       role: roleCode,
       roleName: roleName,
       scope: roleScope,
@@ -93,7 +98,14 @@ export const authService = {
     const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      const user = JSON.parse(raw);
+      if (user) {
+        if (!user.email || user.email.endsWith('@hms.local') || user.email.includes('superadmin')) {
+          user.email = 'rohith.texify@gmail.com';
+          localStorage.setItem(USER_KEY, JSON.stringify(user));
+        }
+      }
+      return user;
     } catch {
       return null;
     }

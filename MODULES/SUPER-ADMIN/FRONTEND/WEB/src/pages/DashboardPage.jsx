@@ -1,251 +1,207 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import FilterBar from '../components/FilterBar';
+import CollegeSummary from '../components/CollegeSummary';
+import EntitlementSummary from '../components/EntitlementSummary';
+import CollegeAdminSummary from '../components/CollegeAdminSummary';
+import ServiceHealthPanel from '../components/ServiceHealthPanel';
+import CriticalAlertsList from '../components/CriticalAlertsList';
+import PendingApprovalsSummary from '../components/PendingApprovalsSummary';
+import RecentActivityTable from '../components/RecentActivityTable';
+import UnsupportedMetricsPanel from '../components/UnsupportedMetricsPanel';
+import { fetchDashboard, fetchColleges } from '../services/dashboardService';
 
 export default function DashboardPage() {
   const [data, setData] = useState(null);
+  const [colleges, setColleges] = useState([]);
+  const [filters, setFilters] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load dashboard data
+  // Use request counter to avoid race conditions with fast filter changes
+  const requestCounter = useRef(0);
+
+  const handleGoToLogin = () => {
+    window.location.href = '/login';
+  };
+
+  // Load colleges list once on mount
   useEffect(() => {
-    loadDashboard();
+    let isMounted = true;
+    fetchColleges()
+      .then((collegesList) => {
+        if (isMounted) setColleges(collegesList || []);
+      })
+      .catch((err) => {
+        console.warn('Failed to load colleges list for filter bar:', err);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const loadDashboard = async (isManualRefresh = false) => {
+  const loadDashboardData = async (currentFilters, isManualRefresh = false) => {
+    const currentRequestId = ++requestCounter.current;
+    if (isManualRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+    setError(null);
+
     try {
-      if (isManualRefresh) {
-        setIsRefreshing(true);
-      } else {
-        setLoading(true);
+      const responseData = await fetchDashboard(currentFilters);
+      // Only commit if this was the latest request
+      if (currentRequestId === requestCounter.current) {
+        setData(responseData);
+        setLoading(false);
+        setIsRefreshing(false);
       }
-      setError(null);
-
-      // Fetch from backend
-      const response = await fetch('/super-admin/dashboard', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('hms_token') || sessionStorage.getItem('hms_token')}`,
-          'X-Scope': 'PLATFORM',
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const responseData = await response.json();
-      const dashboard = responseData.data || responseData;
-      
-      setData(dashboard);
-      setLoading(false);
-      setIsRefreshing(false);
     } catch (err) {
-      console.error('Dashboard load error:', err);
-      setError(err.message || 'Failed to load dashboard');
-      setLoading(false);
-      setIsRefreshing(false);
-      
-      // Set fallback data so the page doesn't crash
-      setData({
-        college_summary: { total_colleges: 0, active_colleges: 0 },
-        entitlement_summary: { total_modules_assigned: 0 },
-        service_health: { status: 'checking' },
-        recent_activity: [],
-      });
+      if (currentRequestId === requestCounter.current) {
+        setError(err.message || 'Failed to connect to Super Admin Dashboard service.');
+        setLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 
+  useEffect(() => {
+    loadDashboardData(filters, false);
+  }, [filters]);
+
+  const handleApplyFilters = (newFilters) => {
+    setFilters(newFilters);
+  };
+
+  const handleResetFilters = () => {
+    setFilters({});
+  };
+
   const handleRefresh = () => {
-    loadDashboard(true);
+    loadDashboardData(filters, true);
   };
 
   return (
-    <div style={{ padding: '20px', minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-      <Header onRefresh={handleRefresh} isRefreshing={isRefreshing} />
+    <div>
+      <Header
+        onRefresh={handleRefresh}
+        isRefreshing={isRefreshing}
+        generatedAt={data?.generated_at}
+      />
 
-      {loading && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '400px',
-          fontSize: '18px',
-          color: '#666',
-        }}>
-          Loading Super Admin Dashboard...
+      <FilterBar
+        colleges={colleges}
+        filters={filters}
+        onApplyFilters={handleApplyFilters}
+        onResetFilters={handleResetFilters}
+      />
+
+      {loading && !isRefreshing && (
+        <div className="loading-box">
+          <div style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            Loading Super Admin Dashboard...
+          </div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+            Fetching verified system snapshot and platform telemetry.
+          </div>
         </div>
       )}
 
-      {error && (
-        <div style={{
-          padding: '20px',
-          margin: '20px 0',
-          backgroundColor: '#fff3cd',
-          border: '1px solid #ffc107',
-          borderRadius: '4px',
-          display: 'flex',
-          gap: '10px',
-          alignItems: 'center',
-        }}>
-          <AlertCircle size={20} color="#ff9800" />
-          <div>
-            <strong>Warning:</strong> {error}
+      {error && !loading && (
+        <>
+          <div className="error-box" style={{ marginBottom: '24px' }}>
+            <div style={{ fontWeight: '600', marginBottom: '8px' }}>
+              ⚠️ Error Loading Live Dashboard Data
+            </div>
+            <div>{error}</div>
+            <div style={{ marginTop: '16px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button className="btn btn-outline" onClick={() => loadDashboardData(filters, true)}>
+                Retry Connection
+              </button>
+              <button className="btn btn-primary" id="btn-connect-session" onClick={handleGoToLogin}>
+                Sign In to Super Admin
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => loadDashboard(true)}
-            style={{
-              marginLeft: 'auto',
-              padding: '8px 16px',
-              backgroundColor: '#ff9800',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            Retry
-          </button>
-        </div>
+          <PlatformModulesHub />
+        </>
       )}
 
       {data && !loading && (
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          {/* Summary Cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: '20px',
-            marginBottom: '30px',
-          }}>
-            {/* College Summary Card */}
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            }}>
-              <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>Total Colleges</div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#333' }}>
-                {data.college_summary?.total_colleges || 0}
-              </div>
-              <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
-                Active: {data.college_summary?.active_colleges || 0}
-              </div>
-            </div>
+        <>
+          {/* Operations & Platform Modules Quick Access Hub */}
+          <PlatformModulesHub />
 
-            {/* Entitlements Card */}
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            }}>
-              <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>Modules Assigned</div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#333' }}>
-                {data.entitlement_summary?.total_modules_assigned || 0}
-              </div>
+          {/* Top Summary Row: College Lifecycle & Entitlements */}
+          <div className="dashboard-grid">
+            <div className="col-6">
+              <CollegeSummary summary={data.college_summary} />
             </div>
-
-            {/* Service Health Card */}
-            <div style={{
-              backgroundColor: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            }}>
-              <div style={{ fontSize: '14px', color: '#666', marginBottom: '8px' }}>Service Status</div>
-              <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#4caf50' }}>
-                Operational
-              </div>
-              <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>
-                All systems healthy
-              </div>
+            <div className="col-6">
+              <EntitlementSummary summary={data.entitlement_summary} />
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            marginBottom: '30px',
-          }}>
-            <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>Quick Actions</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px' }}>
-              <Link to="/colleges" style={{
-                padding: '12px 16px',
-                backgroundColor: '#2196f3',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                textAlign: 'center',
-                cursor: 'pointer',
-              }}>
-                View Colleges
-              </Link>
-              <Link to="/approvals" style={{
-                padding: '12px 16px',
-                backgroundColor: '#2196f3',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                textAlign: 'center',
-                cursor: 'pointer',
-              }}>
-                Approvals
-              </Link>
-              <Link to="/roles" style={{
-                padding: '12px 16px',
-                backgroundColor: '#2196f3',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                textAlign: 'center',
-                cursor: 'pointer',
-              }}>
-                Manage Roles
-              </Link>
-              <Link to="/permissions" style={{
-                padding: '12px 16px',
-                backgroundColor: '#2196f3',
-                color: 'white',
-                textDecoration: 'none',
-                borderRadius: '4px',
-                textAlign: 'center',
-                cursor: 'pointer',
-              }}>
-                Permissions
-              </Link>
+          {/* Secondary Row: Active Admins, Service Health, Critical Alerts */}
+          <div className="dashboard-grid">
+            <div className="col-4">
+              <CollegeAdminSummary summary={data.college_admin_summary} />
+            </div>
+            <div className="col-4">
+              <ServiceHealthPanel health={data.service_health} />
+            </div>
+            <div className="col-4">
+              <CriticalAlertsList alerts={data.critical_alerts} />
             </div>
           </div>
 
-          {/* Platform Status */}
-          <div style={{
-            backgroundColor: 'white',
-            padding: '20px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}>
-            <h2 style={{ marginTop: 0, marginBottom: '16px', fontSize: '18px' }}>Platform Status</h2>
-            <div style={{ color: '#666', lineHeight: '1.6' }}>
-              <p>✓ Database: Connected</p>
-              <p>✓ API Server: Operational</p>
-              <p>✓ Authentication: Active</p>
-              <p style={{ marginTop: '16px', fontSize: '12px', color: '#999' }}>
-                Last refreshed: {new Date().toLocaleTimeString()}
-              </p>
+          {/* Third Row: Pending Approvals & Configuration Requests */}
+          <div className="dashboard-grid">
+            <div className="col-12">
+              <PendingApprovalsSummary summary={data.approval_summary} />
             </div>
           </div>
-        </div>
+
+          {/* Fourth Row: Recent Administrative Activity Table */}
+          <div className="dashboard-grid">
+            <div className="col-12">
+              <RecentActivityTable activities={data.recent_activity} />
+            </div>
+          </div>
+
+          {/* Bottom Notice: Unsupported Metrics & Design Boundaries */}
+          <div className="dashboard-grid">
+            <div className="col-12">
+              <UnsupportedMetricsPanel unsupportedMetrics={data.unsupported_metrics} />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
 }
+
+function PlatformModulesHub() {
+  const modules = [
+    {
+      title: 'Notifications Hub',
+      code: 'Module 17',
+      icon: '📢',
+      to: '/notifications',
+      badge: 'Active & Verified',
+      badgeClass: 'badge-info',
+      desc: 'Platform announcements, emergency broadcast banners, and college tenant notifications.',
+    },
+    {
+      title: 'Telemetry & Monitoring',
+      code: 'Module 18',
+      icon: '📈',
+      to: '/monitoring',
+      badge: 'Operational',
+      badgeClass: 'badge-success',
       desc: 'Real-time telemetry, node response latencies, database connections, and memory status.',
     },
     {

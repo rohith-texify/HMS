@@ -185,26 +185,30 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
 
 
       <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #334155' }}>
-        {user && (
-          <div style={{ marginBottom: '12px' }}>
-            <div
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                color: '#f8fafc',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-              title={user.email}
-            >
-              {user.email}
-            </div>
-            <div style={{ fontSize: '0.7rem', color: '#38bdf8', marginTop: '2px' }}>
-              {user.roleName || user.role} (Platform)
-            </div>
+        <div style={{ marginBottom: '12px' }}>
+          <div
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              color: '#f8fafc',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+            title={
+              user?.email && !user.email.endsWith('@hms.local') && !user.email.includes('superadmin')
+                ? user.email
+                : 'rohith.texify@gmail.com'
+            }
+          >
+            {user?.email && !user.email.endsWith('@hms.local') && !user.email.includes('superadmin')
+              ? user.email
+              : 'rohith.texify@gmail.com'}
           </div>
-        )}
+          <div style={{ fontSize: '0.7rem', color: '#38bdf8', marginTop: '2px' }}>
+            {user?.roleName || user?.role || 'Super Administrator'} (Platform)
+          </div>
+        </div>
 
         <button
           onClick={logout}

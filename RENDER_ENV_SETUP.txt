@@ -120,7 +120,7 @@ After setting environment variables:
 4. Test colleges endpoint:
    curl https://your-service.onrender.com/super-admin/colleges
    
-   Should return list of colleges (after migration 904_seed_users.sql is run)
+   Should return list of colleges
 
 
 ====================================================================
@@ -173,5 +173,5 @@ If still having issues:
 
 1. Check exact error in Render logs (Logs page in dashboard)
 2. Run: psql YOUR_DATABASE_URL from your local machine to test connection
-3. Verify migrations have been run (especially 904_seed_users.sql)
+3. Verify migrations have been run
 4. Check if Render PostgreSQL instance status is "Available" (not "Creating")

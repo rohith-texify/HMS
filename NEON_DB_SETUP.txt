@@ -87,7 +87,7 @@ Test colleges endpoint:
 
    curl https://your-api.onrender.com/super-admin/colleges
 
-Should return colleges list (after running 904_seed_users.sql migration)
+Should return colleges list
 
 ====================================================================
 NEON-SPECIFIC OPTIMIZATIONS APPLIED
