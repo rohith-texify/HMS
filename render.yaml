@@ -10,3 +10,12 @@ services:
       - key: APP_ENV
         value: production
 
+  - type: static
+    name: HMS-FRONTEND
+    buildCommand: npm run build --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB
+    staticPublishPath: MODULES/SUPER-ADMIN/FRONTEND/WEB/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
