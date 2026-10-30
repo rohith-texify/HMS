@@ -30,31 +30,9 @@ export async function fetchCollegesList({ search, status, limit = 20, offset = 0
       },
     };
   } catch (err) {
-    console.warn('Returning demo colleges on fetch error:', err?.message || err);
     return {
-      colleges: [
-        {
-          id: 'col-demo-1',
-          college_id: 'col-demo-1',
-          college_code: 'IITM',
-          name: 'Indian Institute of Technology Madras',
-          state: 'Tamil Nadu',
-          city: 'Chennai',
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-        },
-        {
-          id: 'col-demo-2',
-          college_id: 'col-demo-2',
-          college_code: 'NITT',
-          name: 'National Institute of Technology Tiruchirappalli',
-          state: 'Tamil Nadu',
-          city: 'Tiruchirappalli',
-          status: 'ACTIVE',
-          created_at: new Date().toISOString(),
-        },
-      ],
-      meta: { total: 2, limit, offset },
+      colleges: [],
+      meta: { total: 0, limit, offset },
     };
   }
 }
@@ -95,38 +73,6 @@ export async function createCollege(payload) {
     }
     return college;
   } catch (err) {
-    const token = localStorage.getItem('hms_token');
-    const errMsg = err?.response?.data?.error?.message || err?.message || '';
-    const isDBOrServerError =
-      err.status === 500 ||
-      err.status === 401 ||
-      errMsg.includes('500') ||
-      errMsg.includes('42501') ||
-      errMsg.includes('25P02') ||
-      errMsg.includes('permission denied') ||
-      errMsg.includes('transaction is aborted') ||
-      errMsg.includes('failed to initialize college admin');
-
-    if (token === 'dev-super-admin-bypass-token' || isDBOrServerError) {
-      console.warn('Generating verified college tenant for onboarding flow (handling remote backend error):', errMsg || payload);
-      const mockId = 'col-dev-' + Math.random().toString(36).substring(2, 9);
-      return {
-        college_id: mockId,
-        id: mockId,
-        college_code: payload.college_code,
-        name: payload.name,
-        state: payload.state,
-        city: payload.city,
-        campus_locality: payload.campus_locality,
-        pincode: payload.pincode,
-        status: 'ONBOARDING',
-        created_at: new Date().toISOString(),
-        admin: {
-          email: payload.admin_email || payload.contact_email || `${payload.college_code.toLowerCase()}.admin@hms.local`,
-          is_temporary_password: true,
-        },
-      };
-    }
     throw err;
   }
 }

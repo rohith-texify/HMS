@@ -54,18 +54,9 @@ export async function loginSuperAdmin(email, password) {
   }
   try {
     const res = await api.post('/auth/login', { email, password });
-    if (res.data?.access_token) {
-      localStorage.setItem('token', res.data.access_token);
-      localStorage.setItem('hms_token', res.data.access_token);
-      return res.data;
-    }
-    return res;
+    return res.data;
   } catch (err) {
-    console.warn('Backend login fallback:', err.message);
-    const devToken = 'dev-super-admin-bypass-token';
-    localStorage.setItem('token', devToken);
-    localStorage.setItem('hms_token', devToken);
-    return { access_token: devToken };
+    throw err;
   }
 }
 
@@ -80,26 +71,7 @@ export async function fetchColleges() {
     });
     return res.data?.colleges || [];
   } catch (err) {
-    return [
-      {
-        id: 'col-demo-1',
-        college_id: 'col-demo-1',
-        college_code: 'IITM',
-        name: 'Indian Institute of Technology Madras',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        status: 'ACTIVE',
-      },
-      {
-        id: 'col-demo-2',
-        college_id: 'col-demo-2',
-        college_code: 'NITT',
-        name: 'National Institute of Technology Tiruchirappalli',
-        city: 'Tiruchirappalli',
-        state: 'Tamil Nadu',
-        status: 'ACTIVE',
-      },
-    ];
+    return [];
   }
 }
 

@@ -12,15 +12,8 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     const initAuth = async () => {
-      let activeToken = authService.getToken();
-      let currentUser = authService.getCurrentUser();
-
-      // Auto-bootstrap verified Super Admin session if absent so users are never locked out
-      if (!activeToken || !currentUser) {
-        const devSession = authService.devLogin();
-        activeToken = devSession.token;
-        currentUser = devSession.user;
-      }
+      const activeToken = authService.getToken();
+      const currentUser = authService.getCurrentUser();
 
       if (activeToken && currentUser) {
         setUser(currentUser);
@@ -61,13 +54,6 @@ export function AuthProvider({ children }) {
     setToken(null);
   }, []);
 
-  const devLogin = useCallback(() => {
-    const res = authService.devLogin();
-    setToken(res.token);
-    setUser(res.user);
-    return res;
-  }, []);
-
   const isAuthenticated = Boolean(
     token && user && user.role === 'SUPER_ADMIN' && user.scope === 'PLATFORM'
   );
@@ -78,7 +64,6 @@ export function AuthProvider({ children }) {
     isLoading,
     isAuthenticated,
     login,
-    devLogin,
     logout,
   };
 

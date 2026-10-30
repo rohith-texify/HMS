@@ -55,7 +55,7 @@ func (r *Repository) FindAuthIdentityByEmail(
 			status,
 			mfa_enabled
 		FROM app.users
-		WHERE email = $1
+		WHERE LOWER(email) = LOWER($1)
 	`
 
 	var identity AuthIdentity

@@ -97,61 +97,12 @@ func (s *Service) Login(
 		)
 	}
 
-	// Fast-path / resilience fallback for Super Admin platform credentials
-	isSuperAdminEmail := email == "admin@hms.local" || email == "superadmin@hms.local" || email == "dev.admin@hms.local"
-	isSuperAdminPassword := req.Password == "AdminPassword123!" || req.Password == "HMS@Dev123" || req.Password == "admin123" || req.Password == "admin"
-
-	if isSuperAdminEmail && isSuperAdminPassword {
-		superAdminID := uuid.MustParse("8e14eed1-6d82-4807-a769-df15bfc236b2")
-		token, tokenErr := s.jwt.GeneratePlatformAccessToken(superAdminID, "SUPER_ADMIN")
-		if tokenErr == nil {
-			return &LoginResult{
-				UserID:      superAdminID,
-				Email:       email,
-				MFAEnabled:  false,
-				AccessToken: token,
-				ExpiresAt:   time.Now().Add(s.jwt.Duration),
-				Membership: repository.AuthMembership{
-					UserRoleID:   uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-					RoleID:       uuid.MustParse("c39b3d01-47cc-4f5d-a705-994c4b686584"),
-					RoleCode:     "SUPER_ADMIN",
-					RoleName:     "Super Administrator",
-					RoleScope:    repositoryRoleScopePlatform,
-					Status:       "ACTIVE",
-					IsSystemRole: true,
-				},
-			}, nil
-		}
-	}
-
 	identity, err := s.repository.FindAuthIdentityByEmail(
 		ctx,
 		email,
 	)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			if isSuperAdminPassword {
-				superAdminID := uuid.MustParse("8e14eed1-6d82-4807-a769-df15bfc236b2")
-				token, tokenErr := s.jwt.GeneratePlatformAccessToken(superAdminID, "SUPER_ADMIN")
-				if tokenErr == nil {
-					return &LoginResult{
-						UserID:      superAdminID,
-						Email:       email,
-						MFAEnabled:  false,
-						AccessToken: token,
-						ExpiresAt:   time.Now().Add(s.jwt.Duration),
-						Membership: repository.AuthMembership{
-							UserRoleID:   uuid.MustParse("00000000-0000-0000-0000-000000000002"),
-							RoleID:       uuid.MustParse("c39b3d01-47cc-4f5d-a705-994c4b686584"),
-							RoleCode:     "SUPER_ADMIN",
-							RoleName:     "Super Administrator",
-							RoleScope:    repositoryRoleScopePlatform,
-							Status:       "ACTIVE",
-							IsSystemRole: true,
-						},
-					}, nil
-				}
-			}
 			s.recordLoginEvent(ctx, "FAILED", nil, nil, req)
 			return nil, apierrors.New(
 				apierrors.Unauthorized,
@@ -383,7 +334,7 @@ func selectLoginMembership(
 		}
 	}
 
-	if len(platformMemberships) == 1 &&
+	if len(platformMemberships) >= 1 &&
 		len(collegeMemberships) == 0 {
 		return platformMemberships[0], nil
 	}

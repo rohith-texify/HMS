@@ -4,27 +4,19 @@ import { useAuth } from '../hooks/useAuth';
 import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@hms.local');
-  const [password, setPassword] = useState('AdminPassword123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordField, setShowPasswordField] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login, devLogin } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   // Target destination after login, defaults to /colleges/new
   const from = location.state?.from?.pathname || '/colleges/new';
-
-  const handleDevLogin = () => {
-    if (devLogin) {
-      devLogin();
-      const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
-      navigate(targetPath, { replace: true });
-    }
-  };
 
   const handleContinueWithEmail = (e) => {
     e.preventDefault();
@@ -34,7 +26,6 @@ export default function LoginPage() {
       setError('Please enter your email address.');
       return;
     }
-    // If password is provided or defaulted, proceed directly with authentication
     return handleFinalSubmit(e);
   };
 
@@ -59,11 +50,6 @@ export default function LoginPage() {
       const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
       navigate(targetPath, { replace: true });
     } catch (err) {
-      if (devLogin) {
-        devLogin();
-        navigate('/colleges/new', { replace: true });
-        return;
-      }
       const errMsg =
         err.message ||
         err.response?.data?.error?.message ||
@@ -615,7 +601,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={showPasswordField ? handleFinalSubmit : handleContinueWithEmail} noValidate>
+          <form onSubmit={handleFinalSubmit} noValidate>
             {/* Email Field */}
             <div>
               <label htmlFor="user-email" className="input-label">
@@ -627,7 +613,7 @@ export default function LoginPage() {
                   id="user-email"
                   type="email"
                   autoComplete="email"
-                  placeholder="jdoe.mobbin@gmail.com"
+                  placeholder="rohith.texify@gmail.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isSubmitting}
@@ -637,58 +623,37 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Password Field (revealed on step 2 or direct submit) */}
-            {showPasswordField && (
-              <div style={{ animation: 'fadeIn 0.25s ease-out' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label htmlFor="user-password" className="input-label">
-                    Password
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowPasswordField(false)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#2563eb',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0,
-                      marginBottom: '8px',
-                    }}
-                  >
-                    Change email
-                  </button>
-                </div>
-                <div className="input-group">
-                  <Lock size={18} className="input-icon" />
-                  <input
-                    id="user-password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="current-password"
-                    placeholder="Enter your administrative password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={isSubmitting}
-                    className="input-field"
-                    style={{ paddingRight: '48px' }}
-                    autoFocus
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    className="toggle-password"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+            {/* Password Field */}
+            <div style={{ marginTop: '16px' }}>
+              <label htmlFor="user-password" className="input-label">
+                Password
+              </label>
+              <div className="input-group">
+                <Lock size={18} className="input-icon" />
+                <input
+                  id="user-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  className="input-field"
+                  style={{ paddingRight: '48px' }}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  className="toggle-password"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
-            )}
+            </div>
 
-            {/* Submit / Continue Button */}
+            {/* Submit Button */}
             <button
               type="submit"
               id="btn-login-submit"
@@ -707,22 +672,7 @@ export default function LoginPage() {
                   }}
                 />
               ) : null}
-              <span>{isSubmitting ? 'Authenticating...' : showPasswordField ? 'Sign In to Platform' : 'Continue with Email'}</span>
-            </button>
-
-            {/* Quick 1-Click Sign-In for instant access without backend dependency */}
-            <button
-              type="button"
-              id="btn-dev-login"
-              onClick={handleDevLogin}
-              className="btn-continue"
-              style={{
-                marginTop: '10px',
-                background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.28)',
-              }}
-            >
-              ⚡ Instant Super Admin Sign-In
+              <span>{isSubmitting ? 'Authenticating...' : 'Sign In'}</span>
             </button>
 
             {/* Continue with Google */}
