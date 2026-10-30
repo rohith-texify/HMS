@@ -7,3 +7,4 @@ services:
     envVars:
       - key: APP_ENV
         value: production
+
