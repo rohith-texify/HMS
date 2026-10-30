@@ -5,43 +5,23 @@ import { AuthContext } from './AuthContext';
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => authService.getCurrentUser());
   const [token, setToken] = useState(() => authService.getToken());
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Synchronize state on initial mount or storage changes
+  // Initialize auth on mount only
   useEffect(() => {
-    let isMounted = true;
+    // Get current auth state synchronously from storage
+    const activeToken = authService.getToken();
+    const currentUser = authService.getCurrentUser();
 
-    const initAuth = async () => {
-      try {
-        const activeToken = authService.getToken();
-        const currentUser = authService.getCurrentUser();
-
-        if (activeToken && currentUser) {
-          setUser(currentUser);
-          setToken(activeToken);
-        } else {
-          // Clear any stale auth data
-          authService.logout();
-          setUser(null);
-          setToken(null);
-        }
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        authService.logout();
-        setUser(null);
-        setToken(null);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    initAuth();
-
-    return () => {
-      isMounted = false;
-    };
+    if (activeToken && currentUser) {
+      setToken(activeToken);
+      setUser(currentUser);
+    } else {
+      // Clear any stale auth data
+      authService.logout();
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
   const login = useCallback(async (email, password, rememberMe = true) => {

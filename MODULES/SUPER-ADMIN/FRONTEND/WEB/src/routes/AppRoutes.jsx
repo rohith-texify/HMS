@@ -30,26 +30,7 @@ import ReportsAnalyticsPage from '../pages/ReportsAnalyticsPage';
 
 // Component that redirects already authenticated Super Admins away from /login to /dashboard
 function LoginRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  // Show loading screen while checking authentication
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          backgroundColor: '#f5f5f5',
-          fontFamily: 'inherit',
-        }}
-      >
-        <div style={{ fontSize: '18px', color: '#666' }}>Loading...</div>
-      </div>
-    );
-  }
+  const { isAuthenticated } = useAuth();
 
   // If already authenticated, redirect to dashboard
   if (isAuthenticated) {
@@ -62,25 +43,7 @@ function LoginRoute() {
 
 // Component for root path - redirects to either login or dashboard
 function RootRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
-          backgroundColor: '#f5f5f5',
-          fontFamily: 'inherit',
-        }}
-      >
-        <div style={{ fontSize: '18px', color: '#666' }}>Loading...</div>
-      </div>
-    );
-  }
+  const { isAuthenticated } = useAuth();
 
   // Redirect based on authentication status
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
