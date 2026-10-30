@@ -1,0 +1,177 @@
+====================================================================
+HMS RENDER DEPLOYMENT - CRITICAL ENVIRONMENT VARIABLES
+====================================================================
+
+The "colleges timeout" error occurs when:
+1. Platform pool credentials are missing or wrong
+2. DATABASE_URL format is incorrect
+3. SSL/TLS certificate validation fails
+
+====================================================================
+REQUIRED ENVIRONMENT VARIABLES ON RENDER
+====================================================================
+
+IMPORTANT: Do NOT use individual DB_* variables on Render.
+Instead, use the DATABASE_URL variable that Render provides automatically.
+
+Option 1: USE DATABASE_URL (RECOMMENDED for Render)
+======================================================
+
+1. Render automatically injects DATABASE_URL into your environment.
+   You should see it on your service's Environment page.
+
+2. Format of DATABASE_URL:
+   postgresql://username:password@hostname:port/database?sslmode=require
+
+3. Copy the exact value from Render's service environment page.
+
+4. Add these to your Render environment:
+
+   DATABASE_URL=<copy from Render environment page>
+   ENVIRONMENT=production
+   GIN_MODE=release
+   SERVER_PORT=10000
+   JWT_SECRET=<generate secure random 32+ chars>
+   CORS_ALLOWED_ORIGINS=https://*.vercel.app,https://yourdomain.com
+
+
+Option 2: MANUAL DATABASE_URL (if Render doesn't provide one)
+================================================================
+
+Build the URL manually:
+
+   DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@YOUR_HOST:5432/hms?sslmode=require
+
+Replace:
+   - YOUR_PASSWORD: The postgres user password (from Render PostgreSQL dashboard)
+   - YOUR_HOST: The external hostname (from Render PostgreSQL dashboard) 
+   - YOUR_PORT: Usually 5432
+   - hms: The database name (or whatever you named it)
+
+
+Option 3: INDIVIDUAL DB_* VARIABLES (Advanced, not recommended)
+=================================================================
+
+If you MUST use individual variables (only use if DATABASE_URL doesn't work):
+
+   DB_HOST=<external hostname from Render Postgres dashboard>
+   DB_PORT=5432
+   DB_USER=postgres
+   DB_PASSWORD=<your postgres password>
+   DB_NAME=hms
+   DB_SSLMODE=require
+   DB_MAX_OPEN_CONNS=20
+   DB_MAX_IDLE_CONNS=5
+
+   DB_PLATFORM_USER=postgres
+   DB_PLATFORM_PASSWORD=<same as DB_PASSWORD>
+   DB_PLATFORM_MAX_CONNS=5
+   DB_PLATFORM_MIN_CONNS=1
+
+   DB_COLLEGE_USER=postgres
+   DB_COLLEGE_PASSWORD=<same as DB_PASSWORD>
+   DB_COLLEGE_MAX_CONNS=25
+   DB_COLLEGE_MIN_CONNS=5
+
+====================================================================
+HOW TO FIND YOUR DATABASE CREDENTIALS ON RENDER
+====================================================================
+
+1. Go to Render Dashboard → PostgreSQL instance
+2. Scroll down to "Connections" section
+3. You should see:
+   - External Database URL (starts with postgresql://)
+   - Internal Database URL (for internal connections)
+   - Hostname
+   - Port (usually 5432)
+   - Database name
+   - Username
+   - Password (click "Show" if hidden)
+
+4. Copy the External Database URL and paste it as DATABASE_URL environment variable
+
+
+====================================================================
+TESTING YOUR DATABASE CONNECTION
+====================================================================
+
+After setting environment variables:
+
+1. Redeploy your service on Render (or it auto-deploys if auto-deploy is enabled)
+
+2. Check Render logs for this line:
+   "[DB-INIT] Platform pool initialized successfully for user ..."
+   
+   If you see this, database connection is working.
+
+3. Test the API:
+   curl https://your-service.onrender.com/health/db
+   
+   Should return:
+   {
+     "success": true,
+     "data": {
+       "status": "ok",
+       "college_pool": "connected",
+       "platform_pool": "connected"
+     }
+   }
+
+4. Test colleges endpoint:
+   curl https://your-service.onrender.com/super-admin/colleges
+   
+   Should return list of colleges (after migration 904_seed_users.sql is run)
+
+
+====================================================================
+IF COLLEGES STILL TIME OUT
+====================================================================
+
+Check your Render service logs for these errors:
+
+1. "failed to create platform database pool"
+   → Database credentials are wrong
+   → DATABASE_URL is malformed
+   → PostgreSQL instance is not accessible
+
+2. "failed to ping platform database pool"
+   → Can connect but SSL/TLS certificate validation fails
+   → Try adding ?sslmode=disable to DATABASE_URL (not recommended for production)
+
+3. "failed to configure PostgreSQL TLS"
+   → SSL certificate validation failed
+   → Check if Render's certificate is self-signed or expired
+   → Try connecting with psql locally to test
+
+4. Connection timeout after 10 seconds
+   → Network connectivity issue
+   → PostgreSQL instance is down
+   → Firewall blocking connection
+
+
+====================================================================
+QUICK CHECKLIST
+====================================================================
+
+✓ DATABASE_URL is set on Render environment (or all DB_* variables)
+✓ DATABASE_URL is in correct format: postgresql://user:pass@host:port/db
+✓ Password doesn't contain special characters that need URL encoding
+  (If it does: Use --password-generator on Render to create a new password)
+✓ Port is correct (usually 5432 for PostgreSQL)
+✓ SSL mode is set to "require" (standard for Render PostgreSQL)
+✓ ENVIRONMENT=production
+✓ GIN_MODE=release
+✓ SERVER_PORT=10000
+✓ Service is deployed after environment variables are set
+
+
+====================================================================
+SUPPORT
+====================================================================
+
+If still having issues:
+
+1. Check exact error in Render logs (Logs page in dashboard)
+2. Run: psql YOUR_DATABASE_URL from your local machine to test connection
+3. Verify migrations have been run (especially 904_seed_users.sql)
+4. Check if Render PostgreSQL instance status is "Available" (not "Creating")

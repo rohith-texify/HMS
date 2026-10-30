@@ -83,6 +83,9 @@ func New(ctx context.Context, cfg config.DatabaseConfig) (*Database, error) {
 		return nil, fmt.Errorf("failed to ping platform database pool: %w", err)
 	}
 
+	// Log successful platform pool initialization
+	fmt.Printf("[DB-INIT] Platform pool initialized successfully for user %q\n", platformUser)
+
 	// Idempotently ensure hms_platform_app possesses DML privileges on app.users for Super Admin provisioning
 	_, _ = collegePool.Exec(ctx, `
 		DO $$

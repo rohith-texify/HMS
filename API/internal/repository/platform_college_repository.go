@@ -24,9 +24,7 @@ func (r *Repository) ListColleges(
 		executor = r.PlatformPool
 	}
 
-	rows, err := executor.Query(
-		ctx,
-		`
+	query := `
 		SELECT
 			college_id,
 			college_code,
@@ -35,10 +33,20 @@ func (r *Repository) ListColleges(
 			timezone
 		FROM platform.colleges
 		ORDER BY name ASC
-		`,
-	)
+	`
+
+	rows, err := executor.Query(ctx, query)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list colleges: %w", err)
+		// If query fails and we had a platform pool, try falling back to the college pool
+		// (in case platform pool failed to initialize but college pool is working)
+		if r.PlatformPool != nil && r.Pool != nil && r.PlatformPool != r.Pool {
+			rows, err = r.Pool.Query(ctx, query)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list colleges (both pools failed): %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to list colleges: %w", err)
+		}
 	}
 	defer rows.Close()
 
