@@ -1,10 +1,17 @@
 import axios from 'axios';
 
-// Supports configurable VITE_API_BASE_URL for Vercel production deployment
+/**
+ * API Client Configuration
+ * 
+ * Local Development: Empty baseURL so axios uses Vite proxy (http://localhost:8080)
+ * Production (Vercel): Uses VITE_API_BASE_URL pointing to Render backend
+ * 
+ * In development, Vite proxy forwards /auth, /super-admin, /geo requests to localhost:8080
+ * In production, requests go directly to the Render backend URL
+ */
 const baseURL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://hms-backend-dtcm.onrender.com' : '');
+  import.meta.env.VITE_API_BASE_URL || // Explicitly set for production
+  (import.meta.env.PROD ? 'https://hms-backend-dtcm.onrender.com' : ''); // Production fallback
 
 const api = axios.create({
   baseURL,

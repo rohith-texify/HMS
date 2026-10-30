@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const backendTarget = process.env.VITE_BACKEND_TARGET || 'https://hms-backend-dtcm.onrender.com';
+// Development: use localhost:8080, Production: use Render backend
+const backendTarget = process.env.VITE_BACKEND_TARGET || 'http://localhost:8080';
 
 export default defineConfig({
   plugins: [react()],
