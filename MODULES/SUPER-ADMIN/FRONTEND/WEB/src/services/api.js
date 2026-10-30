@@ -71,14 +71,17 @@ api.interceptors.response.use(
     const code = responseData?.error?.code || 'NETWORK_ERROR';
     const status = error.response?.status || 500;
 
-    // If any protected resource returns 401, clear stale tokens so the user is never stuck in an expired loop
+    // If any protected resource returns 401, clear stale tokens only if not active super admin session
     if (status === 401 && !error.config?.url?.includes('/auth/login')) {
-      localStorage.removeItem('hms_token');
-      localStorage.removeItem('token');
-      localStorage.removeItem('hms_user');
-      sessionStorage.removeItem('hms_token');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('hms_user');
+      const activeToken = localStorage.getItem('hms_token') || sessionStorage.getItem('hms_token');
+      if (activeToken && !activeToken.startsWith('super-admin-session')) {
+        localStorage.removeItem('hms_token');
+        localStorage.removeItem('token');
+        localStorage.removeItem('hms_user');
+        sessionStorage.removeItem('hms_token');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('hms_user');
+      }
     }
 
     return Promise.reject({
