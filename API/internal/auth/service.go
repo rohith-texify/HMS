@@ -334,14 +334,28 @@ func selectLoginMembership(
 		}
 	}
 
-	if len(platformMemberships) >= 1 &&
-		len(collegeMemberships) == 0 {
-		return platformMemberships[0], nil
+	// Priority 1: If user has SUPER_ADMIN (platform scope), always select it
+	if len(platformMemberships) >= 1 {
+		for _, m := range platformMemberships {
+			if m.RoleCode == "SUPER_ADMIN" {
+				return m, nil
+			}
+		}
+		// Fallback to first platform membership if SUPER_ADMIN not found
+		if len(platformMemberships) > 0 {
+			return platformMemberships[0], nil
+		}
 	}
 
+	// Priority 2: If only college memberships, select the first one
+	if len(collegeMemberships) > 0 {
+		return collegeMemberships[0], nil
+	}
+
+	// Should not reach here
 	return repository.AuthMembership{}, apierrors.New(
 		apierrors.Forbidden,
-		"multiple active memberships found; membership selection is required",
+		"no valid active membership found",
 	)
 }
 
