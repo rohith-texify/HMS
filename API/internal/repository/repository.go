@@ -33,7 +33,8 @@ type DBTX interface {
 }
 
 type Repository struct {
-	Pool *pgxpool.Pool
+	Pool         *pgxpool.Pool
+	PlatformPool *pgxpool.Pool
 }
 
 func New(db *database.Database) *Repository {
@@ -41,7 +42,8 @@ func New(db *database.Database) *Repository {
 		return &Repository{}
 	}
 	return &Repository{
-		Pool: db.GetCollegePool(),
+		Pool:         db.GetCollegePool(),
+		PlatformPool: db.GetPlatformPool(),
 	}
 }
 

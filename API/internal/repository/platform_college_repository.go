@@ -18,7 +18,13 @@ type PlatformCollege struct {
 func (r *Repository) ListColleges(
 	ctx context.Context,
 ) ([]PlatformCollege, error) {
-	rows, err := r.Executor(ctx).Query(
+	// Platform schema queries must use the platform pool, not college pool
+	executor := r.Executor(ctx)
+	if r.PlatformPool != nil {
+		executor = r.PlatformPool
+	}
+
+	rows, err := executor.Query(
 		ctx,
 		`
 		SELECT
