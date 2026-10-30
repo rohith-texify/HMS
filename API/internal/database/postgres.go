@@ -162,7 +162,21 @@ func createPool(
 	poolConfig.MinConns = minConns
 	poolConfig.MaxConnLifetime = time.Duration(cfg.MaxConnLifetime) * time.Minute
 	poolConfig.MaxConnIdleTime = time.Duration(cfg.MaxConnIdleTime) * time.Minute
-	poolConfig.ConnConfig.ConnectTimeout = 10 * time.Second
+
+	connectTimeout := time.Duration(cfg.ConnectTimeoutSeconds) * time.Second
+	if connectTimeout <= 0 {
+		connectTimeout = 45 * time.Second
+	}
+	poolConfig.ConnConfig.ConnectTimeout = connectTimeout
+
+	queryTimeoutMs := cfg.QueryTimeoutSeconds * 1000
+	if queryTimeoutMs <= 0 {
+		queryTimeoutMs = 60000 // default 60s
+	}
+	if poolConfig.ConnConfig.RuntimeParams == nil {
+		poolConfig.ConnConfig.RuntimeParams = make(map[string]string)
+	}
+	poolConfig.ConnConfig.RuntimeParams["statement_timeout"] = fmt.Sprintf("%d", queryTimeoutMs)
 
 	// Neon DB: Optimize connection pool for Neon's connection management
 	// Neon closes idle connections after 5 minutes, so set lower idle timeout

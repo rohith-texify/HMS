@@ -145,7 +145,7 @@ func (s *MonitoringService) checkHealth(ctx context.Context) models.ServiceHealt
 	platformPool := s.db.GetPlatformPool()
 	platformOK := false
 	if platformPool != nil {
-		pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		if err := platformPool.Ping(pingCtx); err == nil {
 			platformOK = true
@@ -172,7 +172,7 @@ func (s *MonitoringService) checkHealth(ctx context.Context) models.ServiceHealt
 	collegePool := s.db.GetCollegePool()
 	collegeOK := false
 	if collegePool != nil {
-		pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		defer cancel()
 		if err := collegePool.Ping(pingCtx); err == nil {
 			collegeOK = true

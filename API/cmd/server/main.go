@@ -34,7 +34,8 @@ func main() {
 		)
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
 	db, err := database.New(ctx, cfg.Database)
 	if err != nil {
@@ -72,18 +73,10 @@ func main() {
 		Addr:    ":" + cfg.Server.Port,
 		Handler: router,
 
-		// ReadHeaderTimeout mitigates Slowloris attacks by strictly capping the time allowed to read request headers.
-		ReadHeaderTimeout: 5 * time.Second,
-
-		// ReadTimeout covers reading the entire request body. 15s accommodates slower mobile clients uploading the 1MB allowed payload.
-		ReadTimeout: 15 * time.Second,
-
-		// WriteTimeout bounds the maximum time the server will spend processing and writing a response.
-		// 30s is generous enough for complex database aggregations (e.g., reports) while preventing stalled connections.
-		WriteTimeout: 30 * time.Second,
-
-		// IdleTimeout manages HTTP keep-alive connections. 120s avoids aggressive TCP reconnect overhead for active clients.
-		IdleTimeout: 120 * time.Second,
+		ReadHeaderTimeout: 15 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       300 * time.Second,
 
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}

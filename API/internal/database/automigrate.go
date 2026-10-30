@@ -20,7 +20,7 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 		// Allow HTTP server to bind to port and pass health checks first
 		time.Sleep(500 * time.Millisecond)
 
-		seedCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		seedCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
 
 		logger.Info("ensuring baseline schemas and platform roles...")

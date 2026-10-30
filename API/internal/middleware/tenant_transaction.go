@@ -48,7 +48,7 @@ func TenantTransactionMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		// Set transaction-local tenant context in PostgreSQL
 		if err := database.SetTenantContext(txCtx, tx); err != nil {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_ = tx.Rollback(cleanupCtx)
 			cancel()
 
@@ -65,14 +65,14 @@ func TenantTransactionMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 		committed := false
 		defer func() {
 			if p := recover(); p != nil {
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				_ = tx.Rollback(cleanupCtx)
 				cancel()
 				panic(p) // Re-panic to trigger Gin's recovery middleware
 			}
 
 			if !committed {
-				cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 				_ = tx.Rollback(cleanupCtx)
 				cancel()
 			}
@@ -83,7 +83,7 @@ func TenantTransactionMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		// Rollback if errors were added to Gin context or response status indicates failure (>= 400)
 		if len(c.Errors) > 0 || c.Writer.Status() >= 400 {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_ = tx.Rollback(cleanupCtx)
 			cancel()
 			committed = true
@@ -92,7 +92,7 @@ func TenantTransactionMiddleware(pool *pgxpool.Pool) gin.HandlerFunc {
 
 		// Commit transaction upon successful completion
 		if err := tx.Commit(ctx); err != nil {
-			cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			_ = tx.Rollback(cleanupCtx)
 			cancel()
 			committed = true

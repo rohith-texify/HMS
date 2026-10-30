@@ -95,7 +95,7 @@ func NewRouter(
 	})
 
 	router.GET("/health/db", func(c *gin.Context) {
-		pingCtx, cancel := context.WithTimeout(c.Request.Context(), 3*time.Second)
+		pingCtx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 		defer cancel()
 
 		collegePool := db.GetCollegePool()

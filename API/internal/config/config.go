@@ -29,16 +29,18 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	Host            string
-	Port            string
-	Name            string
-	User            string
-	Password        string
-	SSLMode         string
-	MaxConns        int32
-	MinConns        int32
-	MaxConnLifetime int
-	MaxConnIdleTime int
+	Host                  string
+	Port                  string
+	Name                  string
+	User                  string
+	Password              string
+	SSLMode               string
+	MaxConns              int32
+	MinConns              int32
+	MaxConnLifetime       int
+	MaxConnIdleTime       int
+	ConnectTimeoutSeconds int
+	QueryTimeoutSeconds   int
 
 	// College Application Pool (Restricted role: hms_college_app)
 	CollegeUser     string
@@ -91,7 +93,7 @@ func Load() (*Config, error) {
 
 	maxConnLifetime, err := getIntEnv(
 		"DB_MAX_CONN_LIFETIME_MINUTES",
-		30,
+		60,
 	)
 	if err != nil {
 		return nil, err
@@ -99,7 +101,23 @@ func Load() (*Config, error) {
 
 	maxConnIdleTime, err := getIntEnv(
 		"DB_MAX_CONN_IDLE_TIME_MINUTES",
-		5,
+		15,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	connectTimeoutSeconds, err := getIntEnv(
+		"DB_CONNECT_TIMEOUT_SECONDS",
+		45,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	queryTimeoutSeconds, err := getIntEnv(
+		"DB_QUERY_TIMEOUT_SECONDS",
+		60,
 	)
 	if err != nil {
 		return nil, err
@@ -269,10 +287,12 @@ func Load() (*Config, error) {
 			Password: dbPassword,
 			SSLMode:  dbSSLMode,
 
-			MaxConns:        maxConns,
-			MinConns:        minConns,
-			MaxConnLifetime: maxConnLifetime,
-			MaxConnIdleTime: maxConnIdleTime,
+			MaxConns:              maxConns,
+			MinConns:              minConns,
+			MaxConnLifetime:       maxConnLifetime,
+			MaxConnIdleTime:       maxConnIdleTime,
+			ConnectTimeoutSeconds: connectTimeoutSeconds,
+			QueryTimeoutSeconds:   queryTimeoutSeconds,
 
 			CollegeUser:     collegeUser,
 			CollegePassword: collegePassword,

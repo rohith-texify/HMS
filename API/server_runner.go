@@ -54,7 +54,7 @@ func Run() {
 	}
 	logger.Info("TCP socket listening immediately for health checks and port scans", zap.String("address", listener.Addr().String()))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	db, err := database.New(ctx, cfg.Database)
@@ -96,10 +96,10 @@ func Run() {
 		Addr:    bindAddr,
 		Handler: router,
 
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		ReadHeaderTimeout: 15 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      120 * time.Second,
+		IdleTimeout:       300 * time.Second,
 		MaxHeaderBytes:    1 << 20, // 1 MB
 	}
 
