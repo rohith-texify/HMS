@@ -173,6 +173,9 @@ func Load() (*Config, error) {
 		rawDBURL = "postgresql://hms_db_3way_user:D06mA7yWsJJvb1uKWroeHOHrYDOgcpAg@dpg-dbgb12qvcj2c73bmcm0g-a.oregon-postgres.render.com/hms_db_3way?sslmode=require"
 	}
 
+	// Neon pooler URLs often include channel_binding=require parameter
+	// pgx v5 supports this natively, no special handling needed
+
 	dbHost := getTrimmedEnv("DB_HOST", getTrimmedEnv("PGHOST", getTrimmedEnv("POSTGRES_HOST", "localhost")))
 	dbPort := getTrimmedEnv("DB_PORT", getTrimmedEnv("PGPORT", getTrimmedEnv("POSTGRES_PORT", "5432")))
 	dbName := getTrimmedEnv("DB_NAME", getTrimmedEnv("PGDATABASE", getTrimmedEnv("POSTGRES_DB", "")))
