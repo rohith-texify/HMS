@@ -70,7 +70,7 @@ func main() {
 	)
 
 	srv := &http.Server{
-		Addr:    ":" + cfg.Server.Port,
+		Addr:    "0.0.0.0:" + cfg.Server.Port,
 		Handler: router,
 
 		ReadHeaderTimeout: 15 * time.Second,
