@@ -164,6 +164,14 @@ func createPool(
 	poolConfig.MaxConnIdleTime = time.Duration(cfg.MaxConnIdleTime) * time.Minute
 	poolConfig.ConnConfig.ConnectTimeout = 10 * time.Second
 
+	// Neon DB: Optimize connection pool for Neon's connection management
+	// Neon closes idle connections after 5 minutes, so set lower idle timeout
+	if strings.Contains(trimmedHost, "neon.tech") {
+		poolConfig.MaxConnIdleTime = 4 * time.Minute
+		poolConfig.MaxConnLifetime = 10 * time.Minute
+		fmt.Printf("[DB-INIT] Neon DB detected: Using optimized pool settings (4min idle, 10min lifetime)\n")
+	}
+
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)

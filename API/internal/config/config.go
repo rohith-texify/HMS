@@ -165,6 +165,10 @@ func Load() (*Config, error) {
 	if rawDBURL == "" {
 		rawDBURL = strings.TrimSpace(os.Getenv("POSTGRESQL_URL"))
 	}
+	// Neon DB connection string (auto-injected by Render when linked)
+	if rawDBURL == "" {
+		rawDBURL = strings.TrimSpace(os.Getenv("NEON_DATABASE_URL"))
+	}
 	if rawDBURL == "" && os.Getenv("RENDER") != "" {
 		rawDBURL = "postgresql://hms_db_3way_user:D06mA7yWsJJvb1uKWroeHOHrYDOgcpAg@dpg-dbgb12qvcj2c73bmcm0g-a.oregon-postgres.render.com/hms_db_3way?sslmode=require"
 	}

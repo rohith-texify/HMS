@@ -1,0 +1,168 @@
+====================================================================
+HMS ON NEON DB - SETUP & FIX FOR COLLEGES TIMEOUT
+====================================================================
+
+PROBLEM: "Could not load colleges for selector: timeout of 15000ms exceeded"
+
+ROOT CAUSE: Neon DB has different connection characteristics than Render Postgres
+- Neon closes idle connections after 5 minutes
+- Neon has strict connection limits per plan
+- Connection pooling needs different configuration
+
+====================================================================
+STEP 1: GET NEON CONNECTION STRING
+====================================================================
+
+1. Go to Neon Console: https://console.neon.tech/
+2. Select your project and database
+3. Click "Connection string" button
+4. Copy the "Connection string" (looks like):
+   postgresql://username:password@hostname/database
+
+IMPORTANT: The string will have sslmode parameter already included
+
+====================================================================
+STEP 2: SET ENVIRONMENT VARIABLES ON RENDER
+====================================================================
+
+In Render Dashboard → Your Service → Environment:
+
+Set ONLY this variable:
+
+   DATABASE_URL=postgresql://username:password@neon.tech:5432/database
+
+Do NOT set individual DB_* variables - they will conflict.
+
+====================================================================
+STEP 3: IMPORTANT - VERIFY NEON CONNECTION STRING FORMAT
+====================================================================
+
+Your Neon connection string should look like:
+
+   postgresql://neondb_owner:XXXXXXXXXXXX@ep-xxxxxxx-xxxxxx.neon.tech/neondb
+
+Key points:
+✓ Must contain: neon.tech (in hostname)
+✓ Must include password
+✓ Must include database name
+✓ Should use port 5432 (Neon default)
+✓ Should have ?sslmode=require (Neon requires SSL)
+
+
+If your Neon string is missing sslmode, add it manually:
+
+   postgresql://user:pass@hostname/db?sslmode=require
+
+====================================================================
+STEP 4: REDEPLOY ON RENDER
+====================================================================
+
+1. Make sure latest code is deployed (commit 98c1f31 or later)
+2. Render should auto-detect DATABASE_URL and use it
+3. Wait for deployment to complete
+4. Check logs for: "[DB-INIT] Neon DB detected: Using optimized pool settings"
+
+If you see that message, Neon connection optimization is active!
+
+====================================================================
+STEP 5: TEST CONNECTION
+====================================================================
+
+Test backend health:
+
+   curl https://your-api.onrender.com/health/db
+
+Should return:
+
+   {
+     "success": true,
+     "data": {
+       "status": "ok",
+       "college_pool": "connected",
+       "platform_pool": "connected"
+     }
+   }
+
+Test colleges endpoint:
+
+   curl https://your-api.onrender.com/super-admin/colleges
+
+Should return colleges list (after running 904_seed_users.sql migration)
+
+====================================================================
+NEON-SPECIFIC OPTIMIZATIONS APPLIED
+====================================================================
+
+The code now automatically detects Neon DB and applies:
+
+1. Max Idle Time: 4 minutes (instead of 5)
+   - Prevents Neon from closing idle connections
+   
+2. Max Connection Lifetime: 10 minutes
+   - Forces connection refresh before Neon closes them
+   
+3. Connection Pool: 5 max connections (default)
+   - Neon free tier has connection limit, so pool is conservative
+
+These settings prevent the timeout issue with Neon.
+
+====================================================================
+IF IT STILL TIMES OUT
+====================================================================
+
+Possible issues:
+
+1. DATABASE_URL not set
+   → Check Render Environment page
+   → Copy exact Neon connection string
+
+2. Neon database not created
+   → Go to Neon Console
+   → Create new database if needed
+
+3. Neon database credentials wrong
+   → Verify username and password in Neon Console
+   → Reset password if needed
+
+4. Neon project/database status
+   → Go to Neon Console
+   → Check if project is "Active" (not suspended)
+   → Check if database exists
+
+5. Network connectivity
+   → Try connecting locally: psql YOUR_NEON_CONNECTION_STRING
+   → If local connection fails, Render can't connect either
+
+====================================================================
+NEON FREE TIER LIMITS
+====================================================================
+
+Be aware of Neon's free tier limits:
+
+- 10 active projects
+- 5 compute units total
+- 3GB storage
+- Connection pooling: Limited
+
+If you hit limits, Render service may fail to connect. Upgrade to Neon Pro if needed.
+
+====================================================================
+QUICK CHECKLIST
+====================================================================
+
+✓ DATABASE_URL set in Render environment (from Neon Console)
+✓ Connection string contains: neon.tech
+✓ Connection string includes password
+✓ Connection string includes database name
+✓ Latest code deployed (with Neon optimization)
+✓ Render service redeployed after environment change
+✓ Neon project is "Active" in Neon Console
+✓ Neon database exists in Neon Console
+
+====================================================================
+SUPPORT
+====================================================================
+
+Neon Issues: https://neon.tech/docs
+Render Issues: https://render.com/docs
+HMS Issues: Check GitHub issues
