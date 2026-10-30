@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -38,6 +39,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	loginStart := time.Now()
 	result, err := h.service.Login(
 		c.Request.Context(),
 		LoginRequest{
@@ -47,6 +49,21 @@ func (h *Handler) Login(c *gin.Context) {
 			UserAgent: c.Request.UserAgent(),
 		},
 	)
+	loginDuration := time.Since(loginStart)
+
+	// Log timing by storing in context (will be picked up by timing middleware)
+	if dbTimes, exists := c.Get("db_query_times"); exists {
+		dbTimesSlice, ok := dbTimes.([]map[string]interface{})
+		if ok {
+			dbTimesSlice = append(dbTimesSlice, map[string]interface{}{
+				"query":       "auth.login",
+				"duration":    loginDuration,
+				"duration_ms": loginDuration.Milliseconds(),
+				"rows":        int64(0),
+			})
+			c.Set("db_query_times", dbTimesSlice)
+		}
+	}
 
 	if err != nil {
 		if apiErr, ok := err.(*apierrors.APIError); ok {

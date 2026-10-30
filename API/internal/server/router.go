@@ -35,6 +35,7 @@ func NewRouter(
 	router.Use(middleware.RequestID())
 	router.Use(middleware.Recovery(logger))
 	router.Use(middleware.Logger(logger))
+	router.Use(middleware.TimingMiddleware(logger))
 	router.Use(middleware.CORS(middleware.CORSConfig{
 		AllowedOrigins: cfg.CORS.AllowedOrigins,
 		AllowedMethods: []string{

@@ -97,10 +97,20 @@ func (s *Service) Login(
 		)
 	}
 
+	identityStart := time.Now()
 	identity, err := s.repository.FindAuthIdentityByEmail(
 		ctx,
 		email,
 	)
+	identityTime := time.Since(identityStart)
+	
+	if s.logger != nil {
+		s.logger.Debug(
+			"auth_timing_identity_lookup",
+			zap.Duration("duration_ms", identityTime),
+		)
+	}
+	
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			s.recordLoginEvent(ctx, "FAILED", nil, nil, req)

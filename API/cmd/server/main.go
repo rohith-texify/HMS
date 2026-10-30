@@ -20,11 +20,15 @@ import (
 )
 
 func main() {
+	processStartTime := time.Now()
+	
 	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
 	}
 	defer logger.Sync()
+
+	loggerInitTime := time.Since(processStartTime)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -34,9 +38,12 @@ func main() {
 		)
 	}
 
+	configLoadTime := time.Since(processStartTime)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
+	dbConnectStart := time.Now()
 	db, err := database.New(ctx, cfg.Database)
 	if err != nil {
 		logger.Fatal(
@@ -44,9 +51,19 @@ func main() {
 			zap.Error(err),
 		)
 	}
+	dbConnectTime := time.Since(dbConnectStart)
 	defer db.Close()
 
+	totalStartupTime := time.Since(processStartTime)
+
 	logger.Info("PostgreSQL connection established")
+	logger.Info(
+		"startup_timing",
+		zap.Duration("logger_init_ms", loggerInitTime),
+		zap.Duration("config_load_ms", configLoadTime),
+		zap.Duration("db_connect_ms", dbConnectTime),
+		zap.Duration("total_startup_ms", totalStartupTime),
+	)
 
 	jwtService := auth.NewJWTService(
 		cfg.JWT.Secret,
