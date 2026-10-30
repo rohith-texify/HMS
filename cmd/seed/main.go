@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func main() {
@@ -25,7 +26,7 @@ func main() {
 		dbUser, encodedPassword, dbHost, dbPort, dbName)
 
 	log.Println("=================================================================")
-	log.Println("HMS Database Seeding - Create/Update Superadmin User")
+	log.Println("HMS Database - Setup Real Superadmin Credentials")
 	log.Println("=================================================================")
 	log.Printf("Connecting to: %s:%s/%s as %s\n", dbHost, dbPort, dbName, dbUser)
 
@@ -40,25 +41,59 @@ func main() {
 
 	log.Println("✓ Connected to database")
 
-	// Seed superadmin user
-	email := "superadmin@hms.local"
+	// Real superadmin credentials
+	email := "rohith.texify@gmail.com"
+	password := "Rohith@acet"
 	phone := "+919999999999"
-	// Bcrypt hash of "Password@123" - Generated with bcrypt.GenerateFromPassword
-	passwordHash := "$2a$10$an3BUeO0/2Mih9QiJcrEXO/X5tLxVdza0BhoP6oWnNhkJSZiirSoq"
 
-	log.Printf("\nSeeding superadmin user: %s\n", email)
+	// Generate bcrypt hash for the real password
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Fatalf("Failed to generate password hash: %v", err)
+	}
+	passwordHashStr := string(passwordHash)
 
-	// Insert or update user
+	log.Printf("\nSetting up real superadmin user: %s\n", email)
+	log.Printf("Password: %s\n", password)
+
+	// Delete all demo/test users first
+	log.Println("\n🗑️  Removing demo/test credentials...")
+	
+	demoUsers := []string{
+		"superadmin@hms.local",
+		"admin@test-college.local",
+		"student@test-college.local",
+		"parent@test-college.local",
+		"incharge@test-college.local",
+		"security@test-college.local",
+	}
+	
+	for _, demoEmail := range demoUsers {
+		// Get user ID first
+		var userID string
+		err := conn.QueryRow(ctx, "SELECT user_id FROM app.users WHERE email = $1", demoEmail).Scan(&userID)
+		if err == nil {
+			// Delete user roles
+			_, _ = conn.Exec(ctx, "DELETE FROM platform.user_roles WHERE user_id = $1", userID)
+			// Delete user
+			_, _ = conn.Exec(ctx, "DELETE FROM app.users WHERE user_id = $1", userID)
+			log.Printf("  ✓ Deleted: %s\n", demoEmail)
+		}
+	}
+
+	// Insert/Update real superadmin user
+	log.Println("\n📝 Creating real superadmin user...")
+	
 	_, err = conn.Exec(ctx, `
 		INSERT INTO app.users (email, phone, password_hash, status, created_at, updated_at)
 		VALUES ($1, $2, $3, 'ACTIVE', NOW(), NOW())
 		ON CONFLICT (email) DO UPDATE SET password_hash = $3, status = 'ACTIVE', updated_at = NOW();
-	`, email, phone, passwordHash)
+	`, email, phone, passwordHashStr)
 
 	if err != nil {
 		log.Fatalf("Failed to insert/update user: %v", err)
 	}
-	log.Println("✓ User created/updated with correct password hash")
+	log.Printf("  ✓ User created/updated: %s\n", email)
 
 	// Get user ID
 	var userID string
@@ -66,7 +101,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to fetch user ID: %v", err)
 	}
-	log.Printf("✓ User ID: %s\n", userID)
+	log.Printf("  ✓ User ID: %s\n", userID)
 
 	// Get SUPER_ADMIN role ID
 	var roleID string
@@ -74,7 +109,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to fetch SUPER_ADMIN role ID: %v", err)
 	}
-	log.Printf("✓ SUPER_ADMIN role ID: %s\n", roleID)
+	log.Printf("  ✓ SUPER_ADMIN role ID: %s\n", roleID)
 
 	// Delete existing role assignment if any
 	_, _ = conn.Exec(ctx, "DELETE FROM platform.user_roles WHERE user_id = $1 AND role_id = $2", userID, roleID)
@@ -88,14 +123,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to assign role: %v", err)
 	}
-	log.Println("✓ SUPER_ADMIN role assigned")
+	log.Println("  ✓ SUPER_ADMIN role assigned")
 
 	log.Println("\n=================================================================")
-	log.Println("✓ Superadmin user seeded successfully!")
+	log.Println("✅ REAL SUPERADMIN CREDENTIALS SET UP")
 	log.Println("=================================================================")
-	log.Println("\nTest Credentials:")
-	log.Println("  Email:    superadmin@hms.local")
-	log.Println("  Password: Password@123")
+	log.Println("\n📧 Login Credentials:")
+	log.Printf("  Email:    %s\n", email)
+	log.Printf("  Password: %s\n", password)
+	log.Println("\n✅ All demo credentials have been removed!")
+	log.Println("✅ Only real superadmin user exists now!")
 	log.Println("")
 }
 

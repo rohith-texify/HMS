@@ -33,9 +33,9 @@ npm run dev
 
 ### 3. Login to Dashboard
 1. Open http://localhost:3000 in browser
-2. Enter credentials:
-   - **Email**: `superadmin@hms.local`
-   - **Password**: `Password@123`
+2. Enter real credentials:
+   - **Email**: `rohith.texify@gmail.com`
+   - **Password**: `Rohith@acet`
 3. Click **Sign In**
 4. Dashboard loads ✅
 
@@ -159,16 +159,13 @@ PostgreSQL (Neon)
 
 ---
 
-## 📊 Available Test Credentials
+## 📊 Available Credentials
 
 | Role | Email | Password |
 |------|-------|----------|
-| **Super Admin** | superadmin@hms.local | Password@123 |
-| College Admin | admin@test-college.local | Password@123 |
-| Student | student@test-college.local | Password@123 |
-| Parent | parent@test-college.local | Password@123 |
+| **Super Admin** | rohith.texify@gmail.com | Rohith@acet |
 
-Only **Super Admin** is seeded by default. Other users can be created through the app.
+⚠️ **NOTE**: Only real superadmin credentials are active. All demo/test credentials have been removed.
 
 ---
 

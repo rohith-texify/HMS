@@ -265,26 +265,11 @@ Get-Content -Path d:\HMS\backend.log -Tail 50 -Wait
 | Backend API | http://localhost:8080 |
 | Health Check | http://localhost:8080/health |
 | DB Health | http://localhost:8080/health/db |
-| Colleges List | http://localhost:8080/super-admin/colleges |
 
----
+## 📝 Login Credentials
 
-## 📞 Support
-
-### Backend Issues
-- Check logs in DevTools Network tab
-- Check backend console output
-- Verify .env configuration
-
-### Frontend Issues
-- Check browser console (F12)
-- Check Network tab for API calls
-- Clear browser cache: `Ctrl+Shift+Delete`
-
-### Database Issues
-- Test connection with appropriate tool (psql for PostgreSQL, pgAdmin for Neon)
-- Verify credentials in .env
-- Check if database exists and migrations have run
+**Email**: rohith.texify@gmail.com  
+**Password**: Rohith@acet
 
 ---
 

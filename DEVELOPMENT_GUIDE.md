@@ -61,10 +61,10 @@ DATABASE_URL=postgresql://neondb_owner:npg_5kb3oGlwITEz@ep-calm-river-b421p61u-p
 - Open: http://localhost:3000
 - Should show login page
 
-**2. Test Login**
-```bash
-Email: superadmin@hms.local
-Password: Password@123
+**2. Test Login with Real Credentials**
+```
+Email: rohith.texify@gmail.com
+Password: Rohith@acet
 ```
 
 **3. Expected Flow**
@@ -351,10 +351,9 @@ curl -X POST http://localhost:8080/auth/login \
 
 | Role | Email | Password |
 |------|-------|----------|
-| Super Admin | superadmin@hms.local | Password@123 |
-| College Admin | admin@test-college.local | Password@123 |
-| Student | student@test-college.local | Password@123 |
-| Parent | parent@test-college.local | Password@123 |
+| Super Admin | rohith.texify@gmail.com | Rohith@acet |
+
+**Important**: Only real superadmin credentials are active. All demo credentials have been removed.
 
 ---
 
