@@ -23,6 +23,18 @@
   ],
   "rewrites": [
     {
+      "source": "/auth/(.*)",
+      "destination": "https://hms-1-mjvj.onrender.com/auth/$1"
+    },
+    {
+      "source": "/super-admin/(.*)",
+      "destination": "https://hms-1-mjvj.onrender.com/super-admin/$1"
+    },
+    {
+      "source": "/geo/(.*)",
+      "destination": "https://hms-1-mjvj.onrender.com/geo/$1"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

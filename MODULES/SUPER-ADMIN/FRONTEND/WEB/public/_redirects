@@ -1,3 +1,7 @@
-# Render SPA redirect rules
-# All routes should redirect to index.html for client-side routing
-/*    /index.html   200
+# Render Static Site API proxy rewrites
+/auth/*        https://hms-1-mjvj.onrender.com/auth/:splat        200
+/super-admin/* https://hms-1-mjvj.onrender.com/super-admin/:splat 200
+/geo/*         https://hms-1-mjvj.onrender.com/geo/:splat         200
+
+# Render SPA client-side routing fallback
+/*             /index.html                                        200

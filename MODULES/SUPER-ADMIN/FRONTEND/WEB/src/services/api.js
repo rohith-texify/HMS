@@ -11,7 +11,7 @@ import axios from 'axios';
  */
 const baseURL =
   import.meta.env.VITE_API_BASE_URL || // Explicitly set for production (empty for dev)
-  (import.meta.env.PROD ? 'https://hms-backend-dtcm.onrender.com' : ''); // Production fallback
+  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : ''); // Production fallback
 
 const api = axios.create({
   baseURL: baseURL || undefined, // Use undefined if empty string to let axios use relative URLs

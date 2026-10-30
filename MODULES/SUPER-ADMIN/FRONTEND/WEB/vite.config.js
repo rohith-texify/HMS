@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   
   // Use VITE_BACKEND_TARGET if set, otherwise default to backend target based on mode
   const backendTarget = env.VITE_BACKEND_TARGET || 
-    (mode === 'production' ? 'https://hms-backend-dtcm.onrender.com' : 'http://localhost:3001');
+    (mode === 'production' ? 'https://hms-1-mjvj.onrender.com' : 'http://localhost:3001');
   
   return {
     plugins: [react()],

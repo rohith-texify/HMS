@@ -60,10 +60,16 @@ func isAllowedOrigin(origin string, allowedOrigins []string) bool {
 				return true
 			}
 		}
+		// Support Render deployment subdomains (e.g. https://*.onrender.com)
+		if allowedOrigin == "https://*.onrender.com" || allowedOrigin == "*.onrender.com" {
+			if strings.HasPrefix(origin, "https://") && strings.HasSuffix(origin, ".onrender.com") {
+				return true
+			}
+		}
 	}
 
-	// Always permit any Vercel domain preview for this platform
-	if strings.HasPrefix(origin, "https://") && strings.HasSuffix(origin, ".vercel.app") {
+	// Always permit any Vercel or Render domain preview for this platform
+	if strings.HasPrefix(origin, "https://") && (strings.HasSuffix(origin, ".vercel.app") || strings.HasSuffix(origin, ".onrender.com")) {
 		return true
 	}
 
