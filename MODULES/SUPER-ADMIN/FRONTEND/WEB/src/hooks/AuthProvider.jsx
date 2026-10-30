@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const isAuthenticated = Boolean(
-    token && user && user.role === 'SUPER_ADMIN' && user.scope === 'PLATFORM'
+    token && user && (user.role === 'SUPER_ADMIN' || user.roleCode === 'SUPER_ADMIN')
   );
 
   const value = {

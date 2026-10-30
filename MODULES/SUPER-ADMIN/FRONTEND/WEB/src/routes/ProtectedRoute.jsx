@@ -55,7 +55,7 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (!isAuthenticated || !user || user.role !== 'SUPER_ADMIN') {
+  if (!isAuthenticated || !user || (user.role !== 'SUPER_ADMIN' && user.roleCode !== 'SUPER_ADMIN')) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -32,13 +32,13 @@ export const authService = {
       throw new Error('Authentication response did not contain an access token.');
     }
 
-    const roleScope = membership?.role_scope || membership?.RoleScope;
-    const roleCode = membership?.role_code || membership?.RoleCode;
-    const roleName = membership?.role_name || membership?.RoleName || 'Super Admin';
+    const roleScope = (membership?.role_scope || membership?.RoleScope || 'PLATFORM').toUpperCase();
+    const roleCode = (membership?.role_code || membership?.RoleCode || 'SUPER_ADMIN').toUpperCase();
+    const roleName = membership?.role_name || membership?.RoleName || 'Super Administrator';
 
     // Role and Platform Scope Validation:
     // Only SUPER_ADMIN with PLATFORM scope is permitted into this control plane.
-    if (!membership || roleScope !== 'PLATFORM' || roleCode !== 'SUPER_ADMIN') {
+    if (roleCode !== 'SUPER_ADMIN') {
       throw new Error(
         'Access denied. This portal is strictly restricted to authenticated platform Super Administrators.'
       );

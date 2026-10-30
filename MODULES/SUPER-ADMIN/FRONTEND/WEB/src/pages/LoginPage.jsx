@@ -15,19 +15,8 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Target destination after login, defaults to /colleges/new
-  const from = location.state?.from?.pathname || '/colleges/new';
-
-  const handleContinueWithEmail = (e) => {
-    e.preventDefault();
-    setError(null);
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setError('Please enter your email address.');
-      return;
-    }
-    return handleFinalSubmit(e);
-  };
+  // Target destination after login, defaults to /dashboard
+  const from = location.state?.from?.pathname || '/dashboard';
 
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
@@ -47,7 +36,7 @@ export default function LoginPage() {
     try {
       setIsSubmitting(true);
       await login(trimmedEmail, password, true);
-      const targetPath = (from === '/dashboard' || from === '/login' || !from) ? '/colleges/new' : from;
+      const targetPath = (from === '/login' || !from) ? '/dashboard' : from;
       navigate(targetPath, { replace: true });
     } catch (err) {
       const errMsg =

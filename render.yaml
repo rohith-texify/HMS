@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: HMS-1
+    runtime: go
+    buildCommand: ./build.sh
+    startCommand: ./server
+    envVars:
+      - key: APP_ENV
+        value: production
