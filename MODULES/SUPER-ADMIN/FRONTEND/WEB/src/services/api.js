@@ -15,7 +15,7 @@ const baseURL =
 
 const api = axios.create({
   baseURL: baseURL || undefined, // Use undefined if empty string to let axios use relative URLs
-  timeout: 60000,
+  timeout: 120000, // 120s timeout to accommodate Render Free Tier backend cold starts
   headers: {
     'Content-Type': 'application/json',
   },

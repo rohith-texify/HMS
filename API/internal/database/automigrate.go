@@ -29,10 +29,6 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 		_, _ = pool.Exec(seedCtx, `
 			CREATE SCHEMA IF NOT EXISTS platform;
 			CREATE SCHEMA IF NOT EXISTS app;
-			GRANT ALL ON SCHEMA platform TO PUBLIC;
-			GRANT ALL ON ALL TABLES IN SCHEMA platform TO PUBLIC;
-			GRANT ALL ON SCHEMA app TO PUBLIC;
-			GRANT ALL ON ALL TABLES IN SCHEMA app TO PUBLIC;
 		`)
 
 		// Ensure platform.roles table exists

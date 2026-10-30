@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [showPasswordField, setShowPasswordField] = useState(true);
   const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitNotice, setSubmitNotice] = useState(null);
 
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const handleFinalSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setSubmitNotice(null);
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
@@ -33,19 +35,33 @@ export default function LoginPage() {
       return;
     }
 
+    // Set a timer to notify the user if Render backend is waking from sleep
+    const wakeTimer = setTimeout(() => {
+      setSubmitNotice('Backend server is waking up from sleep. Please wait a few seconds...');
+    }, 4000);
+
     try {
       setIsSubmitting(true);
       await login(trimmedEmail, password, true);
+      clearTimeout(wakeTimer);
       const targetPath = (from === '/login' || !from) ? '/dashboard' : from;
       navigate(targetPath, { replace: true });
     } catch (err) {
-      const errMsg =
+      clearTimeout(wakeTimer);
+      let errMsg =
         err.message ||
         err.response?.data?.error?.message ||
         'Authentication failed. Please check your credentials.';
+
+      if (errMsg.toLowerCase().includes('timeout') || err.code === 'ECONNABORTED') {
+        errMsg =
+          'The server is taking longer than usual to wake up (Render cold start). Please click Sign In again now that the backend is awake.';
+      }
       setError(errMsg);
     } finally {
+      clearTimeout(wakeTimer);
       setIsSubmitting(false);
+      setSubmitNotice(null);
     }
   };
 
@@ -587,6 +603,37 @@ export default function LoginPage() {
             <div className="error-banner" role="alert">
               <AlertCircle size={18} style={{ flexShrink: 0 }} />
               <span>{error}</span>
+            </div>
+          )}
+
+          {submitNotice && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 14px',
+                marginBottom: '16px',
+                backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                borderRadius: '8px',
+                color: '#0284c7',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+              }}
+            >
+              <div
+                style={{
+                  width: '14px',
+                  height: '14px',
+                  border: '2px solid #0284c7',
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite',
+                  flexShrink: 0,
+                }}
+              />
+              <span>{submitNotice}</span>
             </div>
           )}
 

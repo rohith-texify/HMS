@@ -46,3 +46,4 @@ if (fs.existsSync(indexPath)) {
 
   console.log('✅ Postbuild: Generated SPA static fallback files (404.html and physical route entrypoints)');
 }
+
