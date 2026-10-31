@@ -20,7 +20,6 @@ export const authService = {
       throw new Error('Please enter both email and password.');
     }
 
-<<<<<<< HEAD
     const response = await api.post(
       '/auth/login',
       {
@@ -29,17 +28,6 @@ export const authService = {
       },
       { timeout: 15000 }
     );
-=======
-    try {
-      const response = await api.post(
-        '/auth/login',
-        {
-          email: normalizedEmail,
-          password,
-        },
-        { timeout: 8000 }
-      );
->>>>>>> origin/main
 
     const payload = response?.data ?? response;
     const data = payload?.data ?? payload;
