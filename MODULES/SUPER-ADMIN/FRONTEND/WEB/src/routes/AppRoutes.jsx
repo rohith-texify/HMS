@@ -1,6 +1,5 @@
 import React, { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from './ProtectedRoute';
 import LoginPage from '../pages/LoginPage';
@@ -30,35 +29,14 @@ const SystemMonitoringPage = lazy(() => import('../pages/SystemMonitoringPage'))
 const SupportTroubleshootingPage = lazy(() => import('../pages/SupportTroubleshootingPage'));
 const ReportsAnalyticsPage = lazy(() => import('../pages/ReportsAnalyticsPage'));
 
-// Component that redirects already authenticated Super Admins away from /login to /dashboard
-function LoginRoute() {
-  const { isAuthenticated } = useAuth();
-
-  // If already authenticated, redirect to dashboard
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // Show login page for unauthenticated users
-  return <LoginPage />;
-}
-
-// Component for root path - redirects to either login or dashboard
-function RootRoute() {
-  const { isAuthenticated } = useAuth();
-
-  // Redirect based on authentication status
-  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />;
-}
-
 export default function AppRoutes() {
   return (
     <Routes>
-      {/* Root route - redirects to login or dashboard based on auth */}
-      <Route path="/" element={<RootRoute />} />
+      {/* Root route - launching the Super Admin application always presents login */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Public Authentication Route - NOT protected */}
-      <Route path="/login" element={<LoginRoute />} />
+      {/* Public Authentication Route */}
+      <Route path="/login" element={<LoginPage />} />
 
       {/* Protected Super Admin Platform Routes - wrapped in ProtectedRoute */}
       <Route
@@ -100,8 +78,8 @@ export default function AppRoutes() {
         <Route path="/analytics" element={<ReportsAnalyticsPage />} />
       </Route>
 
-      {/* Catch-all route - redirects to login if not authenticated, dashboard if authenticated */}
-      <Route path="*" element={<RootRoute />} />
+      {/* Catch-all route - fallback unhandled paths to login */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 }

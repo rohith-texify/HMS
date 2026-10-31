@@ -7,9 +7,14 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => authService.getToken());
   const [isLoading, setIsLoading] = useState(false);
 
-  // Initialize auth on mount only
+  const logout = useCallback(() => {
+    authService.logout();
+    setUser(null);
+    setToken(null);
+  }, []);
+
+  // Initialize auth on mount and sync state
   useEffect(() => {
-    // Get current auth state synchronously from storage
     const activeToken = authService.getToken();
     const currentUser = authService.getCurrentUser();
 
@@ -17,12 +22,19 @@ export function AuthProvider({ children }) {
       setToken(activeToken);
       setUser(currentUser);
     } else {
-      // Clear any stale auth data
-      authService.logout();
-      setToken(null);
-      setUser(null);
+      logout();
     }
-  }, []);
+
+    // Listen for unauthorized events emitted by API client
+    const handleUnauthorized = () => {
+      logout();
+    };
+
+    window.addEventListener('hms:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('hms:unauthorized', handleUnauthorized);
+    };
+  }, [logout]);
 
   const login = useCallback(async (email, password, rememberMe = true) => {
     setIsLoading(true);
@@ -36,13 +48,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    authService.logout();
-    setUser(null);
-    setToken(null);
-  }, []);
-
-  // Check if user is authenticated AND is SUPER_ADMIN
+  // Check if user is authenticated AND is SUPER_ADMIN with valid token
   const isAuthenticated = Boolean(
     token && user && (user.role === 'SUPER_ADMIN' || user.roleCode === 'SUPER_ADMIN')
   );

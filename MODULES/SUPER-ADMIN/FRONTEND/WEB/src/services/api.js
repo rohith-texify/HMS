@@ -3,19 +3,16 @@ import axios from 'axios';
 /**
  * API Client Configuration
  * 
- * Local Development: Empty baseURL so axios uses Vite proxy (http://localhost:8080)
+ * Local Development: Empty baseURL so axios uses Vite proxy (http://localhost:3001)
  * Production (Render): Uses VITE_API_BASE_URL pointing to Render backend
- * 
- * In development, Vite proxy forwards /auth, /super-admin, /geo requests to localhost:8080
- * In production, requests go directly to the Render backend URL
  */
 const baseURL =
-  import.meta.env.VITE_API_BASE_URL || // Explicitly set for production (empty for dev)
-  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : ''); // Production fallback
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : '');
 
 const api = axios.create({
-  baseURL: baseURL || undefined, // Use undefined if empty string to let axios use relative URLs
-  timeout: 8000, // Balanced timeout allowing remote Render network latency while preventing freezes
+  baseURL: baseURL || undefined,
+  timeout: 8000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -76,16 +73,16 @@ api.interceptors.response.use(
     const code = responseData?.error?.code || error.code || 'NETWORK_ERROR';
     const status = error.response?.status ?? null;
 
-    // If any protected resource returns 401, clear stale tokens only if not active super admin session
+    // If any protected resource returns 401, clear stale tokens immediately
     if (status === 401 && !error.config?.url?.includes('/auth/login')) {
-      const activeToken = localStorage.getItem('hms_token') || sessionStorage.getItem('hms_token');
-      if (activeToken && !activeToken.startsWith('super-admin-session')) {
-        localStorage.removeItem('hms_token');
-        localStorage.removeItem('token');
-        localStorage.removeItem('hms_user');
-        sessionStorage.removeItem('hms_token');
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('hms_user');
+      localStorage.removeItem('hms_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('hms_user');
+      sessionStorage.removeItem('hms_token');
+      sessionStorage.removeItem('token');
+      sessionStorage.removeItem('hms_user');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('hms:unauthorized'));
       }
     }
 

@@ -4,6 +4,31 @@ const TOKEN_KEY = 'hms_token';
 const USER_KEY = 'hms_user';
 
 /**
+ * Validates that a token is a non-expired, properly-formed platform Super Admin JWT.
+ * Rejects legacy mock tokens and expired sessions.
+ */
+function isTokenValid(token) {
+  if (!token || typeof token !== 'string') return false;
+  if (token.startsWith('super-admin-session')) return false;
+
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+
+  try {
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      return false; // token expired
+    }
+    if (payload.role !== 'SUPER_ADMIN' || payload.scope !== 'PLATFORM') {
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Service handling Super Admin authentication operations.
  */
 export const authService = {
@@ -74,15 +99,23 @@ export const authService = {
 
   /**
    * Retrieve active stored token from either storage location.
+   * Automatically validates token structure and expiration.
    * @returns {string|null}
    */
   getToken() {
-    return (
+    const rawToken =
       localStorage.getItem(TOKEN_KEY) ||
       sessionStorage.getItem(TOKEN_KEY) ||
       localStorage.getItem('token') ||
-      sessionStorage.getItem('token')
-    );
+      sessionStorage.getItem('token');
+
+    if (!rawToken || !isTokenValid(rawToken)) {
+      if (rawToken) {
+        this.logout();
+      }
+      return null;
+    }
+    return rawToken;
   },
 
   /**
@@ -90,10 +123,18 @@ export const authService = {
    * @returns {Object|null}
    */
   getCurrentUser() {
+    const validToken = this.getToken();
+    if (!validToken) {
+      return null;
+    }
     const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed?.role !== 'SUPER_ADMIN' && parsed?.roleCode !== 'SUPER_ADMIN') {
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
