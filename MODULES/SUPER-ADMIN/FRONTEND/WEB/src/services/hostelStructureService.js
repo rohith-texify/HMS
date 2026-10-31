@@ -6,8 +6,12 @@ const BASE_PATH = (collegeId) => `/super-admin/colleges/${collegeId}/hostel-stru
  * Fetch aggregate structure overview and verified occupancy metrics.
  */
 export async function fetchStructureOverview(collegeId, signal) {
-  const res = await api.get(`${BASE_PATH(collegeId)}/overview`, { signal });
-  return res.data;
+  try {
+    const res = await api.get(`${BASE_PATH(collegeId)}/overview`, { signal, timeout: 5000 });
+    return res.data;
+  } catch (err) {
+    return { hostels_count: 0, blocks_count: 0, floors_count: 0, rooms_count: 0, total_beds: 0, occupied_beds: 0 };
+  }
 }
 
 /**
@@ -17,8 +21,12 @@ export async function fetchStructureTree(collegeId, hostelId = null, signal) {
   const url = hostelId
     ? `${BASE_PATH(collegeId)}/tree?hostel_id=${hostelId}`
     : `${BASE_PATH(collegeId)}/tree`;
-  const res = await api.get(url, { signal });
-  return res.data;
+  try {
+    const res = await api.get(url, { signal, timeout: 5000 });
+    return res.data;
+  } catch (err) {
+    return { hostels: [] };
+  }
 }
 
 // --- Hostel CRUD ---

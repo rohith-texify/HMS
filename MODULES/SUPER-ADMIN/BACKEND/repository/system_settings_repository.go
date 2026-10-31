@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,9 +14,13 @@ import (
 	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/models"
 )
 
-// ensureSystemSettingsSchema ensures the required tables and initial seed data exist.
+var systemSettingsSchemaOnce sync.Once
+
+// ensureSystemSettingsSchema ensures the required tables and initial seed data exist once per server run.
 func (r *Repository) ensureSystemSettingsSchema(ctx context.Context) error {
-	const ddl = `
+	var err error
+	systemSettingsSchemaOnce.Do(func() {
+		const ddl = `
 		CREATE TABLE IF NOT EXISTS platform.system_settings (
 			setting_key         varchar(150) PRIMARY KEY,
 			category            varchar(50) NOT NULL DEFAULT 'general',
@@ -144,7 +149,8 @@ func (r *Repository) ensureSystemSettingsSchema(ctx context.Context) error {
 		)
 		ON CONFLICT (setting_key) DO NOTHING;
 	`
-	_, err := r.Executor(ctx).Exec(ctx, ddl)
+		_, err = r.Executor(ctx).Exec(ctx, ddl)
+	})
 	return err
 }
 

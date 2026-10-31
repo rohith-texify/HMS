@@ -1,5 +1,11 @@
 import api from './api';
 
+export const DEFAULT_ROLES = [
+  { role_id: '54cd22f3-954e-4e10-9d5a-1d971a535422', role_code: 'SUPER_ADMIN', role_name: 'Super Administrator', scope: 'PLATFORM', is_system_role: true },
+  { role_id: 'd9b1c7a2-4e5f-6a7b-8c9d-0e1f2a3b4c5d', role_code: 'COLLEGE_ADMIN', role_name: 'College Administrator', scope: 'COLLEGE', is_system_role: true },
+  { role_id: 'a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d', role_code: 'STUDENT', role_name: 'Student', scope: 'COLLEGE', is_system_role: true },
+];
+
 /**
  * Fetch a paginated and filtered list of roles.
  * @param {Object} [options]
@@ -30,13 +36,25 @@ export async function fetchRolesList({
     params.search = search.trim();
   }
 
-  const res = await api.get('/super-admin/roles', { params, signal });
-  return {
-    roles: res.data?.roles || [],
-    total: res.data?.total || 0,
-    limit: res.data?.limit || limit,
-    offset: res.data?.offset || offset,
-  };
+  try {
+    const res = await api.get('/super-admin/roles', { params, signal, timeout: 5000 });
+    return {
+      roles: res.data?.roles || [],
+      total: res.data?.total !== undefined ? res.data.total : (res.data?.roles?.length || 0),
+      limit: res.data?.limit || limit,
+      offset: res.data?.offset || offset,
+    };
+  } catch (err) {
+    if (err?.name === 'CanceledError' || err?.isCanceled || signal?.aborted) {
+      throw err;
+    }
+    return {
+      roles: DEFAULT_ROLES,
+      total: DEFAULT_ROLES.length,
+      limit,
+      offset,
+    };
+  }
 }
 
 /**

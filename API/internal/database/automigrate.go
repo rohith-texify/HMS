@@ -44,7 +44,7 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			);
 		`)
 
-		// Ensure app.users table exists
+		// Ensure app.users table exists and has all required columns
 		_, _ = pool.Exec(seedCtx, `
 			CREATE TABLE IF NOT EXISTS app.users (
 				user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -53,9 +53,13 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 				password_hash VARCHAR(255),
 				status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
 				mfa_enabled BOOLEAN NOT NULL DEFAULT false,
+				last_login_at TIMESTAMPTZ,
 				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 			);
+			ALTER TABLE app.users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
+			ALTER TABLE app.users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+			ALTER TABLE app.users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT false;
 		`)
 
 		// Ensure platform.user_roles table exists

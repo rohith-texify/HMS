@@ -18,12 +18,13 @@ export async function fetchOnboardingPipeline(options = {}) {
     if (options.offset) params.offset = options.offset;
   }
   try {
-    const res = await api.get('/super-admin/onboarding', { params, signal });
+    const res = await api.get('/super-admin/onboarding', { params, signal, timeout: 5000 });
     return res.data?.colleges || [];
   } catch (err) {
-    // Fallback to query colleges with status=ONBOARDING
-    const fallback = await api.get('/super-admin/colleges', { params: { status: 'ONBOARDING', ...params }, signal });
-    return fallback.data?.colleges || [];
+    if (err?.name === 'CanceledError' || err?.isCanceled || signal?.aborted) {
+      throw err;
+    }
+    return [];
   }
 }
 

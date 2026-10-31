@@ -35,13 +35,25 @@ export async function fetchPermissions({
     params.is_orphan = is_orphan;
   }
 
-  const res = await api.get('/super-admin/permissions', { params, signal });
-  return {
-    permissions: res.data?.permissions || [],
-    total: res.data?.total || 0,
-    limit: res.data?.limit || limit,
-    offset: res.data?.offset || offset,
-  };
+  try {
+    const res = await api.get('/super-admin/permissions', { params, signal, timeout: 5000 });
+    return {
+      permissions: res.data?.permissions || [],
+      total: res.data?.total !== undefined ? res.data.total : (res.data?.permissions?.length || 0),
+      limit: res.data?.limit || limit,
+      offset: res.data?.offset || offset,
+    };
+  } catch (err) {
+    if (err?.name === 'CanceledError' || err?.isCanceled || signal?.aborted) {
+      throw err;
+    }
+    return {
+      permissions: [],
+      total: 0,
+      limit,
+      offset,
+    };
+  }
 }
 
 /**

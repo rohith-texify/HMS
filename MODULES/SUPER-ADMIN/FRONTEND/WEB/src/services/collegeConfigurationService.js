@@ -43,17 +43,30 @@ export async function fetchEffectiveSettings(collegeId, options = {}) {
   if (options.limit) params.limit = options.limit;
   if (options.offset !== undefined) params.offset = options.offset;
 
-  const res = await api.get(`/super-admin/colleges/${collegeId}/settings`, {
-    params,
-    signal: options.signal,
-  });
+  try {
+    const res = await api.get(`/super-admin/colleges/${collegeId}/settings`, {
+      params,
+      signal: options.signal,
+      timeout: 5000,
+    });
 
-  return {
-    settings: res.data?.settings || [],
-    total: res.data?.total || 0,
-    limit: res.data?.limit || 50,
-    offset: res.data?.offset || 0,
-  };
+    return {
+      settings: res.data?.settings || [],
+      total: res.data?.total || 0,
+      limit: res.data?.limit || 50,
+      offset: res.data?.offset || 0,
+    };
+  } catch (err) {
+    if (err?.name === 'CanceledError' || err?.isCanceled || options.signal?.aborted) {
+      throw err;
+    }
+    return {
+      settings: [],
+      total: 0,
+      limit: 50,
+      offset: 0,
+    };
+  }
 }
 
 /**

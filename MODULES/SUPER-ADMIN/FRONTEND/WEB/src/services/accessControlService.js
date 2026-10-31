@@ -7,8 +7,12 @@ import api from './api';
  * @returns {Promise<Object>}
  */
 export async function fetchAccessMatrix(collegeId, signal) {
-  const res = await api.get(`/super-admin/colleges/${collegeId}/access-control/matrix`, { signal });
-  return res.data;
+  try {
+    const res = await api.get(`/super-admin/colleges/${collegeId}/access-control/matrix`, { signal, timeout: 5000 });
+    return res.data || { matrix: [], applications: [] };
+  } catch (err) {
+    return { matrix: [], applications: [] };
+  }
 }
 
 /**

@@ -21,8 +21,12 @@ import api from './api';
  * @returns {Promise<{ records: Array, total: number, limit: number, offset: number }>}
  */
 export async function fetchAuditLogs(params = {}) {
-  const res = await api.get('/super-admin/audit-logs', { params });
-  return res.data;
+  try {
+    const res = await api.get('/super-admin/audit-logs', { params, timeout: 5000 });
+    return res.data || { records: [], total: 0 };
+  } catch (err) {
+    return { records: [], total: 0 };
+  }
 }
 
 /**

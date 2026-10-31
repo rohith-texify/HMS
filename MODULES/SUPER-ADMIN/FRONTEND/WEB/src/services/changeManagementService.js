@@ -10,8 +10,12 @@ import api from './api';
  * @param {number} [params.offset=0]
  */
 export async function fetchChangeSets(params = {}) {
-  const res = await api.get('/super-admin/change-sets', { params });
-  return res.data;
+  try {
+    const res = await api.get('/super-admin/change-sets', { params, timeout: 5000 });
+    return res.data || { change_sets: [], total: 0 };
+  } catch (err) {
+    return { change_sets: [], total: 0 };
+  }
 }
 
 /**

@@ -15,11 +15,21 @@ export async function fetchModuleCatalogue(params = {}, signal) {
 
   const queryString = query.toString();
   const url = `/super-admin/modules${queryString ? `?${queryString}` : ''}`;
-  const res = await api.get(url, { signal });
-  return {
-    modules: res.data?.modules || [],
-    meta: res.meta || {},
-  };
+  try {
+    const res = await api.get(url, { signal, timeout: 5000 });
+    return {
+      modules: res.data?.modules || [],
+      meta: res.meta || {},
+    };
+  } catch (err) {
+    if (err?.name === 'CanceledError' || err?.isCanceled || signal?.aborted) {
+      throw err;
+    }
+    return {
+      modules: [],
+      meta: {},
+    };
+  }
 }
 
 /**

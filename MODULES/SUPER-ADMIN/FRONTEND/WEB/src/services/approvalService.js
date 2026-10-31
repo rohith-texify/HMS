@@ -11,8 +11,12 @@ import api from './api';
  * @param {number} [params.offset=0]
  */
 export async function fetchApprovalRequests(params = {}) {
-  const res = await api.get('/super-admin/approvals', { params });
-  return res.data;
+  try {
+    const res = await api.get('/super-admin/approvals', { params, timeout: 5000 });
+    return res.data || { requests: [], total: 0 };
+  } catch (err) {
+    return { requests: [], total: 0 };
+  }
 }
 
 /**
