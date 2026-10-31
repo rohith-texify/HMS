@@ -10,7 +10,7 @@ export const fetchPlatformNotifications = async (params = {}) => {
   if (params.offset) query.append('offset', params.offset);
 
   try {
-    const res = await api.get(`/super-admin/notifications?${query.toString()}`, { timeout: 1800 });
+    const res = await api.get(`/super-admin/notifications?${query.toString()}`, { timeout: 8000 });
     return res.data || { notifications: [], total: 0 };
   } catch (err) {
     return { notifications: [], total: 0 };
@@ -37,7 +37,7 @@ export const cancelPlatformNotification = async (id, reason) => {
 
 export const fetchMonitoringMetrics = async () => {
   try {
-    const res = await api.get('/super-admin/monitoring/metrics', { timeout: 1800 });
+    const res = await api.get('/super-admin/monitoring/metrics', { timeout: 8000 });
     return res.data;
   } catch (err) {
     return {

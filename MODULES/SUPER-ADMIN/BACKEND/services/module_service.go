@@ -1298,6 +1298,9 @@ func (s *ModuleService) GetCollegeEntitlementMatrix(
 	now := time.Now()
 	matrix := make([]models.CollegeEntitlementMatrixItem, 0, len(allModules))
 
+	// Pre-fetch all pending module approvals in 1 single query instead of N queries in the loop
+	pendingApprovalsByModule, _ := s.repo.GetPendingModuleApprovalsForCollege(ctx, collegeID)
+
 	for _, m := range allModules {
 		item := models.CollegeEntitlementMatrixItem{
 			CollegeID:        collegeID,
@@ -1367,15 +1370,20 @@ func (s *ModuleService) GetCollegeEntitlementMatrix(
 			}
 		}
 
-		// Check pending approval
-		if approval, _ := s.repo.GetPendingModuleApproval(ctx, collegeID, m.ModuleID); approval != nil {
-			item.PendingApprovalID = &approval.RequestID
-			item.PendingApprovalStatus = approval.Status
+		// Check pending approval from pre-fetched map
+		if pendingApprovalsByModule != nil {
+			if approval, hasApproval := pendingApprovalsByModule[m.ModuleID.String()]; hasApproval && approval != nil {
+				item.PendingApprovalID = &approval.RequestID
+				item.PendingApprovalStatus = approval.Status
+			}
 		}
 
-		// Get active workflow counts if applicable
-		if wCount, _, err := s.repo.GetPendingWorkflowCounts(ctx, collegeID, m.ModuleCode); err == nil {
-			item.PendingWorkflowsCount = wCount
+		// Get active workflow counts only for modules that actually have workflow tables
+		normCode := strings.ToUpper(strings.TrimSpace(m.ModuleCode))
+		if normCode == "REQUESTS" || normCode == "SUPPORT" || normCode == "HOSTEL" || normCode == "MOVEMENT" {
+			if wCount, _, err := s.repo.GetPendingWorkflowCounts(ctx, collegeID, m.ModuleCode); err == nil {
+				item.PendingWorkflowsCount = wCount
+			}
 		}
 
 		matrix = append(matrix, item)

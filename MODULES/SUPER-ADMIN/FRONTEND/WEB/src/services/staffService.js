@@ -15,7 +15,7 @@ export async function fetchPlatformStaffList({ status, limit = 20, offset = 0, s
     params.status = status;
   }
   try {
-    const res = await api.get('/super-admin/staff', { params, signal, timeout: 1800 });
+    const res = await api.get('/super-admin/staff', { params, signal, timeout: 8000 });
     return {
       staff: res.data?.staff || [],
       total: res.data?.total !== undefined ? res.data.total : (res.data?.staff?.length || 0),

@@ -96,7 +96,7 @@ export default function ModulesPage() {
     }
   }, [routeCollegeId]);
 
-  // 2. Load Selected College Details & Data
+  // 2. Load Selected College Details & Data concurrently
   const loadData = async () => {
     if (abortRef.current) {
       abortRef.current.abort();
@@ -104,33 +104,53 @@ export default function ModulesPage() {
     const controller = new AbortController();
     abortRef.current = controller;
 
-    setLoading(true);
     setError(null);
 
+    const promises = [
+      fetchModuleCatalogue({}, controller.signal),
+      fetchEntitlementTemplates(controller.signal),
+    ];
+
+    if (selectedCollegeId) {
+      promises.push(
+        fetchCollegeById(selectedCollegeId, controller.signal),
+        fetchCollegeEntitlementMatrix(selectedCollegeId, controller.signal),
+        fetchModuleHistory(selectedCollegeId, null, 50, 0, controller.signal)
+      );
+    }
+
     try {
-      if (selectedCollegeId) {
-        const col = await fetchCollegeById(selectedCollegeId, controller.signal);
-        setCurrentCollege(col);
+      const results = await Promise.allSettled(promises);
+      if (controller.signal.aborted) return;
 
-        const mData = await fetchCollegeEntitlementMatrix(selectedCollegeId, controller.signal);
-        setMatrix(mData || []);
-
-        const hData = await fetchModuleHistory(selectedCollegeId, null, 50, 0, controller.signal);
-        setHistoryRecords(hData.history || []);
+      // Handle catalogue
+      if (results[0].status === 'fulfilled' && results[0].value?.modules?.length > 0) {
+        setCatalogue(results[0].value.modules);
+      }
+      // Handle templates
+      if (results[1].status === 'fulfilled' && results[1].value) {
+        setTemplates(results[1].value);
       }
 
-      // Always load catalogue & templates
-      const catData = await fetchModuleCatalogue({}, controller.signal);
-      setCatalogue(catData.modules || []);
-
-      const tData = await fetchEntitlementTemplates(controller.signal);
-      setTemplates(tData || []);
+      if (selectedCollegeId && results.length >= 5) {
+        if (results[2].status === 'fulfilled' && results[2].value) {
+          setCurrentCollege(results[2].value);
+        }
+        if (results[3].status === 'fulfilled' && results[3].value) {
+          setMatrix(results[3].value);
+        }
+        if (results[4].status === 'fulfilled' && results[4].value?.history) {
+          setHistoryRecords(results[4].value.history);
+        }
+      }
     } catch (err) {
-      if (err.name !== 'CanceledError' && !err.isCanceled) {
-        setError(err.message || 'Failed to load module entitlements');
+      if (err?.name !== 'CanceledError' && !err?.isCanceled && !controller.signal.aborted) {
+        setError(err.message || 'Failed to refresh module entitlements');
       }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   };
 

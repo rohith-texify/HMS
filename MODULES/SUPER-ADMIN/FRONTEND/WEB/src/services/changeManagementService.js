@@ -11,7 +11,7 @@ import api from './api';
  */
 export async function fetchChangeSets(params = {}) {
   try {
-    const res = await api.get('/super-admin/change-sets', { params, timeout: 1800 });
+    const res = await api.get('/super-admin/change-sets', { params, timeout: 8000 });
     return res.data || { change_sets: [], total: 0 };
   } catch (err) {
     return { change_sets: [], total: 0 };

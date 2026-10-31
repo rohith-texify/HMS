@@ -43,10 +43,11 @@ export async function fetchPermissions({
   }
 
   try {
-    const res = await api.get('/super-admin/permissions', { params, signal, timeout: 1800 });
+    const res = await api.get('/super-admin/permissions', { params, signal, timeout: 8000 });
+    const list = res.data?.permissions || [];
     return {
-      permissions: res.data?.permissions || [],
-      total: res.data?.total !== undefined ? res.data.total : (res.data?.permissions?.length || 0),
+      permissions: list.length > 0 ? list : DEFAULT_PERMISSIONS,
+      total: list.length > 0 ? (res.data?.total !== undefined ? res.data.total : list.length) : DEFAULT_PERMISSIONS.length,
       limit: res.data?.limit || limit,
       offset: res.data?.offset || offset,
     };
@@ -55,8 +56,8 @@ export async function fetchPermissions({
       throw err;
     }
     return {
-      permissions: [],
-      total: 0,
+      permissions: DEFAULT_PERMISSIONS,
+      total: DEFAULT_PERMISSIONS.length,
       limit,
       offset,
     };

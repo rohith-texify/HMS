@@ -97,7 +97,15 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			CREATE INDEX IF NOT EXISTS idx_approvals_created_at ON platform.approvals (created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_audit_logs_college_created ON platform.audit_logs (college_id, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON platform.role_permissions (role_id);
+			CREATE INDEX IF NOT EXISTS idx_role_permissions_perm ON platform.role_permissions (permission_id);
 			CREATE INDEX IF NOT EXISTS idx_permissions_code ON platform.permissions (permission_code);
+			CREATE INDEX IF NOT EXISTS idx_permissions_module_scope ON platform.permissions (module_id, scope_type);
+			CREATE INDEX IF NOT EXISTS idx_permissions_scope ON platform.permissions (scope_type);
+			CREATE INDEX IF NOT EXISTS idx_user_roles_user_role ON platform.user_roles (user_id, role_id);
+			CREATE INDEX IF NOT EXISTS idx_user_roles_college_role ON platform.user_roles (college_id, role_id, status);
+			CREATE INDEX IF NOT EXISTS idx_college_onboarding_lookup ON platform.college_onboarding (college_id, status, step_code);
+			CREATE INDEX IF NOT EXISTS idx_colleges_onboarding ON platform.colleges (status, is_active, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_approval_requests_col_stat ON platform.approval_requests (college_id, status);
 		`)
 
 		_, _ = pool.Exec(seedCtx, `

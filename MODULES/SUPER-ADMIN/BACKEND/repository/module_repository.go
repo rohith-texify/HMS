@@ -1191,3 +1191,64 @@ func (r *Repository) GetPendingModuleApproval(
 
 	return &req, nil
 }
+
+// GetPendingModuleApprovalsForCollege retrieves all pending module approvals for a college in a single query.
+func (r *Repository) GetPendingModuleApprovalsForCollege(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) (map[string]*models.ApprovalRequest, error) {
+	query := `
+		SELECT
+			request_id,
+			operation_type,
+			college_id,
+			payload,
+			requested_by,
+			status,
+			reason,
+			snapshot,
+			expires_at,
+			executed_at,
+			created_at,
+			updated_at
+		FROM platform.approval_requests
+		WHERE college_id = $1
+		  AND operation_type = 'COLLEGE_MODULE_UPDATE'
+		  AND status = 'PENDING'
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.Executor(ctx).Query(ctx, query, collegeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query college module approvals: %w", err)
+	}
+	defer rows.Close()
+
+	res := make(map[string]*models.ApprovalRequest)
+	for rows.Next() {
+		var req models.ApprovalRequest
+		if err := rows.Scan(
+			&req.RequestID,
+			&req.OperationType,
+			&req.CollegeID,
+			&req.Payload,
+			&req.RequestedBy,
+			&req.Status,
+			&req.Reason,
+			&req.Snapshot,
+			&req.ExpiresAt,
+			&req.ExecutedAt,
+			&req.CreatedAt,
+			&req.UpdatedAt,
+		); err == nil {
+			if modID, ok := req.Payload["module_id"].(string); ok && modID != "" {
+				if _, exists := res[modID]; !exists {
+					reqCopy := req
+					res[modID] = &reqCopy
+				}
+			}
+		}
+	}
+
+	return res, nil
+}

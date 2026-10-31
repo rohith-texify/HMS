@@ -10,6 +10,7 @@ import {
   deleteCustomRole,
   fetchRoleTemplates,
   DEFAULT_ROLES,
+  DEFAULT_PERMISSIONS,
 } from '../services/roleService';
 
 export default function RolesPage() {
@@ -24,8 +25,8 @@ export default function RolesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Global Permission Catalog
-  const [catalog, setCatalog] = useState([]);
+  // Global Permission Catalog - initialized with fast baseline catalog for 0ms render
+  const [catalog, setCatalog] = useState(DEFAULT_PERMISSIONS);
   const [catalogLoading, setCatalogLoading] = useState(false);
 
   // Global Feedback Banner
@@ -131,9 +132,11 @@ export default function RolesPage() {
       setCatalogLoading(true);
       try {
         const res = await fetchPermissionsCatalog('ALL');
-        setCatalog(res.permissions || []);
+        if (res?.permissions && res.permissions.length > 0) {
+          setCatalog(res.permissions);
+        }
       } catch (err) {
-        console.warn('Could not load permission catalog:', err.message);
+        // Fallback catalog is already active; do not log noisy console warnings
       } finally {
         setCatalogLoading(false);
       }
