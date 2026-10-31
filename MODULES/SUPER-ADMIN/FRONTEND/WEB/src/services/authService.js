@@ -8,110 +8,68 @@ const USER_KEY = 'hms_user';
  */
 export const authService = {
   /**
-   * Execute Super Admin login against the API with fast resilience fallback.
+   * Execute Super Admin login against the API.
    * @param {string} email
    * @param {string} password
    * @param {boolean} rememberMe
    * @returns {Promise<Object>} Authenticated session data
    */
   async login(email, password, rememberMe = true) {
-    const normalizedEmail = (email || '').trim().toLowerCase() || 'rohith.texify@gmail.com';
+    const normalizedEmail = (email || '').trim().toLowerCase();
     if (!normalizedEmail || !password) {
       throw new Error('Please enter both email and password.');
     }
 
-    try {
-      const response = await api.post(
-        '/auth/login',
-        {
-          email: normalizedEmail,
-          password,
-        },
-        { timeout: 1800 }
-      );
+    const response = await api.post(
+      '/auth/login',
+      {
+        email: normalizedEmail,
+        password,
+      },
+      { timeout: 15000 }
+    );
 
-      const data = response.data || response;
-      const { access_token, user_id, email: userEmail, membership, expires_at } = data;
+    const payload = response?.data ?? response;
+    const data = payload?.data ?? payload;
+    const { access_token, user_id, email: userEmail, membership, expires_at } = data;
 
-      if (!access_token) {
-        throw new Error('Authentication response did not contain an access token.');
-      }
-
-      const roleScope = (membership?.role_scope || membership?.RoleScope || 'PLATFORM').toUpperCase();
-      const roleCode = (membership?.role_code || membership?.RoleCode || 'SUPER_ADMIN').toUpperCase();
-      const roleName = membership?.role_name || membership?.RoleName || 'Super Administrator';
-
-      if (roleCode !== 'SUPER_ADMIN') {
-        throw new Error(
-          'Access denied. This portal is strictly restricted to authenticated platform Super Administrators.'
-        );
-      }
-
-      const displayEmail =
-        userEmail && !userEmail.endsWith('@hms.local') && !userEmail.includes('superadmin')
-          ? userEmail
-          : normalizedEmail;
-
-      const sessionUser = {
-        id: user_id || '54cd22f3-954e-4e10-9d5a-1d971a535422',
-        email: displayEmail,
-        role: roleCode,
-        roleName: roleName,
-        scope: roleScope,
-        expiresAt: expires_at || new Date(Date.now() + 86400000 * 365).toISOString(),
-      };
-
-      if (rememberMe) {
-        localStorage.setItem(TOKEN_KEY, access_token);
-        localStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
-        sessionStorage.removeItem(TOKEN_KEY);
-        sessionStorage.removeItem(USER_KEY);
-      } else {
-        sessionStorage.setItem(TOKEN_KEY, access_token);
-        sessionStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(USER_KEY);
-      }
-      localStorage.setItem('token', access_token);
-
-      return { token: access_token, user: sessionUser };
-    } catch (err) {
-      console.warn('Super Admin session fallback activated:', err.message);
-      return this.devLogin(normalizedEmail, rememberMe);
+    if (!access_token) {
+      throw new Error('Authentication response did not contain an access token.');
     }
-  },
 
-  /**
-   * Instant Super Admin session activation for rohith.texify@gmail.com
-   * @param {string} email
-   * @param {boolean} rememberMe
-   * @returns {Object} Super Admin session data
-   */
-  devLogin(email = 'rohith.texify@gmail.com', rememberMe = true) {
-    const devUser = {
-      id: '54cd22f3-954e-4e10-9d5a-1d971a535422',
-      email: 'rohith.texify@gmail.com',
-      role: 'SUPER_ADMIN',
-      roleName: 'Super Administrator',
-      scope: 'PLATFORM',
-      expiresAt: new Date(Date.now() + 86400000 * 365).toISOString(),
+    const roleScope = (membership?.role_scope || membership?.RoleScope || data.role_scope || '').toUpperCase();
+    const roleCode = (membership?.role_code || membership?.RoleCode || data.role_code || data.role || '').toUpperCase();
+    const roleName = membership?.role_name || membership?.RoleName || data.role_name || 'Super Administrator';
+
+    if (roleCode !== 'SUPER_ADMIN' || roleScope !== 'PLATFORM') {
+      throw new Error(
+        'Access denied. This portal is strictly restricted to authenticated platform Super Administrators.'
+      );
+    }
+
+    const sessionUser = {
+      id: user_id || data.id,
+      email: userEmail || normalizedEmail,
+      role: roleCode,
+      roleName: roleName,
+      scope: roleScope,
+      expiresAt: expires_at || new Date(Date.now() + 86400000 * 365).toISOString(),
     };
-    const devToken = 'super-admin-session-token-' + Date.now();
 
     if (rememberMe) {
-      localStorage.setItem(TOKEN_KEY, devToken);
-      localStorage.setItem(USER_KEY, JSON.stringify(devUser));
+      localStorage.setItem(TOKEN_KEY, access_token);
+      localStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
       sessionStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(USER_KEY);
     } else {
-      sessionStorage.setItem(TOKEN_KEY, devToken);
-      sessionStorage.setItem(USER_KEY, JSON.stringify(devUser));
+      sessionStorage.setItem(TOKEN_KEY, access_token);
+      sessionStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     }
-    localStorage.setItem('token', devToken);
+    localStorage.setItem('token', access_token);
 
-    return { token: devToken, user: devUser };
+    return { token: access_token, user: sessionUser };
   },
 
   /**
@@ -135,14 +93,7 @@ export const authService = {
     const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
-      const user = JSON.parse(raw);
-      if (user) {
-        if (!user.email || user.email.endsWith('@hms.local') || user.email.includes('superadmin')) {
-          user.email = 'rohith.texify@gmail.com';
-          localStorage.setItem(USER_KEY, JSON.stringify(user));
-        }
-      }
-      return user;
+      return JSON.parse(raw);
     } catch {
       return null;
     }

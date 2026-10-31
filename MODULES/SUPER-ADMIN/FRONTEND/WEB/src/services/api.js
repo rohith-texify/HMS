@@ -67,9 +67,14 @@ api.interceptors.response.use(
     }
 
     const responseData = error.response?.data;
-    const message = responseData?.error?.message || error.message || 'An unexpected error occurred';
-    const code = responseData?.error?.code || 'NETWORK_ERROR';
-    const status = error.response?.status || 500;
+    const message =
+      responseData?.error?.message ||
+      (typeof responseData?.error === 'string' ? responseData.error : undefined) ||
+      responseData?.message ||
+      error.message ||
+      'An unexpected error occurred';
+    const code = responseData?.error?.code || error.code || 'NETWORK_ERROR';
+    const status = error.response?.status ?? null;
 
     // If any protected resource returns 401, clear stale tokens only if not active super admin session
     if (status === 401 && !error.config?.url?.includes('/auth/login')) {

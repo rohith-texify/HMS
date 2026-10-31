@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	apierrors "github.com/yourusername/hostel-management-system/API/pkg/errors"
 	"github.com/yourusername/hostel-management-system/API/pkg/response"
@@ -69,6 +70,10 @@ func (h *Handler) Login(c *gin.Context) {
 		if apiErr, ok := err.(*apierrors.APIError); ok {
 			response.Error(c, apiErr)
 			return
+		}
+
+		if h.service.logger != nil {
+			h.service.logger.Error("authentication request failed", zap.Error(err))
 		}
 
 		response.Error(

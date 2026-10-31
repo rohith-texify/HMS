@@ -2,8 +2,56 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 )
+
+func TestLoadDotEnvFindsRepositoryRootFromNestedDirectory(t *testing.T) {
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.Chdir(workingDirectory); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	const envKey = "HMS_CONFIG_ROOT_ENV_TEST"
+	previousValue, wasSet := os.LookupEnv(envKey)
+	if err := os.Unsetenv(envKey); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if wasSet {
+			_ = os.Setenv(envKey, previousValue)
+		} else {
+			_ = os.Unsetenv(envKey)
+		}
+	}()
+
+	repositoryRoot := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repositoryRoot, "go.mod"), []byte("module test\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repositoryRoot, ".env"), []byte(envKey+"=loaded-from-root\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	serverDirectory := filepath.Join(repositoryRoot, "API", "cmd", "server")
+	if err := os.MkdirAll(serverDirectory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(serverDirectory); err != nil {
+		t.Fatal(err)
+	}
+
+	loadDotEnv()
+
+	if got := os.Getenv(envKey); got != "loaded-from-root" {
+		t.Fatalf("expected root .env value to load, got %q", got)
+	}
+}
 
 func TestLoad_JWTSecretValidation(t *testing.T) {
 	// Backup original environment variables
@@ -263,4 +311,3 @@ func TestLoad_DatabaseUserTrimmingAndValidation(t *testing.T) {
 		t.Fatal("expected error for username containing newline, got nil")
 	}
 }
-

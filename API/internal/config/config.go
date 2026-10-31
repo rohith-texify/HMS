@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -76,9 +77,7 @@ type RateLimitConfig struct {
 }
 
 func Load() (*Config, error) {
-	// Load .env from the current project root if it exists.
-	// Existing environment variables are preserved by godotenv.
-	_ = godotenv.Load(".env") // Ignore error, as production might not have a .env file
+	loadDotEnv()
 
 	// Database connection pool configuration.
 	maxConns, err := getInt32Env("DB_MAX_CONNS", 20)
@@ -373,6 +372,32 @@ func Load() (*Config, error) {
 	}
 
 	return config, nil
+}
+
+func loadDotEnv() {
+	if err := godotenv.Load(".env"); err == nil {
+		return
+	}
+
+	workingDirectory, err := os.Getwd()
+	if err != nil {
+		return
+	}
+
+	for directory := workingDirectory; ; directory = filepath.Dir(directory) {
+		if _, err := os.Stat(filepath.Join(directory, "go.mod")); err == nil {
+			rootEnvPath := filepath.Join(directory, ".env")
+			if rootEnvPath != filepath.Join(workingDirectory, ".env") {
+				_ = godotenv.Load(rootEnvPath)
+			}
+			return
+		}
+
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			return
+		}
+	}
 }
 
 func getTrimmedEnv(key string, fallback string) string {
