@@ -1,32 +1,34 @@
-import React from 'react';
+import React, { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from './ProtectedRoute';
 import LoginPage from '../pages/LoginPage';
-import DashboardPage from '../pages/DashboardPage';
-import CollegesPage from '../pages/CollegesPage';
-import CreateCollegePage from '../pages/CreateCollegePage';
-import CollegeDetailPage from '../pages/CollegeDetailPage';
-import ApprovalsPage from '../pages/ApprovalsPage';
-import ModulesPage from '../pages/ModulesPage';
-import OnboardingListPage from '../pages/OnboardingListPage';
-import CollegeOnboardingWizardPage from '../pages/CollegeOnboardingWizardPage';
-import CollegeConfigurationPage from '../pages/CollegeConfigurationPage';
-import ApplicationManagementPage from '../pages/ApplicationManagementPage';
-import HostelStructureMasterPage from '../pages/HostelStructureMasterPage';
-import CollegeAdminsPage from '../pages/CollegeAdminsPage';
-import StaffPage from '../pages/StaffPage';
-import RolesPage from '../pages/RolesPage';
-import PermissionsPage from '../pages/PermissionsPage';
-import AccessControlPage from '../pages/AccessControlPage';
-import SystemSettingsPage from '../pages/SystemSettingsPage';
-import AuditLogsPage from '../pages/AuditLogsPage';
-import ChangeManagementPage from '../pages/ChangeManagementPage';
-import NotificationsPage from '../pages/NotificationsPage';
-import SystemMonitoringPage from '../pages/SystemMonitoringPage';
-import SupportTroubleshootingPage from '../pages/SupportTroubleshootingPage';
-import ReportsAnalyticsPage from '../pages/ReportsAnalyticsPage';
+
+// Code-split all protected module views into on-demand asynchronous chunks
+const DashboardPage = lazy(() => import('../pages/DashboardPage'));
+const CollegesPage = lazy(() => import('../pages/CollegesPage'));
+const CreateCollegePage = lazy(() => import('../pages/CreateCollegePage'));
+const CollegeDetailPage = lazy(() => import('../pages/CollegeDetailPage'));
+const ApprovalsPage = lazy(() => import('../pages/ApprovalsPage'));
+const ModulesPage = lazy(() => import('../pages/ModulesPage'));
+const OnboardingListPage = lazy(() => import('../pages/OnboardingListPage'));
+const CollegeOnboardingWizardPage = lazy(() => import('../pages/CollegeOnboardingWizardPage'));
+const CollegeConfigurationPage = lazy(() => import('../pages/CollegeConfigurationPage'));
+const ApplicationManagementPage = lazy(() => import('../pages/ApplicationManagementPage'));
+const HostelStructureMasterPage = lazy(() => import('../pages/HostelStructureMasterPage'));
+const CollegeAdminsPage = lazy(() => import('../pages/CollegeAdminsPage'));
+const StaffPage = lazy(() => import('../pages/StaffPage'));
+const RolesPage = lazy(() => import('../pages/RolesPage'));
+const PermissionsPage = lazy(() => import('../pages/PermissionsPage'));
+const AccessControlPage = lazy(() => import('../pages/AccessControlPage'));
+const SystemSettingsPage = lazy(() => import('../pages/SystemSettingsPage'));
+const AuditLogsPage = lazy(() => import('../pages/AuditLogsPage'));
+const ChangeManagementPage = lazy(() => import('../pages/ChangeManagementPage'));
+const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
+const SystemMonitoringPage = lazy(() => import('../pages/SystemMonitoringPage'));
+const SupportTroubleshootingPage = lazy(() => import('../pages/SupportTroubleshootingPage'));
+const ReportsAnalyticsPage = lazy(() => import('../pages/ReportsAnalyticsPage'));
 
 // Component that redirects already authenticated Super Admins away from /login to /dashboard
 function LoginRoute() {

@@ -86,6 +86,31 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			ON CONFLICT (role_code) DO NOTHING;
 		`, superAdminRoleID)
 
-		logger.Info("baseline schemas and roles verified")
+		// Ensure high-performance indexes across all modules (platform + app)
+		_, _ = pool.Exec(seedCtx, `
+			CREATE INDEX IF NOT EXISTS idx_colleges_status ON platform.colleges (status);
+			CREATE INDEX IF NOT EXISTS idx_colleges_created_at ON platform.colleges (created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_college_modules_college ON platform.college_modules (college_id, status);
+			CREATE INDEX IF NOT EXISTS idx_modules_kind_active ON platform.modules (kind, is_active);
+			CREATE INDEX IF NOT EXISTS idx_college_settings_key ON platform.college_settings (college_id, setting_key);
+			CREATE INDEX IF NOT EXISTS idx_approvals_college_status ON platform.approvals (college_id, status);
+			CREATE INDEX IF NOT EXISTS idx_approvals_created_at ON platform.approvals (created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_audit_logs_college_created ON platform.audit_logs (college_id, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON platform.role_permissions (role_id);
+			CREATE INDEX IF NOT EXISTS idx_permissions_code ON platform.permissions (permission_code);
+		`)
+
+		_, _ = pool.Exec(seedCtx, `
+			CREATE INDEX IF NOT EXISTS idx_students_college_status ON app.students (college_id, student_status);
+			CREATE INDEX IF NOT EXISTS idx_students_college_created ON app.students (college_id, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_staff_profiles_college_status ON app.staff_profiles (college_id, employment_status);
+			CREATE INDEX IF NOT EXISTS idx_hostels_college_status ON app.hostels (college_id, status);
+			CREATE INDEX IF NOT EXISTS idx_blocks_college_hostel ON app.blocks (college_id, hostel_id);
+			CREATE INDEX IF NOT EXISTS idx_floors_college_block ON app.floors (college_id, block_id);
+			CREATE INDEX IF NOT EXISTS idx_rooms_college_floor ON app.rooms (college_id, floor_id);
+			CREATE INDEX IF NOT EXISTS idx_beds_college_room ON app.beds (college_id, room_id);
+		`)
+
+		logger.Info("baseline schemas, roles, and performance indexes verified")
 	}()
 }

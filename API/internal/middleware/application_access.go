@@ -3,6 +3,8 @@ package middleware
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,14 +14,28 @@ import (
 	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/models"
 )
 
+type cachedAppSetting struct {
+	status      string
+	minVersion  string
+	forceUpdate bool
+	expiresAt   time.Time
+}
+
 // ApplicationAccessMiddleware verifies that an application is active and meets version policy.
 type ApplicationAccessMiddleware struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	cache    map[string]cachedAppSetting
+	cacheMu  sync.RWMutex
+	cacheTTL time.Duration
 }
 
 // NewApplicationAccessMiddleware creates a new application access middleware.
 func NewApplicationAccessMiddleware(pool *pgxpool.Pool) *ApplicationAccessMiddleware {
-	return &ApplicationAccessMiddleware{pool: pool}
+	return &ApplicationAccessMiddleware{
+		pool:     pool,
+		cache:    make(map[string]cachedAppSetting),
+		cacheTTL: 60 * time.Second,
+	}
 }
 
 // RequireActiveApplication verifies that the client's role-mapped application is not disabled or suspended,
@@ -49,32 +65,59 @@ func (m *ApplicationAccessMiddleware) RequireActiveApplication() gin.HandlerFunc
 			return
 		}
 
-		// Look up college setting from platform.college_settings
-		var rawValue []byte
-		err := m.pool.QueryRow(
-			c.Request.Context(),
-			`SELECT setting_value FROM platform.college_settings WHERE college_id = $1 AND setting_key = $2`,
-			*claims.TenantID,
-			"app_config."+appID,
-		).Scan(&rawValue)
+		cacheKey := claims.TenantID.String() + ":" + appID
+		now := time.Now().UTC()
 
-		if err != nil {
-			// No explicit override exists; default configuration is ENABLED with no forced update
-			c.Next()
-			return
+		m.cacheMu.RLock()
+		cached, found := m.cache[cacheKey]
+		m.cacheMu.RUnlock()
+
+		var status, minVersion string
+		var forceUpdate bool
+
+		if found && now.Before(cached.expiresAt) {
+			status = cached.status
+			minVersion = cached.minVersion
+			forceUpdate = cached.forceUpdate
+		} else {
+			// Look up college setting from platform.college_settings
+			var rawValue []byte
+			err := m.pool.QueryRow(
+				c.Request.Context(),
+				`SELECT setting_value FROM platform.college_settings WHERE college_id = $1 AND setting_key = $2`,
+				*claims.TenantID,
+				"app_config."+appID,
+			).Scan(&rawValue)
+
+			if err != nil {
+				// No explicit override exists; default configuration is ENABLED with no forced update
+				status = "ACTIVE"
+			} else {
+				var setting struct {
+					Status      string `json:"status"`
+					MinVersion  string `json:"min_version"`
+					ForceUpdate bool   `json:"force_update"`
+				}
+				if err := json.Unmarshal(rawValue, &setting); err == nil {
+					status = setting.Status
+					minVersion = setting.MinVersion
+					forceUpdate = setting.ForceUpdate
+				} else {
+					status = "ACTIVE"
+				}
+			}
+
+			m.cacheMu.Lock()
+			m.cache[cacheKey] = cachedAppSetting{
+				status:      status,
+				minVersion:  minVersion,
+				forceUpdate: forceUpdate,
+				expiresAt:   now.Add(m.cacheTTL),
+			}
+			m.cacheMu.Unlock()
 		}
 
-		var setting struct {
-			Status      string `json:"status"`
-			MinVersion  string `json:"min_version"`
-			ForceUpdate bool   `json:"force_update"`
-		}
-		if err := json.Unmarshal(rawValue, &setting); err != nil {
-			c.Next()
-			return
-		}
-
-		if setting.Status == models.AppStatusDisabled {
+		if status == models.AppStatusDisabled {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"error": gin.H{
@@ -86,7 +129,7 @@ func (m *ApplicationAccessMiddleware) RequireActiveApplication() gin.HandlerFunc
 			return
 		}
 
-		if setting.Status == models.AppStatusSuspended {
+		if status == models.AppStatusSuspended {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"error": gin.H{
@@ -99,14 +142,14 @@ func (m *ApplicationAccessMiddleware) RequireActiveApplication() gin.HandlerFunc
 		}
 
 		// Enforce force-update if enabled and client provides version
-		if setting.ForceUpdate && setting.MinVersion != "" {
+		if forceUpdate && minVersion != "" {
 			clientVersion := c.GetHeader("X-App-Version")
 			if clientVersion == "" {
 				clientVersion = c.GetHeader("App-Version")
 			}
 
 			if clientVersion != "" {
-				cmp, err := models.CompareSemVer(clientVersion, setting.MinVersion)
+				cmp, err := models.CompareSemVer(clientVersion, minVersion)
 				if err == nil && cmp < 0 {
 					c.AbortWithStatusJSON(http.StatusUpgradeRequired, gin.H{
 						"success": false,
@@ -115,7 +158,7 @@ func (m *ApplicationAccessMiddleware) RequireActiveApplication() gin.HandlerFunc
 							"message":         "A mandatory update is required to continue using this application.",
 							"application":     appID,
 							"current_version": clientVersion,
-							"min_version":     setting.MinVersion,
+							"min_version":     minVersion,
 							"force_update":    true,
 						},
 					})

@@ -116,20 +116,32 @@ export async function loginSuperAdmin(email, password) {
   }
 }
 
+let cachedColleges = null;
+let cachedCollegesExpiresAt = 0;
+
 /**
- * Fetch colleges list for selector filter.
+ * Fetch colleges list for selector filter with 60-second in-memory caching.
  * Applies a 1.8-second fast timeout to prevent UI blocking.
  * @returns {Promise<Array>} List of colleges
  */
 export async function fetchColleges() {
+  const now = Date.now();
+  if (cachedColleges && now < cachedCollegesExpiresAt) {
+    return cachedColleges;
+  }
   try {
     const res = await api.get('/super-admin/colleges', {
       params: { limit: 100, offset: 0 },
       timeout: 1800,
     });
-    return res.data?.colleges || [];
+    const colleges = res.data?.colleges || [];
+    if (colleges.length > 0) {
+      cachedColleges = colleges;
+      cachedCollegesExpiresAt = now + 60000;
+    }
+    return colleges;
   } catch (err) {
-    return [];
+    return cachedColleges || [];
   }
 }
 

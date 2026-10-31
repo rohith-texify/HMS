@@ -57,63 +57,108 @@ func (s *DashboardService) GetDashboard(
 	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// 1. Service Health Check (always safe, concurrent, and non-blocking)
-	health := s.checkServiceHealth(queryCtx)
-
-	// 2. College Status Summary
-	collegeSummary, err := s.repo.GetCollegeSummary(queryCtx, filters.CollegeID)
-	if err != nil {
-		return nil, apierrors.New(
-			apierrors.InternalError,
-			fmt.Sprintf("Failed to retrieve college summary: %v", err),
-		)
-	}
-
-	// 3. Entitlement Summary
-	entitlementSummary, err := s.repo.GetEntitlementSummary(queryCtx, filters.CollegeID)
-	if err != nil {
-		return nil, apierrors.New(
-			apierrors.InternalError,
-			fmt.Sprintf("Failed to retrieve entitlement summary: %v", err),
-		)
-	}
-
-	// 4. Active College Admin Count
-	adminCount, err := s.repo.GetActiveCollegeAdminCount(queryCtx, filters.CollegeID)
-	if err != nil {
-		return nil, apierrors.New(
-			apierrors.InternalError,
-			fmt.Sprintf("Failed to count active college admins: %v", err),
-		)
-	}
-
-	// 5. Recent Administrative Activity
-	recentActivity, err := s.repo.GetRecentAdministrativeActivity(
-		queryCtx,
-		filters.CollegeID,
-		filters.StartDate,
-		filters.EndDate,
-		10,
+	var (
+		wg                 sync.WaitGroup
+		health             models.ServiceHealthSummary
+		collegeSummary     *models.CollegeStatusSummary
+		entitlementSummary *models.EntitlementSummary
+		adminCount         int
+		recentActivity     []models.AdministrativeActivityItem
+		approvalSummary    *models.ApprovalSummary
+		overdueAlerts      []models.CriticalAlert
+		suspendedAlerts    []models.CriticalAlert
+		collegeErr         error
+		entitlementErr     error
+		adminErr           error
+		activityErr        error
+		approvalErr        error
 	)
-	if err != nil {
+
+	// Concurrently execute all independent dashboard queries in parallel
+	wg.Add(8)
+
+	go func() {
+		defer wg.Done()
+		health = s.checkServiceHealth(queryCtx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		collegeSummary, collegeErr = s.repo.GetCollegeSummary(queryCtx, filters.CollegeID)
+	}()
+
+	go func() {
+		defer wg.Done()
+		entitlementSummary, entitlementErr = s.repo.GetEntitlementSummary(queryCtx, filters.CollegeID)
+	}()
+
+	go func() {
+		defer wg.Done()
+		adminCount, adminErr = s.repo.GetActiveCollegeAdminCount(queryCtx, filters.CollegeID)
+	}()
+
+	go func() {
+		defer wg.Done()
+		recentActivity, activityErr = s.repo.GetRecentAdministrativeActivity(
+			queryCtx,
+			filters.CollegeID,
+			filters.StartDate,
+			filters.EndDate,
+			10,
+		)
+	}()
+
+	go func() {
+		defer wg.Done()
+		approvalSummary, approvalErr = s.repo.GetPendingApprovalSummary(
+			queryCtx,
+			filters.CollegeID,
+			filters.StartDate,
+			filters.EndDate,
+			10,
+		)
+	}()
+
+	go func() {
+		defer wg.Done()
+		overdueAlerts, _ = s.repo.GetOverdueApprovalsForAlerts(queryCtx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		suspendedAlerts, _ = s.repo.GetSuspendedCollegesForAlerts(queryCtx)
+	}()
+
+	wg.Wait()
+
+	if collegeErr != nil {
 		return nil, apierrors.New(
 			apierrors.InternalError,
-			fmt.Sprintf("Failed to retrieve administrative activity: %v", err),
+			fmt.Sprintf("Failed to retrieve college summary: %v", collegeErr),
 		)
 	}
-
-	// 6. Pending Approvals and Configuration Changes
-	approvalSummary, err := s.repo.GetPendingApprovalSummary(
-		queryCtx,
-		filters.CollegeID,
-		filters.StartDate,
-		filters.EndDate,
-		10,
-	)
-	if err != nil {
+	if entitlementErr != nil {
 		return nil, apierrors.New(
 			apierrors.InternalError,
-			fmt.Sprintf("Failed to retrieve approval summary: %v", err),
+			fmt.Sprintf("Failed to retrieve entitlement summary: %v", entitlementErr),
+		)
+	}
+	if adminErr != nil {
+		return nil, apierrors.New(
+			apierrors.InternalError,
+			fmt.Sprintf("Failed to count active college admins: %v", adminErr),
+		)
+	}
+	if activityErr != nil {
+		return nil, apierrors.New(
+			apierrors.InternalError,
+			fmt.Sprintf("Failed to retrieve administrative activity: %v", activityErr),
+		)
+	}
+	if approvalErr != nil {
+		return nil, apierrors.New(
+			apierrors.InternalError,
+			fmt.Sprintf("Failed to retrieve approval summary: %v", approvalErr),
 		)
 	}
 
@@ -131,13 +176,10 @@ func (s *DashboardService) GetDashboard(
 		})
 	}
 
-	// B. Overdue approval requests
-	if overdueAlerts, err := s.repo.GetOverdueApprovalsForAlerts(queryCtx); err == nil {
+	if len(overdueAlerts) > 0 {
 		alerts = append(alerts, overdueAlerts...)
 	}
-
-	// C. Suspended colleges
-	if suspendedAlerts, err := s.repo.GetSuspendedCollegesForAlerts(queryCtx); err == nil {
+	if len(suspendedAlerts) > 0 {
 		alerts = append(alerts, suspendedAlerts...)
 	}
 

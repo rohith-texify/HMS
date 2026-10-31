@@ -3,19 +3,31 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type cachedTenantStatus struct {
+	status    string
+	expiresAt time.Time
+}
+
 type TenantStatusMiddleware struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	cache    map[uuid.UUID]cachedTenantStatus
+	cacheMu  sync.RWMutex
+	cacheTTL time.Duration
 }
 
 func NewTenantStatusMiddleware(pool *pgxpool.Pool) *TenantStatusMiddleware {
 	return &TenantStatusMiddleware{
-		pool: pool,
+		pool:     pool,
+		cache:    make(map[uuid.UUID]cachedTenantStatus),
+		cacheTTL: 60 * time.Second,
 	}
 }
 
@@ -82,12 +94,20 @@ func (m *TenantStatusMiddleware) getTenantStatus(
 	c *gin.Context,
 	tenantID uuid.UUID,
 ) (string, error) {
+	now := time.Now().UTC()
+	m.cacheMu.RLock()
+	cached, found := m.cache[tenantID]
+	m.cacheMu.RUnlock()
+
+	if found && now.Before(cached.expiresAt) {
+		return cached.status, nil
+	}
+
 	if m.pool == nil {
 		return "", fmt.Errorf("database pool is nil")
 	}
 
 	var status string
-
 	err := m.pool.QueryRow(
 		c.Request.Context(),
 		`
@@ -101,6 +121,13 @@ func (m *TenantStatusMiddleware) getTenantStatus(
 	if err != nil {
 		return "", fmt.Errorf("failed to query tenant status: %w", err)
 	}
+
+	m.cacheMu.Lock()
+	m.cache[tenantID] = cachedTenantStatus{
+		status:    status,
+		expiresAt: now.Add(m.cacheTTL),
+	}
+	m.cacheMu.Unlock()
 
 	return status, nil
 }

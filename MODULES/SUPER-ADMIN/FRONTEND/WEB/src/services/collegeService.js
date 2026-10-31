@@ -1,5 +1,8 @@
 import api from './api';
 
+let defaultCollegesCache = null;
+let defaultCollegesCacheTime = 0;
+
 /**
  * Fetch paginated colleges list with optional status and search filter.
  * @param {Object} options
@@ -11,6 +14,13 @@ import api from './api';
  * @returns {Promise<{ colleges: Array, meta: Object }>}
  */
 export async function fetchCollegesList({ search, status, limit = 20, offset = 0, signal } = {}) {
+  const isDefaultQuery = (!status || status === 'ALL') && (!search || !search.trim()) && offset === 0;
+  const now = Date.now();
+
+  if (isDefaultQuery && defaultCollegesCache && now - defaultCollegesCacheTime < 30000) {
+    return defaultCollegesCache;
+  }
+
   const params = { limit, offset };
   if (status && status !== 'ALL') {
     params.status = status;
@@ -21,7 +31,7 @@ export async function fetchCollegesList({ search, status, limit = 20, offset = 0
 
   try {
     const res = await api.get('/super-admin/colleges', { params, signal });
-    return {
+    const result = {
       colleges: res.data?.colleges || [],
       meta: res.meta || {
         total: res.data?.colleges?.length || 0,
@@ -29,7 +39,15 @@ export async function fetchCollegesList({ search, status, limit = 20, offset = 0
         offset,
       },
     };
+    if (isDefaultQuery && result.colleges.length > 0) {
+      defaultCollegesCache = result;
+      defaultCollegesCacheTime = now;
+    }
+    return result;
   } catch (err) {
+    if (isDefaultQuery && defaultCollegesCache) {
+      return defaultCollegesCache;
+    }
     return {
       colleges: [],
       meta: { total: 0, limit, offset },

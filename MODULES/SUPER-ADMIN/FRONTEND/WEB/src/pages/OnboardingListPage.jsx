@@ -57,9 +57,14 @@ export default function OnboardingListPage() {
   useEffect(() => {
     loadPipeline();
 
-    // Auto-refresh when returning to the tab/window from the wizard
+    // Auto-refresh when returning to the tab/window from the wizard (throttled to 30s)
+    let lastFocusTime = Date.now();
     const handleWindowFocus = () => {
-      loadPipeline();
+      const now = Date.now();
+      if (now - lastFocusTime > 30000) {
+        lastFocusTime = now;
+        loadPipeline();
+      }
     };
     window.addEventListener('focus', handleWindowFocus);
     return () => {

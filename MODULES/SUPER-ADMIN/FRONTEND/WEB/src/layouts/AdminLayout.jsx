@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../hooks/useAuth';
@@ -49,7 +49,16 @@ export default function AdminLayout() {
       />
 
       <main className="main-content">
-        <Outlet />
+        <Suspense
+          fallback={
+            <div style={{ padding: '48px', textAlign: 'center', color: '#64748b' }}>
+              <div style={{ fontSize: '1.8rem', marginBottom: '8px' }}>⚡</div>
+              Loading module...
+            </div>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

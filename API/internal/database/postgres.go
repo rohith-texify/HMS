@@ -162,6 +162,7 @@ func createPool(
 	poolConfig.MinConns = minConns
 	poolConfig.MaxConnLifetime = time.Duration(cfg.MaxConnLifetime) * time.Minute
 	poolConfig.MaxConnIdleTime = time.Duration(cfg.MaxConnIdleTime) * time.Minute
+	poolConfig.HealthCheckPeriod = 1 * time.Minute // Prevent dead idle connections from failing incoming requests
 
 	connectTimeout := time.Duration(cfg.ConnectTimeoutSeconds) * time.Second
 	if connectTimeout <= 0 {
@@ -170,8 +171,8 @@ func createPool(
 	poolConfig.ConnConfig.ConnectTimeout = connectTimeout
 
 	queryTimeoutMs := cfg.QueryTimeoutSeconds * 1000
-	if queryTimeoutMs <= 0 {
-		queryTimeoutMs = 60000 // default 60s
+	if queryTimeoutMs <= 0 || queryTimeoutMs > 10000 {
+		queryTimeoutMs = 10000 // default 10s maximum statement timeout to prevent connection exhaustion
 	}
 	if poolConfig.ConnConfig.RuntimeParams == nil {
 		poolConfig.ConnConfig.RuntimeParams = make(map[string]string)

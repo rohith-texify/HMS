@@ -1,10 +1,13 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+const baseURL =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : '');
 
 const api = axios.create({
-  baseURL,
-  timeout: 15000,
+  baseURL: baseURL || undefined,
+  timeout: 8000,
   headers: {
     'Content-Type': 'application/json',
   },
