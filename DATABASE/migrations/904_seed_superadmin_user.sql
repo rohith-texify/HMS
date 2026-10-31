@@ -74,8 +74,12 @@ FROM app.users u
 CROSS JOIN platform.roles r
 WHERE u.email = 'superadmin@hms.local'
   AND r.role_code = 'SUPER_ADMIN'
-ON CONFLICT (user_id, role_id) DO UPDATE
-SET updated_at = NOW();
+  AND NOT EXISTS (
+      SELECT 1
+      FROM platform.user_roles ur
+      WHERE ur.user_id = u.user_id
+        AND ur.role_id = r.role_id
+  );
 
 -- ============================================================
 -- 3. VERIFICATION
