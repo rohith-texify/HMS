@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
+import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/login.css';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -75,15 +77,25 @@ export default function LoginPage() {
               type="email"
               value={email}
             />
-            <input
-              aria-label="Password"
-              autoComplete="current-password"
-              className="login-input"
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Password"
-              type="password"
-              value={password}
-            />
+            <div className="login-password-field">
+              <input
+                aria-label="Password"
+                autoComplete="current-password"
+                className="login-input"
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                className="login-password-toggle"
+                onClick={() => setShowPassword((visible) => !visible)}
+                type="button"
+              >
+                {showPassword ? <EyeOff aria-hidden="true" size={20} /> : <Eye aria-hidden="true" size={20} />}
+              </button>
+            </div>
           </div>
 
           <div className="login-forgot-row">
