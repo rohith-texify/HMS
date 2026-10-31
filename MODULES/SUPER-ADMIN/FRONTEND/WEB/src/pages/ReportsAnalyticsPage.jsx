@@ -17,12 +17,14 @@ import {
 } from 'lucide-react';
 import reportService from '../services/reportService';
 
+const DEFAULT_SUMMARY = { total_colleges: 0, active_users: 0, adoption_rate: 0 };
+
 export default function ReportsAnalyticsPage() {
-  const [summary, setSummary] = useState(null);
+  const [summary, setSummary] = useState(DEFAULT_SUMMARY);
   const [collegeUsage, setCollegeUsage] = useState([]);
   const [moduleAdoption, setModuleAdoption] = useState([]);
   const [loginSecurity, setLoginSecurity] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState(null);
 

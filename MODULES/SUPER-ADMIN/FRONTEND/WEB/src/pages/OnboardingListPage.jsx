@@ -5,7 +5,8 @@ import { fetchOnboardingPipeline } from '../services/onboardingService';
 export default function OnboardingListPage() {
   const navigate = useNavigate();
   const [pipeline, setPipeline] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState('ALL'); // 'ALL' | 'READY' | 'IN_PROGRESS'
@@ -17,7 +18,7 @@ export default function OnboardingListPage() {
 
   const loadPipeline = useCallback(async () => {
     const currentReq = ++reqCounterRef.current;
-    setLoading(true);
+    setIsRefreshing(true);
     setError(null);
 
     if (abortCtrlRef.current) {
@@ -48,6 +49,7 @@ export default function OnboardingListPage() {
     } finally {
       if (currentReq === reqCounterRef.current) {
         setLoading(false);
+        setIsRefreshing(false);
       }
     }
   }, []);

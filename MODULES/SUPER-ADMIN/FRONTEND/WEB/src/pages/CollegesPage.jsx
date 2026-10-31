@@ -6,7 +6,8 @@ import { loginSuperAdmin } from '../services/dashboardService';
 export default function CollegesPage() {
   const navigate = useNavigate();
   const [colleges, setColleges] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   // Filters & Pagination State
@@ -23,7 +24,7 @@ export default function CollegesPage() {
 
   const loadColleges = async (search, status, pageLimit, pageOffset) => {
     const currentRequestId = ++requestCounter.current;
-    setLoading(true);
+    setIsRefreshing(true);
     setError(null);
 
     if (abortControllerRef.current) {
@@ -45,6 +46,7 @@ export default function CollegesPage() {
         setColleges(result.colleges || []);
         setTotalCount(result.meta?.total || 0);
         setLoading(false);
+        setIsRefreshing(false);
       }
     } catch (err) {
       if (
@@ -60,6 +62,7 @@ export default function CollegesPage() {
       if (currentRequestId === requestCounter.current) {
         setError(err.message || 'Failed to load college directory');
         setLoading(false);
+        setIsRefreshing(false);
       }
     }
   };

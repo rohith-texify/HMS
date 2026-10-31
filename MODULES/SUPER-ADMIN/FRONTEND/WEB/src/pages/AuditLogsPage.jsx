@@ -15,7 +15,8 @@ export default function AuditLogsPage() {
   // Records & Pagination
   const [records, setRecords] = useState([]);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
   const pageSize = 25;

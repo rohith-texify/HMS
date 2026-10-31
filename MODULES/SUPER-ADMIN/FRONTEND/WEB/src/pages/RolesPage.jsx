@@ -9,18 +9,19 @@ import {
   updateRolePermissions,
   deleteCustomRole,
   fetchRoleTemplates,
+  DEFAULT_ROLES,
 } from '../services/roleService';
 
 export default function RolesPage() {
   // Directory & Filter State
-  const [roles, setRoles] = useState([]);
-  const [totalRoles, setTotalRoles] = useState(0);
+  const [roles, setRoles] = useState(DEFAULT_ROLES);
+  const [totalRoles, setTotalRoles] = useState(DEFAULT_ROLES.length);
   const [scopeFilter, setScopeFilter] = useState('ALL');
   const [systemFilter, setSystemFilter] = useState('ALL'); // ALL, SYSTEM, CUSTOM
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const limit = 10;
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Global Permission Catalog

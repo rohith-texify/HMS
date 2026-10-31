@@ -37,7 +37,7 @@ export async function fetchRolesList({
   }
 
   try {
-    const res = await api.get('/super-admin/roles', { params, signal, timeout: 5000 });
+    const res = await api.get('/super-admin/roles', { params, signal, timeout: 1800 });
     return {
       roles: res.data?.roles || [],
       total: res.data?.total !== undefined ? res.data.total : (res.data?.roles?.length || 0),

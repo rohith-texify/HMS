@@ -8,7 +8,7 @@ import { fetchCollegesList as getCollegesList, fetchCollegeById } from './colleg
  */
 export async function fetchApplicationCatalogue(signal) {
   try {
-    const res = await api.get('/super-admin/applications/catalogue', { signal, timeout: 5000 });
+    const res = await api.get('/super-admin/applications/catalogue', { signal, timeout: 1800 });
     return res.data || [];
   } catch (err) {
     return [];

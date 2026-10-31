@@ -51,30 +51,35 @@ type LoginResult struct {
 }
 
 func (s *Service) recordLoginEvent(
-	ctx context.Context,
+	_ context.Context,
 	result string,
 	userID *uuid.UUID,
 	collegeID *uuid.UUID,
 	req LoginRequest,
 ) {
-	err := s.repository.RecordLoginEvent(
-		ctx,
-		repository.LoginEvent{
-			UserID:    userID,
-			CollegeID: collegeID,
-			Result:    result,
-			IPAddress: req.IPAddress,
-			UserAgent: req.UserAgent,
-		},
-	)
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	if err != nil && s.logger != nil {
-		s.logger.Error(
-			"failed to record login event",
-			zap.String("result", result),
-			zap.Error(err),
+		err := s.repository.RecordLoginEvent(
+			bgCtx,
+			repository.LoginEvent{
+				UserID:    userID,
+				CollegeID: collegeID,
+				Result:    result,
+				IPAddress: req.IPAddress,
+				UserAgent: req.UserAgent,
+			},
 		)
-	}
+
+		if err != nil && s.logger != nil {
+			s.logger.Error(
+				"failed to record login event",
+				zap.String("result", result),
+				zap.Error(err),
+			)
+		}
+	}()
 }
 
 func (s *Service) Login(

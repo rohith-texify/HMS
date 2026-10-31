@@ -105,7 +105,7 @@ export default function CollegeConfigurationPage() {
   const [pendingApprovals, setPendingApprovals] = useState([]);
 
   // Loading & error state
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [actionNotice, setActionNotice] = useState(null);

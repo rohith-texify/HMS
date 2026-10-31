@@ -41,7 +41,7 @@ export default function HostelStructureMasterPage() {
   const [tree, setTree] = useState([]);
   const [policy, setPolicy] = useState(null);
   const [audits, setAudits] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successNotice, setSuccessNotice] = useState(null);
 

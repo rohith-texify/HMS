@@ -43,7 +43,7 @@ export const DEFAULT_SYSTEM_SETTINGS = [
 export async function fetchSystemSettings(category = '') {
   const params = category ? { category } : {};
   try {
-    const res = await api.get('/super-admin/system-settings', { params, timeout: 5000 });
+    const res = await api.get('/super-admin/system-settings', { params, timeout: 1800 });
     const settings = res.data?.settings || res.settings || [];
     return {
       settings: settings.length > 0 ? settings : DEFAULT_SYSTEM_SETTINGS,

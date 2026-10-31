@@ -22,7 +22,7 @@ export default function CollegeDetailPage() {
 
   const [college, setCollege] = useState(null);
   const [onboardingSteps, setOnboardingSteps] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // College Admin state

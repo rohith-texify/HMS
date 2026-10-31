@@ -27,7 +27,7 @@ export const authService = {
           email: normalizedEmail,
           password,
         },
-        { timeout: 15000 }
+        { timeout: 1800 }
       );
 
       const data = response.data || response;

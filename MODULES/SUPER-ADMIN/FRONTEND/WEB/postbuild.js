@@ -10,8 +10,9 @@ const indexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(indexPath)) {
   const indexHtml = fs.readFileSync(indexPath, 'utf-8');
 
-  // 1. Create 404.html (Render Static Site automatic fallback)
+  // 1. Create 404.html (Render Static Site automatic fallback) and _redirects
   fs.writeFileSync(path.join(distDir, '404.html'), indexHtml);
+  fs.writeFileSync(path.join(distDir, '_redirects'), '/*    /index.html   200\n');
 
   // 2. Create physical route directories and index.html files so any direct URL hit succeeds
   const routes = [

@@ -6,12 +6,14 @@ import {
   revertSystemSetting,
   fetchSystemSettingsHistory,
   fetchTenantInheritanceOverview,
+  DEFAULT_SYSTEM_SETTINGS,
 } from '../services/systemSettingsService';
 
 export default function SystemSettingsPage() {
   const [activeTab, setActiveTab] = useState('security'); // 'security' | 'system' | 'maintenance' | 'inheritance' | 'history'
-  const [settings, setSettings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [settings, setSettings] = useState(DEFAULT_SYSTEM_SETTINGS);
+  const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
@@ -34,14 +36,15 @@ export default function SystemSettingsPage() {
   // Load Settings
   const loadSettings = useCallback(async () => {
     try {
-      setLoading(true);
+      setIsRefreshing(true);
       setError(null);
       const res = await fetchSystemSettings();
-      setSettings(res.settings || []);
+      setSettings(res.settings || DEFAULT_SYSTEM_SETTINGS);
     } catch (err) {
       setError(err.response?.data?.error?.message || err.message || 'Failed to load system settings');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 

@@ -1,5 +1,12 @@
 import api from './api';
 
+export const DEFAULT_PERMISSIONS = [
+  { permission_id: 'p-1', permission_code: 'platform.view', description: 'View platform wide resources', module_code: 'PLATFORM', scope_type: 'PLATFORM' },
+  { permission_id: 'p-2', permission_code: 'platform.manage', description: 'Manage platform operations', module_code: 'PLATFORM', scope_type: 'PLATFORM' },
+  { permission_id: 'p-3', permission_code: 'colleges.view', description: 'View colleges catalog', module_code: 'COLLEGE', scope_type: 'GLOBAL' },
+  { permission_id: 'p-4', permission_code: 'colleges.manage', description: 'Create and configure colleges', module_code: 'COLLEGE', scope_type: 'GLOBAL' },
+];
+
 /**
  * Fetch a paginated and filtered list of permissions with role mapping stats.
  * @param {Object} [options]
@@ -36,7 +43,7 @@ export async function fetchPermissions({
   }
 
   try {
-    const res = await api.get('/super-admin/permissions', { params, signal, timeout: 5000 });
+    const res = await api.get('/super-admin/permissions', { params, signal, timeout: 1800 });
     return {
       permissions: res.data?.permissions || [],
       total: res.data?.total !== undefined ? res.data.total : (res.data?.permissions?.length || 0),

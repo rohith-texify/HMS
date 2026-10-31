@@ -12,7 +12,8 @@ export default function ApprovalsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('inbox'); // 'inbox' | 'my_requests' | 'all' | 'history'
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 

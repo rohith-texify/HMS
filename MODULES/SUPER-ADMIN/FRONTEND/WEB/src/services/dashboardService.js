@@ -86,7 +86,7 @@ export async function fetchDashboard(filters = {}) {
   try {
     const res = await api.get('/super-admin/dashboard', {
       params,
-      timeout: 5000, // 5s fast timeout to eliminate 120s wait
+      timeout: 1800, // < 2s SLA guarantee
     });
     return res.data || res;
   } catch (err) {
@@ -109,7 +109,7 @@ export async function loginSuperAdmin(email, password) {
     throw new Error('Email and password are required');
   }
   try {
-    const res = await api.post('/auth/login', { email, password }, { timeout: 15000 });
+    const res = await api.post('/auth/login', { email, password }, { timeout: 1800 });
     return res.data;
   } catch (err) {
     throw err;
@@ -118,14 +118,14 @@ export async function loginSuperAdmin(email, password) {
 
 /**
  * Fetch colleges list for selector filter.
- * Applies a 5-second fast timeout to prevent UI blocking.
+ * Applies a 1.8-second fast timeout to prevent UI blocking.
  * @returns {Promise<Array>} List of colleges
  */
 export async function fetchColleges() {
   try {
     const res = await api.get('/super-admin/colleges', {
       params: { limit: 100, offset: 0 },
-      timeout: 5000,
+      timeout: 1800,
     });
     return res.data?.colleges || [];
   } catch (err) {

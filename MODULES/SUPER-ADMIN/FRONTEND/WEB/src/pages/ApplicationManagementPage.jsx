@@ -35,7 +35,7 @@ export default function ApplicationManagementPage() {
   const [selectedCollegeId, setSelectedCollegeId] = useState(routeCollegeId || '');
   const [college, setCollege] = useState(null);
   const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
 

@@ -12,7 +12,7 @@ import { fetchCollegesList as fetchColleges } from '../services/collegeService';
 export default function ChangeManagementPage() {
   const { user } = useAuth();
   const [changeSets, setChangeSets] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 

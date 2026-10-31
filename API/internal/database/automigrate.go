@@ -60,6 +60,7 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			ALTER TABLE app.users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
 			ALTER TABLE app.users ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
 			ALTER TABLE app.users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT false;
+			CREATE INDEX IF NOT EXISTS idx_users_lower_email ON app.users (LOWER(email));
 		`)
 
 		// Ensure platform.user_roles table exists
@@ -74,6 +75,7 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 				updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 			);
+			CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON platform.user_roles (user_id);
 		`)
 
 		// Ensure SUPER_ADMIN role exists in platform.roles

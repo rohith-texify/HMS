@@ -5,6 +5,7 @@ import {
   fetchPermissionWhoHasWhat,
   fetchOrphanPermissions,
   fetchDeprecationStatus,
+  DEFAULT_PERMISSIONS,
 } from '../services/permissionService';
 
 export default function PermissionsPage() {
@@ -12,15 +13,15 @@ export default function PermissionsPage() {
   const [activeTab, setActiveTab] = useState('catalog');
 
   // Directory & Filter State
-  const [permissions, setPermissions] = useState([]);
-  const [totalPermissions, setTotalPermissions] = useState(0);
+  const [permissions, setPermissions] = useState(DEFAULT_PERMISSIONS);
+  const [totalPermissions, setTotalPermissions] = useState(DEFAULT_PERMISSIONS.length);
   const [scopeFilter, setScopeFilter] = useState('ALL'); // ALL, PLATFORM, COLLEGE, GLOBAL
   const [moduleFilter, setModuleFilter] = useState('ALL');
   const [orphanFilter, setOrphanFilter] = useState('ALL'); // ALL, ORPHAN, MAPPED
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const limit = 25;
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Global Feedback Banner

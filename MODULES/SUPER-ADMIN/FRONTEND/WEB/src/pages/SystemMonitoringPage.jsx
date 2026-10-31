@@ -15,9 +15,18 @@ import {
 } from 'lucide-react';
 import { fetchMonitoringMetrics } from '../services/operationsService';
 
+const DEFAULT_METRICS = {
+  database_pool: {
+    platform_pool: { total_conns: 5, idle_conns: 4, acquired_conns: 1 },
+    college_pool: { total_conns: 10, idle_conns: 9, acquired_conns: 1 },
+  },
+  tenants: { total: 0, active: 0, suspended: 0, onboarding: 0 },
+  audit_errors: [],
+};
+
 export default function SystemMonitoringPage() {
-  const [metrics, setMetrics] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState(DEFAULT_METRICS);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 

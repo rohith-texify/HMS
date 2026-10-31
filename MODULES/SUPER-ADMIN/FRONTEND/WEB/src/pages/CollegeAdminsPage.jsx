@@ -17,7 +17,7 @@ export default function CollegeAdminsPage() {
 
   // College details
   const [college, setCollege] = useState(null);
-  const [collegeLoading, setCollegeLoading] = useState(true);
+  const [collegeLoading, setCollegeLoading] = useState(false);
   const [collegeError, setCollegeError] = useState(null);
 
   // Admins list & pagination
@@ -26,7 +26,7 @@ export default function CollegeAdminsPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [page, setPage] = useState(0);
   const limit = 10;
-  const [adminsLoading, setAdminsLoading] = useState(true);
+  const [adminsLoading, setAdminsLoading] = useState(false);
   const [adminsError, setAdminsError] = useState(null);
 
   // Feedback notifications

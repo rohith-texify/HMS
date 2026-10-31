@@ -13,7 +13,7 @@ export default function AccessControlPage() {
   // Tenant / College selection
   const [colleges, setColleges] = useState([]);
   const [selectedCollegeId, setSelectedCollegeId] = useState('');
-  const [collegesLoading, setCollegesLoading] = useState(true);
+  const [collegesLoading, setCollegesLoading] = useState(false);
 
   // Access Matrix State
   const [matrixData, setMatrixData] = useState(null);

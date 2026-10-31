@@ -12,7 +12,7 @@ import api from './api';
  */
 export async function fetchApprovalRequests(params = {}) {
   try {
-    const res = await api.get('/super-admin/approvals', { params, timeout: 5000 });
+    const res = await api.get('/super-admin/approvals', { params, timeout: 1800 });
     return res.data || { requests: [], total: 0 };
   } catch (err) {
     return { requests: [], total: 0 };

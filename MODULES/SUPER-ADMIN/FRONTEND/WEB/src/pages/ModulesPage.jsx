@@ -9,6 +9,7 @@ import {
   fetchModuleHistory,
   fetchEntitlementTemplates,
   applyTemplateToCollege,
+  DEFAULT_MODULES,
 } from '../services/moduleManagementService';
 
 export default function ModulesPage() {
@@ -25,7 +26,7 @@ export default function ModulesPage() {
 
   // Data states
   const [matrix, setMatrix] = useState([]);
-  const [catalogue, setCatalogue] = useState([]);
+  const [catalogue, setCatalogue] = useState(DEFAULT_MODULES);
   const [historyRecords, setHistoryRecords] = useState([]);
   const [templates, setTemplates] = useState([]);
 
@@ -35,7 +36,7 @@ export default function ModulesPage() {
   const [filterStatus, setFilterStatus] = useState('ALL');
 
   // Loading & Error States
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [successNotice, setSuccessNotice] = useState(null);
 

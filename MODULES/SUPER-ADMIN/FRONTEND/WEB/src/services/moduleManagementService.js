@@ -1,5 +1,13 @@
 import api from './api';
 
+export const DEFAULT_MODULES = [
+  { module_code: 'CORE', name: 'Core Platform', kind: 'PLATFORM', is_active: true, description: 'Core tenancy and access control' },
+  { module_code: 'HOSTEL_MGMT', name: 'Hostel Management', kind: 'FEATURE', is_active: true, description: 'Rooms, beds, and allocation' },
+  { module_code: 'STUDENT_PORTAL', name: 'Student Portal', kind: 'FEATURE', is_active: true, description: 'Student self-service' },
+  { module_code: 'COMPLAINTS', name: 'Grievance Redressal', kind: 'FEATURE', is_active: true, description: 'Ticket and issue management' },
+  { module_code: 'ATTENDANCE', name: 'Attendance & Gate Pass', kind: 'FEATURE', is_active: true, description: 'Biometric and digital passes' },
+];
+
 /**
  * Fetch the authoritative platform module catalogue.
  * @param {Object} [params]
@@ -16,7 +24,7 @@ export async function fetchModuleCatalogue(params = {}, signal) {
   const queryString = query.toString();
   const url = `/super-admin/modules${queryString ? `?${queryString}` : ''}`;
   try {
-    const res = await api.get(url, { signal, timeout: 5000 });
+    const res = await api.get(url, { signal, timeout: 1800 });
     return {
       modules: res.data?.modules || [],
       meta: res.meta || {},

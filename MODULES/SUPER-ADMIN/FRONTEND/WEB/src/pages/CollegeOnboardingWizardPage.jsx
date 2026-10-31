@@ -58,7 +58,7 @@ export default function CollegeOnboardingWizardPage() {
   const [college, setCollege] = useState(null);
   const [readiness, setReadiness] = useState(null);
   const [adminAccount, setAdminAccount] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [actionNotice, setActionNotice] = useState(null);
   const [actionError, setActionError] = useState(null);
