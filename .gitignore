@@ -77,6 +77,7 @@ coverage/
 *.tmp
 *.bak
 *.swp
+scratch/
 
 # Compiled files
 *.com

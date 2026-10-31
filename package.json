@@ -9,7 +9,8 @@
     "MODULES/ADMIN/FRONTEND/WEB",
     "MODULES/HOSTEL-INCHARGE/FRONTEND/WEB",
     "MODULES/SECURITY/FRONTEND/WEB",
-    "MODULES/SUPER-ADMIN/FRONTEND/WEB"
+    "MODULES/SUPER-ADMIN/FRONTEND/WEB",
+    "PORTAL/FRONTEND/WEB"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
@@ -22,7 +23,9 @@
     "dev:incharge": "npm run dev --workspace=MODULES/HOSTEL-INCHARGE/FRONTEND/WEB",
     "dev:security": "npm run dev --workspace=MODULES/SECURITY/FRONTEND/WEB",
     "dev:super-admin": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
+    "dev:portal": "npm run dev --workspace=PORTAL/FRONTEND/WEB",
     "build:all": "npm run build --workspaces",
+    "build:portal": "npm run build --workspace=PORTAL/FRONTEND/WEB",
     "build": "npm run build --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
