@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/yourusername/hostel-management-system/API/database"
@@ -52,11 +53,15 @@ func (s *DashboardService) GetDashboard(
 		filters = &models.DashboardFilterParams{}
 	}
 
-	// 1. Service Health Check (always safe and non-blocking)
-	health := s.checkServiceHealth(ctx)
+	// Bounded context timeout (5s) so dashboard queries never block the HTTP thread
+	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. Service Health Check (always safe, concurrent, and non-blocking)
+	health := s.checkServiceHealth(queryCtx)
 
 	// 2. College Status Summary
-	collegeSummary, err := s.repo.GetCollegeSummary(ctx, filters.CollegeID)
+	collegeSummary, err := s.repo.GetCollegeSummary(queryCtx, filters.CollegeID)
 	if err != nil {
 		return nil, apierrors.New(
 			apierrors.InternalError,
@@ -65,7 +70,7 @@ func (s *DashboardService) GetDashboard(
 	}
 
 	// 3. Entitlement Summary
-	entitlementSummary, err := s.repo.GetEntitlementSummary(ctx, filters.CollegeID)
+	entitlementSummary, err := s.repo.GetEntitlementSummary(queryCtx, filters.CollegeID)
 	if err != nil {
 		return nil, apierrors.New(
 			apierrors.InternalError,
@@ -74,7 +79,7 @@ func (s *DashboardService) GetDashboard(
 	}
 
 	// 4. Active College Admin Count
-	adminCount, err := s.repo.GetActiveCollegeAdminCount(ctx, filters.CollegeID)
+	adminCount, err := s.repo.GetActiveCollegeAdminCount(queryCtx, filters.CollegeID)
 	if err != nil {
 		return nil, apierrors.New(
 			apierrors.InternalError,
@@ -84,7 +89,7 @@ func (s *DashboardService) GetDashboard(
 
 	// 5. Recent Administrative Activity
 	recentActivity, err := s.repo.GetRecentAdministrativeActivity(
-		ctx,
+		queryCtx,
 		filters.CollegeID,
 		filters.StartDate,
 		filters.EndDate,
@@ -99,7 +104,7 @@ func (s *DashboardService) GetDashboard(
 
 	// 6. Pending Approvals and Configuration Changes
 	approvalSummary, err := s.repo.GetPendingApprovalSummary(
-		ctx,
+		queryCtx,
 		filters.CollegeID,
 		filters.StartDate,
 		filters.EndDate,
@@ -127,12 +132,12 @@ func (s *DashboardService) GetDashboard(
 	}
 
 	// B. Overdue approval requests
-	if overdueAlerts, err := s.repo.GetOverdueApprovalsForAlerts(ctx); err == nil {
+	if overdueAlerts, err := s.repo.GetOverdueApprovalsForAlerts(queryCtx); err == nil {
 		alerts = append(alerts, overdueAlerts...)
 	}
 
 	// C. Suspended colleges
-	if suspendedAlerts, err := s.repo.GetSuspendedCollegesForAlerts(ctx); err == nil {
+	if suspendedAlerts, err := s.repo.GetSuspendedCollegesForAlerts(queryCtx); err == nil {
 		alerts = append(alerts, suspendedAlerts...)
 	}
 
@@ -160,7 +165,7 @@ func (s *DashboardService) GetDashboard(
 	}, nil
 }
 
-// checkServiceHealth evaluates the status of database pools and API server.
+// checkServiceHealth evaluates the status of database pools and API server concurrently.
 func (s *DashboardService) checkServiceHealth(ctx context.Context) models.ServiceHealthSummary {
 	now := time.Now().UTC()
 	checks := make([]models.ServiceHealthCheck, 0, 3)
@@ -173,16 +178,37 @@ func (s *DashboardService) checkServiceHealth(ctx context.Context) models.Servic
 		CheckedAt:   now,
 	})
 
-	// Platform Pool check
+	// Concurrently ping connection pools with a fast 2-second timeout
 	platformPool := s.db.GetPlatformPool()
-	platformOK := false
-	if platformPool != nil {
-		pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		defer cancel()
-		if err := platformPool.Ping(pingCtx); err == nil {
-			platformOK = true
+	collegePool := s.db.GetCollegePool()
+
+	var platformOK, collegeOK bool
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		if platformPool != nil {
+			pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			if err := platformPool.Ping(pingCtx); err == nil {
+				platformOK = true
+			}
 		}
-	}
+	}()
+
+	go func() {
+		defer wg.Done()
+		if collegePool != nil {
+			pingCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			defer cancel()
+			if err := collegePool.Ping(pingCtx); err == nil {
+				collegeOK = true
+			}
+		}
+	}()
+
+	wg.Wait()
 
 	if platformOK {
 		checks = append(checks, models.ServiceHealthCheck{
@@ -198,17 +224,6 @@ func (s *DashboardService) checkServiceHealth(ctx context.Context) models.Servic
 			Message:     "Connection pool ping failed or pool unconfigured",
 			CheckedAt:   now,
 		})
-	}
-
-	// College Pool check
-	collegePool := s.db.GetCollegePool()
-	collegeOK := false
-	if collegePool != nil {
-		pingCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		defer cancel()
-		if err := collegePool.Ping(pingCtx); err == nil {
-			collegeOK = true
-		}
 	}
 
 	if collegeOK {

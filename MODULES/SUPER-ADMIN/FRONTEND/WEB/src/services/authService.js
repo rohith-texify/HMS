@@ -21,18 +21,14 @@ export const authService = {
     }
 
     try {
-      // Fast check with remote backend (2.5s threshold so user never waits)
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('BACKEND_DELAYED')), 2500)
-      );
-
-      const response = await Promise.race([
-        api.post('/auth/login', {
+      const response = await api.post(
+        '/auth/login',
+        {
           email: normalizedEmail,
           password,
-        }),
-        timeoutPromise,
-      ]);
+        },
+        { timeout: 15000 }
+      );
 
       const data = response.data || response;
       const { access_token, user_id, email: userEmail, membership, expires_at } = data;
@@ -80,7 +76,7 @@ export const authService = {
 
       return { token: access_token, user: sessionUser };
     } catch (err) {
-      console.warn('Live backend response delayed or unavailable. Activating Super Admin session:', err.message);
+      console.warn('Super Admin session fallback activated:', err.message);
       return this.devLogin(normalizedEmail, rememberMe);
     }
   },
