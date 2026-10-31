@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -79,41 +78,61 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 		`)
 
 		// Ensure SUPER_ADMIN role exists in platform.roles
-		superAdminRoleID := uuid.MustParse("54cd22f3-954e-4e10-9d5a-1d971a535422")
 		_, _ = pool.Exec(seedCtx, `
 			INSERT INTO platform.roles (role_id, role_code, role_name, scope, is_system_role)
-			VALUES ($1, 'SUPER_ADMIN', 'Super Administrator', 'PLATFORM', true)
+			VALUES (gen_random_uuid(), 'SUPER_ADMIN', 'Super Administrator', 'PLATFORM', true)
 			ON CONFLICT (role_code) DO NOTHING;
-		`, superAdminRoleID)
+		`)
 
 		// Ensure platform Super Administrator accounts exist in app.users and platform.user_roles
-		superAdminUserID := uuid.MustParse("54cd22f3-954e-4e10-9d5a-1d971a535422")
-		rohithHash := "$2a$12$4ttBabWT/P6KkXPgUMUmOeWU0WONlhOJ6HZvJdJz/Y1UHF6ji9H3q" // Rohith@acet
-		defaultHash := "$2a$12$eImiTXuWVxfaHNYY0iCa.OPST9/PgBkqquzi.Ss7KIUgO2PKPejGi" // Password@123
+		rohithHash := "$2a$10$6sAZAT4w7qsF.Ur951IKKO4UT.FGMvHVuVcGBJaJb4AoKNK.MxlGm" // Rohith@acet
+		defaultHash := "$2a$10$B90DjDWozEnhYq7GiqDqPupzs0IFkz5hsd50TFzilTsVtTv4TNBXm" // Password@123
 
-		_, _ = pool.Exec(seedCtx, `
+		if _, err := pool.Exec(seedCtx, `
 			INSERT INTO app.users (user_id, email, phone, password_hash, status)
-			VALUES ($1, 'rohith.texify@gmail.com', '+919999999999', $2, 'ACTIVE')
-			ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'ACTIVE';
+			VALUES (gen_random_uuid(), 'rohith.texify@gmail.com', '+919999999999', $1, 'ACTIVE')
+			ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'ACTIVE'
+		`, rohithHash); err != nil {
+			logger.Warn("failed to upsert rohith.texify user", zap.Error(err))
+		}
 
+		if _, err := pool.Exec(seedCtx, `
 			INSERT INTO platform.user_roles (user_id, role_id, status)
-			SELECT $1, $3, 'ACTIVE'
-			WHERE NOT EXISTS (
-				SELECT 1 FROM platform.user_roles WHERE user_id = $1 AND role_id = $3
-			);
-
-			INSERT INTO app.users (user_id, email, phone, password_hash, status)
-			VALUES (gen_random_uuid(), 'superadmin@hms.local', '+919999999999', $4, 'ACTIVE')
-			ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'ACTIVE';
-
-			INSERT INTO platform.user_roles (user_id, role_id, status)
-			SELECT u.user_id, $3, 'ACTIVE'
+			SELECT u.user_id, r.role_id, 'ACTIVE'
 			FROM app.users u
-			WHERE LOWER(u.email) = 'superadmin@hms.local'
+			CROSS JOIN platform.roles r
+			WHERE LOWER(u.email) = 'rohith.texify@gmail.com'
+			  AND r.role_code = 'SUPER_ADMIN'
 			  AND NOT EXISTS (
-				SELECT 1 FROM platform.user_roles WHERE user_id = u.user_id AND role_id = $3
-			);
-		`, superAdminUserID, rohithHash, superAdminRoleID, defaultHash)
+				SELECT 1 FROM platform.user_roles ur
+				WHERE ur.user_id = u.user_id AND ur.role_id = r.role_id
+			  )
+		`); err != nil {
+			logger.Warn("failed to link rohith.texify super admin role", zap.Error(err))
+		}
+
+		if _, err := pool.Exec(seedCtx, `
+			INSERT INTO app.users (user_id, email, phone, password_hash, status)
+			VALUES (gen_random_uuid(), 'superadmin@hms.local', '+919999999999', $1, 'ACTIVE')
+			ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'ACTIVE'
+		`, defaultHash); err != nil {
+			logger.Warn("failed to upsert superadmin@hms.local user", zap.Error(err))
+		}
+
+		if _, err := pool.Exec(seedCtx, `
+			INSERT INTO platform.user_roles (user_id, role_id, status)
+			SELECT u.user_id, r.role_id, 'ACTIVE'
+			FROM app.users u
+			CROSS JOIN platform.roles r
+			WHERE LOWER(u.email) = 'superadmin@hms.local'
+			  AND r.role_code = 'SUPER_ADMIN'
+			  AND NOT EXISTS (
+				SELECT 1 FROM platform.user_roles ur
+				WHERE ur.user_id = u.user_id AND ur.role_id = r.role_id
+			  )
+		`); err != nil {
+			logger.Warn("failed to link superadmin@hms.local super admin role", zap.Error(err))
+		}
 
 		// Ensure high-performance indexes across all modules (platform + app)
 		_, _ = pool.Exec(seedCtx, `

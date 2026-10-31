@@ -57,6 +57,7 @@ func main() {
 	totalStartupTime := time.Since(processStartTime)
 
 	logger.Info("PostgreSQL connection established")
+	database.AutoMigrateAndSeed(context.Background(), db.PlatformPool, logger)
 	logger.Info(
 		"startup_timing",
 		zap.Duration("logger_init_ms", loggerInitTime),
