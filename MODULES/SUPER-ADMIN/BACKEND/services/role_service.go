@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -16,7 +18,12 @@ import (
 	"github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/repository"
 )
 
-var roleCodeRegex = regexp.MustCompile(`^[A-Z][A-Z0-9_]{1,99}$`)
+var (
+	roleCodeRegex = regexp.MustCompile(`^[A-Z][A-Z0-9_]{1,99}$`)
+	permCacheMutex sync.RWMutex
+	permCacheData  = make(map[string][]models.Permission)
+	permCacheTime  = make(map[string]time.Time)
+)
 
 // RoleService handles business logic for authorization roles and permission mapping.
 type RoleService struct {
@@ -91,14 +98,36 @@ func (s *RoleService) GetRole(ctx context.Context, roleID uuid.UUID) (*models.Ro
 	}, nil
 }
 
-// ListPermissions returns the complete atomic permission catalog.
+// ListPermissions returns the complete atomic permission catalog with in-memory caching.
 func (s *RoleService) ListPermissions(ctx context.Context, scopeType string) ([]models.Permission, error) {
 	if s == nil || s.repo == nil {
 		return nil, apierrors.New(apierrors.InternalError, "Role service is not configured")
 	}
 
 	cleanScope := strings.ToUpper(strings.TrimSpace(scopeType))
-	return s.repo.ListAllPermissions(ctx, cleanScope)
+
+	// Check cache
+	permCacheMutex.RLock()
+	cached, ok := permCacheData[cleanScope]
+	cachedAt := permCacheTime[cleanScope]
+	permCacheMutex.RUnlock()
+
+	if ok && time.Since(cachedAt) < 5*time.Minute {
+		return cached, nil
+	}
+
+	perms, err := s.repo.ListAllPermissions(ctx, cleanScope)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store in cache
+	permCacheMutex.Lock()
+	permCacheData[cleanScope] = perms
+	permCacheTime[cleanScope] = time.Now()
+	permCacheMutex.Unlock()
+
+	return perms, nil
 }
 
 // CreateCustomRole creates a new custom role with validated scope and permissions.

@@ -22,7 +22,7 @@ import api from './api';
  */
 export async function fetchAuditLogs(params = {}) {
   try {
-    const res = await api.get('/super-admin/audit-logs', { params, timeout: 1800 });
+    const res = await api.get('/super-admin/audit-logs', { params, timeout: 8000 });
     return res.data || { records: [], total: 0 };
   } catch (err) {
     return { records: [], total: 0 };

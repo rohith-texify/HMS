@@ -94,6 +94,14 @@ func NewRouter(
 			},
 		})
 	})
+	router.HEAD("/health", func(c *gin.Context) {
+		c.Status(200)
+	})
+	router.GET("/healthz", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "ok",
+		})
+	})
 
 	router.GET("/health/db", func(c *gin.Context) {
 		pingCtx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)

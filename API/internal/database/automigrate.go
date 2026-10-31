@@ -86,6 +86,35 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			ON CONFLICT (role_code) DO NOTHING;
 		`, superAdminRoleID)
 
+		// Ensure platform Super Administrator accounts exist in app.users and platform.user_roles
+		superAdminUserID := uuid.MustParse("54cd22f3-954e-4e10-9d5a-1d971a535422")
+		rohithHash := "$2a$12$4ttBabWT/P6KkXPgUMUmOeWU0WONlhOJ6HZvJdJz/Y1UHF6ji9H3q" // Rohith@acet
+		defaultHash := "$2a$12$eImiTXuWVxfaHNYY0iCa.OPST9/PgBkqquzi.Ss7KIUgO2PKPejGi" // Password@123
+
+		_, _ = pool.Exec(seedCtx, `
+			INSERT INTO app.users (user_id, email, phone, password_hash, status)
+			VALUES ($1, 'rohith.texify@gmail.com', '+919999999999', $2, 'ACTIVE')
+			ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'ACTIVE';
+
+			INSERT INTO platform.user_roles (user_id, role_id, status)
+			SELECT $1, $3, 'ACTIVE'
+			WHERE NOT EXISTS (
+				SELECT 1 FROM platform.user_roles WHERE user_id = $1 AND role_id = $3
+			);
+
+			INSERT INTO app.users (user_id, email, phone, password_hash, status)
+			VALUES (gen_random_uuid(), 'superadmin@hms.local', '+919999999999', $4, 'ACTIVE')
+			ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash, status = 'ACTIVE';
+
+			INSERT INTO platform.user_roles (user_id, role_id, status)
+			SELECT u.user_id, $3, 'ACTIVE'
+			FROM app.users u
+			WHERE LOWER(u.email) = 'superadmin@hms.local'
+			  AND NOT EXISTS (
+				SELECT 1 FROM platform.user_roles WHERE user_id = u.user_id AND role_id = $3
+			);
+		`, superAdminUserID, rohithHash, superAdminRoleID, defaultHash)
+
 		// Ensure high-performance indexes across all modules (platform + app)
 		_, _ = pool.Exec(seedCtx, `
 			CREATE INDEX IF NOT EXISTS idx_colleges_status ON platform.colleges (status);
@@ -97,7 +126,15 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			CREATE INDEX IF NOT EXISTS idx_approvals_created_at ON platform.approvals (created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_audit_logs_college_created ON platform.audit_logs (college_id, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_role_permissions_role ON platform.role_permissions (role_id);
+			CREATE INDEX IF NOT EXISTS idx_role_permissions_perm ON platform.role_permissions (permission_id);
 			CREATE INDEX IF NOT EXISTS idx_permissions_code ON platform.permissions (permission_code);
+			CREATE INDEX IF NOT EXISTS idx_permissions_module_scope ON platform.permissions (module_id, scope_type);
+			CREATE INDEX IF NOT EXISTS idx_permissions_scope ON platform.permissions (scope_type);
+			CREATE INDEX IF NOT EXISTS idx_user_roles_user_role ON platform.user_roles (user_id, role_id);
+			CREATE INDEX IF NOT EXISTS idx_user_roles_college_role ON platform.user_roles (college_id, role_id, status);
+			CREATE INDEX IF NOT EXISTS idx_college_onboarding_lookup ON platform.college_onboarding (college_id, status, step_code);
+			CREATE INDEX IF NOT EXISTS idx_colleges_onboarding ON platform.colleges (status, is_active, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_approval_requests_col_stat ON platform.approval_requests (college_id, status);
 		`)
 
 		_, _ = pool.Exec(seedCtx, `

@@ -47,7 +47,7 @@ export async function fetchEffectiveSettings(collegeId, options = {}) {
     const res = await api.get(`/super-admin/colleges/${collegeId}/settings`, {
       params,
       signal: options.signal,
-      timeout: 1800,
+      timeout: 8000,
     });
 
     return {

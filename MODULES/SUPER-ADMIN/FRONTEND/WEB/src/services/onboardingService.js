@@ -18,7 +18,7 @@ export async function fetchOnboardingPipeline(options = {}) {
     if (options.offset) params.offset = options.offset;
   }
   try {
-    const res = await api.get('/super-admin/onboarding', { params, signal, timeout: 1800 });
+    const res = await api.get('/super-admin/onboarding', { params, signal, timeout: 8000 });
     return res.data?.colleges || [];
   } catch (err) {
     if (err?.name === 'CanceledError' || err?.isCanceled || signal?.aborted) {

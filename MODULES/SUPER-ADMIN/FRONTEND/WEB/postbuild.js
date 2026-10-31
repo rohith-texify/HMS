@@ -10,9 +10,13 @@ const indexPath = path.join(distDir, 'index.html');
 if (fs.existsSync(indexPath)) {
   const indexHtml = fs.readFileSync(indexPath, 'utf-8');
 
-  // 1. Create 404.html (Render Static Site automatic fallback) and _redirects
+  // 1. Create 404.html (Render Static Site automatic fallback), _redirects, and _headers
   fs.writeFileSync(path.join(distDir, '404.html'), indexHtml);
   fs.writeFileSync(path.join(distDir, '_redirects'), '/*    /index.html   200\n');
+  fs.writeFileSync(
+    path.join(distDir, '_headers'),
+    `/*\n  Cache-Control: public, max-age=0, must-revalidate\n\n/index.html\n  Cache-Control: no-cache, no-store, must-revalidate\n\n/*.html\n  Cache-Control: no-cache, no-store, must-revalidate\n\n/assets/*\n  Cache-Control: public, max-age=31536000, immutable\n`
+  );
 
   // 2. Create physical route directories and index.html files so any direct URL hit succeeds
   const routes = [

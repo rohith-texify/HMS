@@ -15,7 +15,7 @@ const baseURL =
 
 const api = axios.create({
   baseURL: baseURL || undefined, // Use undefined if empty string to let axios use relative URLs
-  timeout: 1800, // < 2s SLA guarantee: operations never freeze or exceed 1.8 seconds
+  timeout: 8000, // Balanced timeout allowing remote Render network latency while preventing freezes
   headers: {
     'Content-Type': 'application/json',
   },
