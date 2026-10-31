@@ -5,81 +5,77 @@ import { useAuth } from '../hooks/useAuth';
 import {
   Menu,
   X,
-  Search,
+  Calendar,
+  ChevronDown,
+  LayoutGrid,
+  Download,
   Plus,
-  Shield,
-  Activity,
-  Bell,
-  Sparkles,
 } from 'lucide-react';
 
 export default function AdminLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
-  // If not authenticated, redirect to login
   if (!isLoading && !isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  // Derive human-readable page title from active route
+  // Derive human-readable page title
   const getPageTitle = (pathname) => {
-    const routeTitles = {
-      '/dashboard': 'Platform Intelligence & Overview',
-      '/onboarding': 'Tenant Onboarding Pipeline',
-      '/colleges': 'Colleges & Institutions Registry',
-      '/colleges/new': 'New Institution Onboarding',
-      '/staff': 'Platform Staff & Operator Directory',
-      '/roles': 'Roles & Permission Matrix',
-      '/permissions': 'Platform Permission Catalog',
-      '/access-control': 'Tenant Access & Entitlement Control',
-      '/approvals': 'Governance & Approval Workflows',
-      '/change-sets': 'Platform Change Management',
-      '/modules': 'Module Catalog & Entitlements',
-      '/applications': 'Application Ecosystem Hub',
-      '/system-settings': 'Global System Settings & Flags',
-      '/settings': 'Global System Settings & Flags',
-      '/audit-logs': 'Cryptographic Platform Audit Logs',
-      '/audit': 'Cryptographic Platform Audit Logs',
-      '/notifications': 'Platform Notifications Hub',
-      '/monitoring': 'Real-time Telemetry & Node Health',
-      '/support': 'Support & Troubleshooting Console',
-      '/reports': 'Platform Analytics & Compliance Reports',
-      '/analytics': 'Platform Analytics & Compliance Reports',
+    const titles = {
+      '/dashboard': 'Dashboard',
+      '/onboarding': 'Onboarding',
+      '/colleges': 'Colleges',
+      '/colleges/new': 'New College',
+      '/staff': 'Company Staff',
+      '/roles': 'Roles',
+      '/permissions': 'Permissions',
+      '/access-control': 'Access Control',
+      '/approvals': 'Approvals',
+      '/change-sets': 'Change Sets',
+      '/modules': 'Modules',
+      '/applications': 'Applications',
+      '/system-settings': 'Settings',
+      '/settings': 'Settings',
+      '/audit-logs': 'Audit Logs',
+      '/notifications': 'Notifications',
+      '/monitoring': 'Monitoring',
+      '/support': 'Support',
+      '/reports': 'Analytics',
     };
-    return routeTitles[pathname] || 'Control Plane';
+    return titles[pathname] || 'Dashboard';
   };
 
   return (
-    <div className="shopeers-app-container">
+    <div className="shopeers-light-app">
       {/* Mobile Topbar */}
-      <header className="shopeers-mobile-topbar">
-        <div className="shopeers-mobile-brand">
+      <header className="shopeers-light-mobile-bar">
+        <div className="shopeers-mobile-brand-box">
           <img
             src="/texify-logo.png"
             alt="Texify Technologies"
-            className="shopeers-mobile-logo"
+            className="shopeers-mobile-logo-img"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
             }}
           />
-          <span className="shopeers-mobile-brand-text">Texify Platform</span>
+          <span className="shopeers-mobile-brand-title">Texify</span>
         </div>
         <button
           type="button"
-          className="shopeers-mobile-menu-btn"
+          className="shopeers-mobile-toggle-btn"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          aria-label="Toggle Navigation"
         >
-          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       </header>
 
       {/* Mobile Backdrop Overlay */}
       {mobileMenuOpen && (
         <div
-          className="shopeers-mobile-backdrop"
+          className="shopeers-mobile-backdrop-overlay"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -91,64 +87,50 @@ export default function AdminLayout() {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      {/* Main Content Area */}
-      <div className="shopeers-main-viewport">
-        {/* Sleek Global Header Bar */}
-        <header className="shopeers-global-header">
-          <div className="shopeers-header-left">
-            <div className="shopeers-breadcrumb-tag">
-              <span className="shopeers-tag-accent">Texify</span>
-              <span className="shopeers-tag-divider">/</span>
-              <span className="shopeers-tag-current">{getPageTitle(location.pathname)}</span>
-            </div>
-            <div className="shopeers-health-pill" title="Live PostgreSQL & API Telemetry: Verified">
-              <span className="shopeers-beacon-dot" />
-              <span className="shopeers-health-text">Systems Operational</span>
-              <span className="shopeers-sla-badge">99.98% SLA</span>
-            </div>
+      {/* Main Viewport */}
+      <div className="shopeers-light-viewport">
+        {/* Top Header Bar from Screenshot */}
+        <header className="shopeers-light-topbar">
+          <div className="shopeers-topbar-title-wrap">
+            <h1 className="shopeers-topbar-page-heading">
+              {getPageTitle(location.pathname)}
+            </h1>
           </div>
 
-          <div className="shopeers-header-right">
-            {/* Quick Search Input */}
-            <div className="shopeers-search-wrapper">
-              <Search size={15} className="shopeers-search-icon" />
-              <input
-                type="text"
-                placeholder="Search colleges, modules, users..."
-                className="shopeers-search-input"
-                aria-label="Global platform search"
-              />
-              <kbd className="shopeers-search-kbd">⌘K</kbd>
+          <div className="shopeers-topbar-controls">
+            {/* Date Range Pill */}
+            <div className="shopeers-pill-btn date-pill">
+              <Calendar size={14} className="text-gray-500" />
+              <span>Jan 1, 2026 - Dec 31, 2026</span>
             </div>
 
-            {/* Quick Action Buttons */}
-            <Link
-              to="/colleges/new"
-              className="shopeers-primary-cta-btn"
-              id="btn-global-new-college"
-            >
-              <Plus size={16} />
-              <span>Register College</span>
+            {/* Time Filter Dropdown Pill */}
+            <div className="shopeers-pill-btn filter-pill">
+              <span>Last 30 days</span>
+              <ChevronDown size={14} className="text-gray-500" />
+            </div>
+
+            {/* Add Widget Pill */}
+            <Link to="/colleges/new" className="shopeers-pill-btn widget-pill">
+              <LayoutGrid size={14} />
+              <span>Add institution</span>
             </Link>
 
-            <Link
-              to="/notifications"
-              className="shopeers-icon-badge-btn"
-              title="Notifications"
-            >
-              <Bell size={18} />
-              <span className="shopeers-notification-dot" />
+            {/* Export / Primary CTA Button */}
+            <Link to="/colleges/new" className="shopeers-primary-export-btn" id="btn-topbar-primary">
+              <Download size={14} />
+              <span>Export</span>
             </Link>
           </div>
         </header>
 
-        {/* Dynamic Page Outlet with Sleek Loading Fallback */}
-        <main className="shopeers-content-outlet">
+        {/* Dynamic Page Content */}
+        <main className="shopeers-light-page-content">
           <Suspense
             fallback={
-              <div className="shopeers-loader-screen">
-                <div className="shopeers-spinner" />
-                <div className="shopeers-loader-text">Loading module...</div>
+              <div className="shopeers-light-loader">
+                <div className="shopeers-loader-circle" />
+                <span>Loading view...</span>
               </div>
             }
           >

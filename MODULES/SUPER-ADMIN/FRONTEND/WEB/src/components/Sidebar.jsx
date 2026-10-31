@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -8,8 +8,8 @@ import {
   Users,
   KeyRound,
   ShieldCheck,
-  LockKeyhole,
-  FileCheck2,
+  Lock,
+  FileCheck,
   GitBranch,
   Boxes,
   AppWindow,
@@ -18,13 +18,19 @@ import {
   Bell,
   Activity,
   BarChart3,
-  LifeBuoy,
+  HelpCircle,
   LogOut,
+  ChevronDown,
+  ChevronRight,
+  Shield,
   Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 
 export default function Sidebar({ isOpen = false, onClose = () => {} }) {
   const { user, logout } = useAuth();
+  const [governanceOpen, setGovernanceOpen] = useState(true);
+  const [systemOpen, setSystemOpen] = useState(false);
 
   const handleLinkClick = () => {
     if (onClose) {
@@ -32,75 +38,36 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
     }
   };
 
-  const navSections = [
-    {
-      title: 'PLATFORM & ANALYTICS',
-      items: [
-        { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { to: '/onboarding', label: 'Onboarding Pipeline', icon: Compass },
-        { to: '/colleges', label: 'Colleges & Campuses', icon: Building2 },
-        { to: '/reports', label: 'Reports & Analytics', icon: BarChart3 },
-      ],
-    },
-    {
-      title: 'GOVERNANCE & ACCESS',
-      items: [
-        { to: '/staff', label: 'Company Staff', icon: Users },
-        { to: '/roles', label: 'Roles & Hierarchy', icon: KeyRound },
-        { to: '/permissions', label: 'Permissions Catalog', icon: ShieldCheck },
-        { to: '/access-control', label: 'Access Control', icon: LockKeyhole },
-        { to: '/approvals', label: 'Approvals & Workflows', icon: FileCheck2 },
-      ],
-    },
-    {
-      title: 'SYSTEM & MODULES',
-      items: [
-        { to: '/change-sets', label: 'Change Management', icon: GitBranch },
-        { to: '/modules', label: 'Modules & Entitlements', icon: Boxes },
-        { to: '/applications', label: 'Applications Hub', icon: AppWindow },
-        { to: '/system-settings', label: 'System Settings', icon: SlidersHorizontal },
-        { to: '/audit-logs', label: 'Audit Logs', icon: ScrollText },
-        { to: '/notifications', label: 'Notifications Hub', icon: Bell },
-        { to: '/monitoring', label: 'Telemetry & Health', icon: Activity },
-        { to: '/support', label: 'Support Console', icon: LifeBuoy },
-      ],
-    },
-  ];
-
   return (
-    <aside className={`shopeers-sidebar ${isOpen ? 'mobile-open' : ''}`}>
+    <aside className={`shopeers-light-sidebar ${isOpen ? 'mobile-open' : ''}`}>
       {/* Brand Header */}
-      <div className="shopeers-brand-header">
-        <div className="shopeers-brand-container">
-          <div className="shopeers-logo-frame">
+      <div className="shopeers-light-brand">
+        <div className="shopeers-brand-flex">
+          <div className="shopeers-brand-logo-wrap">
             <img
               src="/texify-logo.png"
               alt="Texify Technologies"
-              className="shopeers-brand-logo"
+              className="shopeers-brand-img"
               onError={(e) => {
-                // Graceful fallback to high-tech typography if image loading fails
                 e.currentTarget.style.display = 'none';
                 if (e.currentTarget.nextSibling) {
                   e.currentTarget.nextSibling.style.display = 'flex';
                 }
               }}
             />
-            <div className="shopeers-fallback-badge" style={{ display: 'none' }}>
-              <Sparkles size={18} className="text-blue-400" />
+            <div className="shopeers-fallback-logo" style={{ display: 'none' }}>
+              <Shield size={20} className="text-blue-600" />
             </div>
           </div>
-          <div className="shopeers-brand-meta">
-            <div className="shopeers-brand-name">Texify Technologies</div>
-            <div className="shopeers-brand-tagline">
-              <span className="shopeers-status-dot" />
-              <span>Control Plane</span>
-            </div>
+          <div className="shopeers-brand-text-block">
+            <span className="shopeers-brand-title">Texify Technologies</span>
+            <span className="shopeers-brand-badge">Super Admin</span>
           </div>
         </div>
 
         <button
           type="button"
-          className="shopeers-close-btn"
+          className="shopeers-light-close-btn"
           onClick={onClose}
           aria-label="Close sidebar"
         >
@@ -108,56 +75,253 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
         </button>
       </div>
 
-      {/* Grouped Navigation */}
-      <nav className="shopeers-nav">
-        {navSections.map((section) => (
-          <div key={section.title} className="shopeers-nav-group">
-            <div className="shopeers-group-title">{section.title}</div>
-            <div className="shopeers-group-items">
-              {section.items.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  onClick={handleLinkClick}
-                  className={({ isActive }) =>
-                    `shopeers-nav-link ${isActive ? 'active' : ''}`
-                  }
-                >
-                  <Icon size={18} className="shopeers-nav-icon" />
-                  <span className="shopeers-nav-text">{label}</span>
-                </NavLink>
-              ))}
-            </div>
+      {/* Navigation Menu */}
+      <nav className="shopeers-light-nav">
+        {/* Core Main Items */}
+        <NavLink
+          to="/dashboard"
+          onClick={handleLinkClick}
+          className={({ isActive }) =>
+            `shopeers-nav-item ${isActive ? 'active' : ''}`
+          }
+        >
+          <div className="shopeers-item-left">
+            <CheckCircle2 size={18} className="shopeers-item-icon check-icon" />
+            <span>Dashboard</span>
           </div>
-        ))}
-      </nav>
+        </NavLink>
 
-      {/* User Session Profile & Sign Out Footer */}
-      <div className="shopeers-user-card">
-        <div className="shopeers-user-info">
-          <div className="shopeers-user-avatar">
-            {(user?.email?.[0] || 'T').toUpperCase()}
+        <NavLink
+          to="/onboarding"
+          onClick={handleLinkClick}
+          className={({ isActive }) =>
+            `shopeers-nav-item ${isActive ? 'active' : ''}`
+          }
+        >
+          <div className="shopeers-item-left">
+            <Compass size={18} className="shopeers-item-icon" />
+            <span>Onboarding</span>
           </div>
-          <div className="shopeers-user-details">
-            <div
-              className="shopeers-user-email"
-              title={user?.email || 'rohith.texify@gmail.com'}
-            >
-              {user?.email || 'rohith.texify@gmail.com'}
-            </div>
-            <div className="shopeers-user-role">
-              {user?.roleName || user?.role || 'Super Administrator'}
-            </div>
+          <span className="shopeers-badge-green">Pipeline</span>
+        </NavLink>
+
+        <NavLink
+          to="/colleges"
+          onClick={handleLinkClick}
+          className={({ isActive }) =>
+            `shopeers-nav-item ${isActive ? 'active' : ''}`
+          }
+        >
+          <div className="shopeers-item-left">
+            <Building2 size={18} className="shopeers-item-icon" />
+            <span>Colleges</span>
           </div>
+          <span className="shopeers-badge-count">24</span>
+        </NavLink>
+
+        <NavLink
+          to="/reports"
+          onClick={handleLinkClick}
+          className={({ isActive }) =>
+            `shopeers-nav-item ${isActive ? 'active' : ''}`
+          }
+        >
+          <div className="shopeers-item-left">
+            <BarChart3 size={18} className="shopeers-item-icon" />
+            <span>Analytics</span>
+          </div>
+        </NavLink>
+
+        {/* Collapsible Group: Governance & Access */}
+        <div className="shopeers-nav-collapsible">
+          <button
+            type="button"
+            className="shopeers-group-header-btn"
+            onClick={() => setGovernanceOpen(!governanceOpen)}
+          >
+            <div className="shopeers-item-left">
+              <KeyRound size={18} className="shopeers-item-icon" />
+              <span>Governance</span>
+            </div>
+            {governanceOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </button>
+
+          {governanceOpen && (
+            <div className="shopeers-sub-items">
+              <NavLink
+                to="/staff"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Company Staff</span>
+              </NavLink>
+
+              <NavLink
+                to="/roles"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Roles & Hierarchy</span>
+              </NavLink>
+
+              <NavLink
+                to="/permissions"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Permissions</span>
+              </NavLink>
+
+              <NavLink
+                to="/access-control"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Access Control</span>
+              </NavLink>
+
+              <NavLink
+                to="/approvals"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Approvals</span>
+              </NavLink>
+            </div>
+          )}
         </div>
 
-        <button
-          onClick={logout}
-          id="btn-sidebar-logout"
-          className="shopeers-logout-btn"
-          title="Sign out of platform"
+        {/* Collapsible Group: Operations & System */}
+        <div className="shopeers-nav-collapsible">
+          <button
+            type="button"
+            className="shopeers-group-header-btn"
+            onClick={() => setSystemOpen(!systemOpen)}
+          >
+            <div className="shopeers-item-left">
+              <Boxes size={18} className="shopeers-item-icon" />
+              <span>Operations</span>
+            </div>
+            {systemOpen ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+          </button>
+
+          {systemOpen && (
+            <div className="shopeers-sub-items">
+              <NavLink
+                to="/modules"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Modules</span>
+              </NavLink>
+
+              <NavLink
+                to="/applications"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Applications Hub</span>
+              </NavLink>
+
+              <NavLink
+                to="/change-sets"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Change Sets</span>
+              </NavLink>
+
+              <NavLink
+                to="/audit-logs"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Audit Logs</span>
+              </NavLink>
+
+              <NavLink
+                to="/monitoring"
+                onClick={handleLinkClick}
+                className={({ isActive }) =>
+                  `shopeers-sub-item ${isActive ? 'active' : ''}`
+                }
+              >
+                <span>Telemetry</span>
+              </NavLink>
+            </div>
+          )}
+        </div>
+
+        {/* Supporting Secondary Items */}
+        <NavLink
+          to="/system-settings"
+          onClick={handleLinkClick}
+          className={({ isActive }) =>
+            `shopeers-nav-item ${isActive ? 'active' : ''}`
+          }
         >
-          <LogOut size={15} />
+          <div className="shopeers-item-left">
+            <SlidersHorizontal size={18} className="shopeers-item-icon" />
+            <span>Settings</span>
+          </div>
+        </NavLink>
+
+        <NavLink
+          to="/support"
+          onClick={handleLinkClick}
+          className={({ isActive }) =>
+            `shopeers-nav-item ${isActive ? 'active' : ''}`
+          }
+        >
+          <div className="shopeers-item-left">
+            <HelpCircle size={18} className="shopeers-item-icon" />
+            <span>Help & Support</span>
+          </div>
+        </NavLink>
+      </nav>
+
+      {/* Bottom Promo Card (Exact Shopeers Style Dark Blue Gradient Card) */}
+      <div className="shopeers-premium-banner">
+        <div className="shopeers-banner-icon-wrap">
+          <Sparkles size={16} />
+        </div>
+        <div className="shopeers-banner-title">Upgrade to Premium!</div>
+        <div className="shopeers-banner-text">
+          Upgrade your account and unlock all of the benefits.
+        </div>
+        <button
+          type="button"
+          className="shopeers-banner-btn"
+          onClick={() => {}}
+        >
+          <span>Upgrade premium</span>
+        </button>
+        <button
+          type="button"
+          onClick={logout}
+          className="shopeers-logout-text-btn"
+          id="btn-sidebar-logout"
+          title="Sign out of Super Admin"
+        >
+          <LogOut size={12} />
           <span>Sign Out</span>
         </button>
       </div>

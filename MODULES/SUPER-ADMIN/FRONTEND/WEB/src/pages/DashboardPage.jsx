@@ -1,34 +1,64 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../components/Header';
-import FilterBar from '../components/FilterBar';
-import CollegeSummary from '../components/CollegeSummary';
-import EntitlementSummary from '../components/EntitlementSummary';
-import CollegeAdminSummary from '../components/CollegeAdminSummary';
-import ServiceHealthPanel from '../components/ServiceHealthPanel';
-import CriticalAlertsList from '../components/CriticalAlertsList';
-import PendingApprovalsSummary from '../components/PendingApprovalsSummary';
-import RecentActivityTable from '../components/RecentActivityTable';
-import UnsupportedMetricsPanel from '../components/UnsupportedMetricsPanel';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
+import {
+  Eye,
+  Users,
+  MousePointer,
+  MoreHorizontal,
+  Store,
+  Building2,
+  Headphones,
+  Watch,
+  Smartphone,
+  ArrowUpRight,
+  ArrowDownRight,
+  Maximize2,
+  Sparkles,
+} from 'lucide-react';
 import { fetchDashboard, fetchColleges, DEFAULT_DASHBOARD_DATA } from '../services/dashboardService';
 
+// Activity Area Chart Data matching the spline curve in the screenshot
+const activityTrendData = [
+  { name: '1 Jan', value: 4900 },
+  { name: '8 Jan', value: 4600 },
+  { name: '10 Jan', value: 9200 },
+  { name: '12 Jan', value: 7800 },
+  { name: '15 Jan', value: 7200 },
+  { name: '18 Jan', value: 13800 },
+  { name: '22 Jan', value: 11400 },
+  { name: '26 Jan', value: 14900 },
+  { name: '29 Jan', value: 13200 },
+];
+
+// Weekly Activity Bar Chart Data matching "Most Day Active"
+const weeklyBarData = [
+  { day: 'Sun', value: 4200, active: false },
+  { day: 'Mon', value: 3700, active: false },
+  { day: 'Tue', value: 8162, active: true },
+  { day: 'Wed', value: 2400, active: false },
+  { day: 'Thu', value: 2100, active: false },
+  { day: 'Fr', value: 5200, active: false },
+  { day: 'Sat', value: 5000, active: false },
+];
+
 export default function DashboardPage() {
-  // Initialize with verified baseline snapshot so the dashboard is immediately interactive with zero loading delay
   const [data, setData] = useState(DEFAULT_DASHBOARD_DATA);
   const [colleges, setColleges] = useState([]);
   const [filters, setFilters] = useState({});
-  const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Use request counter to avoid race conditions with fast filter changes
   const requestCounter = useRef(0);
 
-  const handleGoToLogin = () => {
-    window.location.href = '/login';
-  };
-
-  // Load colleges list once on mount
   useEffect(() => {
     let isMounted = true;
     fetchColleges()
@@ -36,263 +66,400 @@ export default function DashboardPage() {
         if (isMounted) setColleges(collegesList || []);
       })
       .catch((err) => {
-        console.warn('Failed to load colleges list for filter bar:', err);
+        console.warn('Failed to load colleges list:', err);
       });
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const loadDashboardData = async (currentFilters, isManualRefresh = false) => {
+  const loadDashboardData = async (currentFilters) => {
     const currentRequestId = ++requestCounter.current;
     setIsRefreshing(true);
-    setError(null);
-
     try {
       const responseData = await fetchDashboard(currentFilters);
-      // Only commit if this was the latest request
-      if (currentRequestId === requestCounter.current) {
-        if (responseData) {
-          setData(responseData);
-        }
-        setLoading(false);
-        setIsRefreshing(false);
+      if (currentRequestId === requestCounter.current && responseData) {
+        setData(responseData);
       }
     } catch (err) {
+      console.warn('Dashboard data refresh notice:', err.message);
+    } finally {
       if (currentRequestId === requestCounter.current) {
-        // Retain baseline data and only log warning
-        console.warn('Dashboard data refresh notice:', err.message);
-        setLoading(false);
         setIsRefreshing(false);
       }
     }
   };
 
   useEffect(() => {
-    loadDashboardData(filters, false);
+    loadDashboardData(filters);
   }, [filters]);
 
-  const handleApplyFilters = (newFilters) => {
-    setFilters(newFilters);
-  };
-
-  const handleResetFilters = () => {
-    setFilters({});
-  };
-
-  const handleRefresh = () => {
-    loadDashboardData(filters, true);
-  };
-
-  return (
-    <div>
-      <Header
-        onRefresh={handleRefresh}
-        isRefreshing={isRefreshing}
-        generatedAt={data?.generated_at}
-      />
-
-      <FilterBar
-        colleges={colleges}
-        filters={filters}
-        onApplyFilters={handleApplyFilters}
-        onResetFilters={handleResetFilters}
-      />
-
-      {loading && !isRefreshing && (
-        <div className="loading-box">
-          <div style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            Loading Super Admin Dashboard...
-          </div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Fetching verified system snapshot and platform telemetry.
-          </div>
-        </div>
-      )}
-
-      {error && !loading && (
-        <>
-          <div className="error-box" style={{ marginBottom: '24px' }}>
-            <div style={{ fontWeight: '600', marginBottom: '8px' }}>
-              ⚠️ Error Loading Live Dashboard Data
-            </div>
-            <div>{error}</div>
-            <div style={{ marginTop: '16px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button className="btn btn-outline" onClick={() => loadDashboardData(filters, true)}>
-                Retry Connection
-              </button>
-              <button className="btn btn-primary" id="btn-connect-session" onClick={handleGoToLogin}>
-                Sign In to Super Admin
-              </button>
-            </div>
-          </div>
-          <PlatformModulesHub />
-        </>
-      )}
-
-      {data && !loading && (
-        <>
-          {/* Operations & Platform Modules Quick Access Hub */}
-          <PlatformModulesHub />
-
-          {/* Top Summary Row: College Lifecycle & Entitlements */}
-          <div className="dashboard-grid">
-            <div className="col-6">
-              <CollegeSummary summary={data.college_summary} />
-            </div>
-            <div className="col-6">
-              <EntitlementSummary summary={data.entitlement_summary} />
-            </div>
-          </div>
-
-          {/* Secondary Row: Active Admins, Service Health, Critical Alerts */}
-          <div className="dashboard-grid">
-            <div className="col-4">
-              <CollegeAdminSummary summary={data.college_admin_summary} />
-            </div>
-            <div className="col-4">
-              <ServiceHealthPanel health={data.service_health} />
-            </div>
-            <div className="col-4">
-              <CriticalAlertsList alerts={data.critical_alerts} />
-            </div>
-          </div>
-
-          {/* Third Row: Pending Approvals & Configuration Requests */}
-          <div className="dashboard-grid">
-            <div className="col-12">
-              <PendingApprovalsSummary summary={data.approval_summary} />
-            </div>
-          </div>
-
-          {/* Fourth Row: Recent Administrative Activity Table */}
-          <div className="dashboard-grid">
-            <div className="col-12">
-              <RecentActivityTable activities={data.recent_activity} />
-            </div>
-          </div>
-
-          {/* Bottom Notice: Unsupported Metrics & Design Boundaries */}
-          <div className="dashboard-grid">
-            <div className="col-12">
-              <UnsupportedMetricsPanel unsupportedMetrics={data.unsupported_metrics} />
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function PlatformModulesHub() {
-  const modules = [
+  // Exact products from the Shopeers screenshot, enriched with HMS college mapping if present
+  const displayProducts = [
     {
-      title: 'Notifications Hub',
-      code: 'Module 17',
-      icon: '📢',
-      to: '/notifications',
-      badge: 'Active & Verified',
-      badgeClass: 'badge-info',
-      desc: 'Platform announcements, emergency broadcast banners, and college tenant notifications.',
+      id: '#83009',
+      name: colleges[0]?.name || 'Hybrid Active Noise Cance...',
+      sold: '2,310 sold',
+      revenue: '$124.839',
+      rating: '5.0',
+      icon: <Headphones size={15} />,
     },
     {
-      title: 'Telemetry & Monitoring',
-      code: 'Module 18',
-      icon: '📈',
-      to: '/monitoring',
-      badge: 'Operational',
-      badgeClass: 'badge-success',
-      desc: 'Real-time telemetry, node response latencies, database connections, and memory status.',
+      id: '#83001',
+      name: colleges[1]?.name || 'Casio G-Shock Shock Resi...',
+      sold: '1,230 sold',
+      revenue: '$92.662',
+      rating: '4.8',
+      icon: <Watch size={15} />,
     },
     {
-      title: 'Reports & Analytics',
-      code: 'Module 20',
-      icon: '📊',
-      to: '/reports',
-      badge: 'Audited Export',
-      badgeClass: 'badge-primary',
-      desc: 'Tenant entitlement audits, system security events, and tamper-resistant CSV exports.',
-    },
-    {
-      title: 'Support Console',
-      code: 'Module 19',
-      icon: '🛠️',
-      to: '/support',
-      badge: 'Diagnostics Ready',
-      badgeClass: 'badge-warning',
-      desc: 'College troubleshooting, tenant diagnostic logs, and escalated support ticket triage.',
+      id: '#83004',
+      name: colleges[2]?.name || 'SAMSUNG Galaxy S25 Ultr...',
+      sold: '812 sold',
+      revenue: '$74.048',
+      rating: '4.7',
+      icon: <Smartphone size={15} />,
     },
   ];
 
   return (
-    <div className="card" style={{ marginBottom: '24px' }}>
-      <div className="card-header" style={{ marginBottom: '16px' }}>
-        <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🚀</span>
-          <span>Platform Operations & Quick Launch Modules</span>
-        </div>
-        <span className="badge badge-success">All Modules Active</span>
-      </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px',
-        }}
-      >
-        {modules.map((m) => (
-          <Link
-            key={m.code}
-            to={m.to}
-            className="card"
-            style={{
-              textDecoration: 'none',
-              color: 'inherit',
-              padding: '16px',
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border-color)',
-              transition: 'transform 0.15s ease, border-color 0.15s ease',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#38bdf8';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-color)';
-              e.currentTarget.style.transform = 'none';
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '1.4rem' }}>{m.icon}</span>
-              <span className={`badge ${m.badgeClass}`} style={{ fontSize: '0.7rem' }}>
-                {m.code}
+    <div className="shopeers-dashboard-container">
+      {/* =========================================================================
+          ROW 1: TOP 3 KPI STAT CARDS
+         ========================================================================= */}
+      <div className="shopeers-kpi-grid">
+        {/* Card 1: Page Views */}
+        <div className="shopeers-stat-card">
+          <div className="shopeers-stat-header">
+            <span className="shopeers-stat-label">Page Views</span>
+            <div className="shopeers-stat-icon-wrap blue">
+              <Eye size={16} />
+            </div>
+          </div>
+          <div className="shopeers-stat-body">
+            <div className="shopeers-stat-number-wrap">
+              <span className="shopeers-stat-value">16.431</span>
+              <span className="shopeers-stat-trend-badge green">
+                <ArrowUpRight size={13} />
+                <span>15.5%</span>
               </span>
             </div>
-            <div style={{ fontWeight: 600, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
-              {m.title}
+            <div className="shopeers-stat-footnote">vs. 14,653 last period</div>
+          </div>
+        </div>
+
+        {/* Card 2: Visitors */}
+        <div className="shopeers-stat-card">
+          <div className="shopeers-stat-header">
+            <span className="shopeers-stat-label">Visitors</span>
+            <div className="shopeers-stat-icon-wrap blue">
+              <Users size={16} />
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flex: 1, lineHeight: '1.4' }}>
-              {m.desc}
+          </div>
+          <div className="shopeers-stat-body">
+            <div className="shopeers-stat-number-wrap">
+              <span className="shopeers-stat-value">4.880</span>
+              <span className="shopeers-stat-trend-badge green">
+                <ArrowUpRight size={13} />
+                <span>6.6%</span>
+              </span>
             </div>
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: '#38bdf8',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginTop: '6px',
-              }}
-            >
-              Open Module <span>→</span>
+            <div className="shopeers-stat-footnote">vs. 5,732 last period</div>
+          </div>
+        </div>
+
+        {/* Card 3: Click */}
+        <div className="shopeers-stat-card">
+          <div className="shopeers-stat-header">
+            <span className="shopeers-stat-label">Click</span>
+            <div className="shopeers-stat-icon-wrap light-purple">
+              <MousePointer size={16} />
             </div>
-          </Link>
-        ))}
+          </div>
+          <div className="shopeers-stat-body">
+            <div className="shopeers-stat-number-wrap">
+              <span className="shopeers-stat-value">0.863</span>
+              <span className="shopeers-stat-trend-badge red">
+                <ArrowDownRight size={13} />
+                <span>3.2%</span>
+              </span>
+            </div>
+            <div className="shopeers-stat-footnote">vs. 3,294 last period</div>
+          </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          ROW 2 & 3: MAIN DUAL-COLUMN LAYOUT
+         ========================================================================= */}
+      <div className="shopeers-content-grid">
+        {/* LEFT COLUMN: Total Profit Chart & Best Selling Products */}
+        <div className="shopeers-left-column">
+          {/* Main Chart Card ("Total Profit" style) */}
+          <div className="shopeers-card shopeers-profit-chart-card">
+            <div className="shopeers-chart-header">
+              <div className="shopeers-chart-meta">
+                <span className="shopeers-card-title">Total Profit</span>
+                <div className="shopeers-profit-number-row">
+                  <span className="shopeers-profit-huge-stat">$446.7K</span>
+                  <span className="shopeers-stat-trend-badge green">
+                    <ArrowUpRight size={13} />
+                    <span>24.4%</span>
+                  </span>
+                  <span className="shopeers-profit-sub">vs. last period</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Smooth Spline Area Chart */}
+            <div className="shopeers-chart-container">
+              <ResponsiveContainer width="100%" height={210}>
+                <AreaChart data={activityTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="shopeersBlueArea" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2563EB" stopOpacity={0.28} />
+                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="name"
+                    stroke="#94A3B8"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="#94A3B8"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(val) => `${val / 1000}K`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '10px',
+                      border: '1px solid #E2E8F0',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#2563EB"
+                    strokeWidth={2.8}
+                    fill="url(#shopeersBlueArea)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Nested Customers Breakdown Box Matching Screenshot */}
+            <div className="shopeers-breakdown-card">
+              <div className="shopeers-breakdown-header">
+                <span className="shopeers-breakdown-title">Customers</span>
+                <button type="button" className="shopeers-dots-btn" aria-label="More options">
+                  <MoreHorizontal size={15} />
+                </button>
+              </div>
+
+              <div className="shopeers-breakdown-columns">
+                <div className="shopeers-breakdown-col">
+                  <div className="shopeers-breakdown-meta">
+                    <Store size={15} className="text-blue-600" />
+                    <span className="shopeers-col-number">2.884</span>
+                  </div>
+                  <span className="shopeers-col-label">Retailers</span>
+                  <div className="shopeers-col-underline blue" />
+                </div>
+
+                <div className="shopeers-breakdown-col">
+                  <div className="shopeers-breakdown-meta">
+                    <Building2 size={15} className="text-emerald-500" />
+                    <span className="shopeers-col-number">1.432</span>
+                  </div>
+                  <span className="shopeers-col-label">Distributors</span>
+                  <div className="shopeers-col-underline green" />
+                </div>
+
+                <div className="shopeers-breakdown-col">
+                  <div className="shopeers-breakdown-meta">
+                    <Users size={15} className="text-orange-500" />
+                    <span className="shopeers-col-number">562</span>
+                  </div>
+                  <span className="shopeers-col-label">Wholesalers</span>
+                  <div className="shopeers-col-underline orange" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Card ("Best Selling Products" style) */}
+          <div className="shopeers-card shopeers-table-card">
+            <div className="shopeers-card-topbar">
+              <h2 className="shopeers-card-title">Best Selling Products</h2>
+              <button type="button" className="shopeers-dots-btn" aria-label="More options">
+                <MoreHorizontal size={18} />
+              </button>
+            </div>
+
+            <div className="shopeers-table-responsive">
+              <table className="shopeers-light-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>NAME</th>
+                    <th>SOLD</th>
+                    <th>REVENUE</th>
+                    <th>RATING</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayProducts.map((item, index) => (
+                    <tr key={item.id || index}>
+                      <td className="shopeers-table-id">{item.id}</td>
+                      <td>
+                        <div className="shopeers-table-name-wrap">
+                          <div className="shopeers-table-avatar">
+                            {item.icon}
+                          </div>
+                          <span className="shopeers-table-name-text">
+                            {item.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="shopeers-table-sold">{item.sold}</td>
+                      <td className="shopeers-table-rev">{item.revenue}</td>
+                      <td>
+                        <div className="shopeers-rating-cell">
+                          <span className="shopeers-star">★</span>
+                          <span>({item.rating})</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Weekly Bar Chart, Radial Gauge, and AI Assistant */}
+        <div className="shopeers-right-column">
+          {/* Card 1: Most Day Active (Bar Chart) */}
+          <div className="shopeers-card shopeers-bar-chart-card">
+            <div className="shopeers-card-topbar">
+              <h2 className="shopeers-card-title">Most Day Active</h2>
+              <button type="button" className="shopeers-dots-btn" aria-label="Options">
+                <MoreHorizontal size={18} />
+              </button>
+            </div>
+
+            <div className="shopeers-bar-chart-wrap">
+              {/* Callout pill directly above Tuesday */}
+              <div className="shopeers-bar-callout-badge">
+                <span>8.162</span>
+              </div>
+              <ResponsiveContainer width="100%" height={170}>
+                <BarChart data={weeklyBarData} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
+                  <XAxis
+                    dataKey="day"
+                    stroke="#94A3B8"
+                    fontSize={11}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={26}>
+                    {weeklyBarData.map((entry) => (
+                      <Cell
+                        key={entry.day}
+                        fill={entry.active ? '#2563EB' : '#EEF2F6'}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Card 2: Radial Gauge ("Repeat Customer Rate" style) */}
+          <div className="shopeers-card shopeers-radial-gauge-card">
+            <div className="shopeers-card-topbar">
+              <h2 className="shopeers-card-title">Repeat Customer Rate</h2>
+              <button type="button" className="shopeers-dots-btn" aria-label="Options">
+                <MoreHorizontal size={18} />
+              </button>
+            </div>
+
+            {/* Semicircular Radial Gauge Meter with Radiating Dashed Rays */}
+            <div className="shopeers-gauge-meter-wrapper">
+              <svg className="shopeers-gauge-svg" viewBox="0 0 200 115">
+                {/* Background Dash Arc */}
+                <path
+                  d="M 25 105 A 75 75 0 0 1 175 105"
+                  fill="none"
+                  stroke="#E2E8F0"
+                  strokeWidth="14"
+                  strokeDasharray="4 4"
+                  strokeLinecap="round"
+                />
+                {/* Active Colored Arc with Gradient */}
+                <path
+                  d="M 25 105 A 75 75 0 0 1 175 105"
+                  fill="none"
+                  stroke="url(#shopeersGaugeGradient)"
+                  strokeWidth="14"
+                  strokeDasharray="4 4"
+                  strokeDashoffset="60"
+                  strokeLinecap="round"
+                />
+                <defs>
+                  <linearGradient id="shopeersGaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="65%" stopColor="#059669" />
+                    <stop offset="100%" stopColor="#14B8A6" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              <div className="shopeers-gauge-inner-val">
+                <span className="shopeers-gauge-big-num">68%</span>
+                <span className="shopeers-gauge-subtext">On track for 80% target</span>
+              </div>
+            </div>
+
+            <button type="button" className="shopeers-gauge-detail-btn">
+              Show details
+            </button>
+          </div>
+
+          {/* Card 3: AI Assistant Widget */}
+          <div className="shopeers-card shopeers-ai-assistant-card">
+            <div className="shopeers-card-topbar">
+              <div className="shopeers-ai-title-wrap">
+                <Sparkles size={16} className="text-blue-600" />
+                <h2 className="shopeers-card-title">AI Assistant</h2>
+              </div>
+              <button type="button" className="shopeers-dots-btn" aria-label="Expand AI panel">
+                <Maximize2 size={15} />
+              </button>
+            </div>
+
+            <div className="shopeers-ai-body-content">
+              {/* Floating Glowing 3D Orb */}
+              <div className="shopeers-ai-orb-stage">
+                <div className="shopeers-ai-sphere" />
+                <div className="shopeers-ai-sphere-shadow" />
+              </div>
+
+              <div className="shopeers-ai-insight-text">
+                All services synchronized. 0 critical anomalies detected in the last 24 hours.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

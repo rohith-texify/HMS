@@ -1,53 +1,35 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { RotateCw, Plus, CheckSquare, Sparkles } from 'lucide-react';
 
 export default function Header({ onRefresh, isRefreshing, generatedAt }) {
   return (
-    <div className="shopeers-hero-header">
-      <div className="shopeers-hero-left">
-        <div className="shopeers-hero-pill">
-          <Sparkles size={14} className="shopeers-sparkle-icon" />
-          <span>Texify AI-Powered Enterprise Engine</span>
-        </div>
-        <h1 className="shopeers-hero-title">Super Admin Intelligence Center</h1>
-        <p className="shopeers-hero-subtitle">
-          Platform-wide health, multi-tenant college lifecycle, module entitlements, and real-time operational telemetry.
+    <div className="header-container">
+      <div>
+        <h1 className="page-title">Super Admin Dashboard</h1>
+        <p className="page-subtitle">
+          Platform-wide health, college lifecycle status, entitlements, and administrative activity.
           {generatedAt && (
-            <span className="shopeers-timestamp-badge">
-              • Synced {new Date(generatedAt).toLocaleTimeString()}
+            <span style={{ marginLeft: '10px', color: 'var(--text-muted)' }}>
+              Updated: {new Date(generatedAt).toLocaleTimeString()}
             </span>
           )}
         </p>
       </div>
 
-      <div className="shopeers-hero-actions">
+      <div className="quick-actions">
         <button
-          className={`shopeers-action-btn secondary ${isRefreshing ? 'refreshing' : ''}`}
+          className="btn btn-outline"
           onClick={onRefresh}
           disabled={isRefreshing}
-          title="Refresh dashboard telemetry"
+          title="Refresh dashboard data"
         >
-          <RotateCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
-          <span>{isRefreshing ? 'Syncing...' : 'Refresh'}</span>
+          {isRefreshing ? 'Refreshing...' : '↻ Refresh'}
         </button>
-
-        <Link
-          to="/approvals"
-          className="shopeers-action-btn secondary"
-          id="btn-review-approvals"
-        >
-          <CheckSquare size={15} />
-          <span>Review Approvals</span>
+        <Link to="/colleges/new" className="btn btn-primary" id="btn-create-college">
+          + Create College
         </Link>
-
-        <Link
-          to="/colleges/new"
-          className="shopeers-action-btn primary"
-          id="btn-create-college"
-        >
-          <Plus size={16} />
-          <span>Create College</span>
+        <Link to="/approvals" className="btn btn-outline" id="btn-review-approvals">
+          Review Approvals
         </Link>
       </div>
     </div>
