@@ -167,9 +167,24 @@ export const adminService = {
   async updateStaffStatus(id, status) {
     return api.patch(`/college/staff/${id}/status`, { status });
   },
+
+  // Hostel Incharges
   async getInchargeAssignments(hostelId) {
     const res = await api.get(`/college/hostels/${hostelId}/incharges`);
     return res.data || res;
+  },
+  async getInchargeAssignmentById(hostelId, assignmentId) {
+    const res = await api.get(`/college/hostels/${hostelId}/incharges/${assignmentId}`);
+    return res.data || res;
+  },
+  async createInchargeAssignment(hostelId, payload) {
+    return api.post(`/college/hostels/${hostelId}/incharges`, payload);
+  },
+  async updateInchargeAssignment(hostelId, assignmentId, payload) {
+    return api.put(`/college/hostels/${hostelId}/incharges/${assignmentId}`, payload);
+  },
+  async deleteInchargeAssignment(hostelId, assignmentId) {
+    return api.delete(`/college/hostels/${hostelId}/incharges/${assignmentId}`);
   },
 
   // Security Gates & Assignments
@@ -180,6 +195,24 @@ export const adminService = {
   async getSecurityAssignments() {
     const res = await api.get('/college/security-assignments');
     return res.data || res;
+  },
+  async getSecurityAssignmentById(assignmentId) {
+    const res = await api.get(`/college/security-assignments/${assignmentId}`);
+    return res.data || res;
+  },
+  async createSecurityAssignment(payload) {
+    return api.post('/college/security-assignments', payload);
+  },
+  async updateSecurityAssignment(assignmentId, payload) {
+    return api.put(`/college/security-assignments/${assignmentId}`, payload);
+  },
+  async deleteSecurityAssignment(assignmentId) {
+    return api.delete(`/college/security-assignments/${assignmentId}`);
+  },
+
+  // Account & Password Management (Audit & Recovery)
+  async resetStaffPassword(staffId, payload) {
+    return api.post(`/college/staff/${staffId}/reset-password`, payload);
   },
 
   // Attendance & Summaries

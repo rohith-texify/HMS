@@ -14,6 +14,7 @@ import {
   MessageSquare,
   AlertTriangle,
   FileText,
+  KeyRound,
 } from 'lucide-react';
 
 /**
@@ -66,6 +67,20 @@ export const ROLE_NAVIGATION = {
             description: 'Manage wardens, hostel in-charges, security guards, and staff roles',
           },
           {
+            label: 'Hostel In-Charges',
+            path: '/admin/incharges',
+            icon: BedDouble,
+            permission: 'people.view',
+            description: 'Manage residential primary and backup warden hostel assignments',
+          },
+          {
+            label: 'Security Personnel',
+            path: '/admin/security-assignments',
+            icon: ShieldCheck,
+            permission: 'people.view',
+            description: 'Campus gate security guard postings and shift management',
+          },
+          {
             label: 'Students Directory',
             path: '/admin/students',
             icon: GraduationCap,
@@ -78,6 +93,13 @@ export const ROLE_NAVIGATION = {
             icon: Users,
             permission: 'people.view',
             description: 'Registered parent profiles, emergency contacts, and student linkages',
+          },
+          {
+            label: 'Password & Access',
+            path: '/admin/passwords',
+            icon: KeyRound,
+            permission: 'people.view',
+            description: 'Administrative credential reset, access control, and account security',
           },
         ],
       },
@@ -107,8 +129,11 @@ export const ROLE_NAVIGATION = {
         group: 'Community Management',
         items: [
           { label: 'College Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
+          { label: 'Hostel In-Charges', path: '/admin/incharges', icon: BedDouble, permission: 'people.view' },
+          { label: 'Security Personnel', path: '/admin/security-assignments', icon: ShieldCheck, permission: 'people.view' },
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
           { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
+          { label: 'Password & Access', path: '/admin/passwords', icon: KeyRound, permission: 'people.view' },
         ],
       },
     ],
@@ -137,8 +162,11 @@ export const ROLE_NAVIGATION = {
         group: 'Community Management',
         items: [
           { label: 'College Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
+          { label: 'Hostel In-Charges', path: '/admin/incharges', icon: BedDouble, permission: 'people.view' },
+          { label: 'Security Personnel', path: '/admin/security-assignments', icon: ShieldCheck, permission: 'people.view' },
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
           { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
+          { label: 'Password & Access', path: '/admin/passwords', icon: KeyRound, permission: 'people.view' },
         ],
       },
     ],
@@ -335,8 +363,11 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/dashboard': { group: 'Overview', title: 'Dashboard' },
     '/admin/hostels': { group: 'Facility & Inventory', title: 'Hostels & Blocks' },
     '/admin/staff': { group: 'Community Management', title: 'College Staff' },
+    '/admin/incharges': { group: 'Community Management', title: 'Hostel In-Charges' },
+    '/admin/security-assignments': { group: 'Community Management', title: 'Security Personnel' },
     '/admin/students': { group: 'Community Management', title: 'Students Directory' },
     '/admin/parents': { group: 'Community Management', title: 'Parents & Guardians' },
+    '/admin/passwords': { group: 'Community Management', title: 'Password & Access' },
   };
 
   return routeMap[pathname] || { group: roleConfig?.brand || 'College Administration', title: 'Dashboard' };

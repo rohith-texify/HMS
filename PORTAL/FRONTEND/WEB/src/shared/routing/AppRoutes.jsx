@@ -85,6 +85,9 @@ export default function AppRoutes() {
           <Route path="dashboard" element={<AdminDashboardPage />} />
           <Route path="students" element={<AdminStudentsPage />} />
           <Route path="staff" element={<AdminStaffPage />} />
+          <Route path="incharges" element={<AdminStaffPage defaultTab="incharges" />} />
+          <Route path="security-assignments" element={<AdminStaffPage defaultTab="security" />} />
+          <Route path="passwords" element={<AdminStaffPage defaultTab="passwords" />} />
           <Route path="hostels" element={<AdminHostelsPage />} />
           <Route path="parents" element={<AdminParentsPage />} />
         </Route>
