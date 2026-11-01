@@ -143,7 +143,7 @@ export default function SystemMonitoringPage() {
   const serviceHealth = metrics?.service_health || DEFAULT_METRICS.service_health;
   const dbStats = metrics?.database_stats || DEFAULT_METRICS.database_stats;
   const tenantStats = metrics?.tenant_stats || DEFAULT_METRICS.tenant_stats;
-  const recentErrors = metrics?.recent_system_errors || [];
+  const recentErrors = useMemo(() => metrics?.recent_system_errors || [], [metrics?.recent_system_errors]);
   const telemetry = metrics?.telemetry_signals || DEFAULT_METRICS.telemetry_signals;
 
   const totalPoolConns = (dbStats.platform_pool_total_conns || 0) + (dbStats.college_pool_total_conns || 0);

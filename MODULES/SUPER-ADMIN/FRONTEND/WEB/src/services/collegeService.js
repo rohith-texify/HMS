@@ -83,16 +83,12 @@ export async function fetchCollegeOnboarding(collegeId, signal) {
  * @returns {Promise<Object>} Created college
  */
 export async function createCollege(payload) {
-  try {
-    const res = await api.post('/super-admin/colleges', payload);
-    const college = res.data?.college;
-    if (college && res.data?.admin) {
-      college.admin = res.data.admin;
-    }
-    return college;
-  } catch (err) {
-    throw err;
+  const res = await api.post('/super-admin/colleges', payload);
+  const college = res.data?.college;
+  if (college && res.data?.admin) {
+    college.admin = res.data.admin;
   }
+  return college;
 }
 
 /**

@@ -108,12 +108,8 @@ export async function loginSuperAdmin(email, password) {
   if (!email || !password) {
     throw new Error('Email and password are required');
   }
-  try {
-    const res = await api.post('/auth/login', { email, password }, { timeout: 8000 });
-    return res.data;
-  } catch (err) {
-    throw err;
-  }
+  const res = await api.post('/auth/login', { email, password }, { timeout: 8000 });
+  return res.data;
 }
 
 let cachedColleges = null;
