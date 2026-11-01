@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   FileText,
   KeyRound,
+  DoorOpen,
 } from 'lucide-react';
 
 /**
@@ -53,6 +54,13 @@ export const ROLE_NAVIGATION = {
             icon: Building2,
             permission: 'hostel.view',
             description: 'Manage residential hostels, wings, floors, rooms, and bed capacity',
+          },
+          {
+            label: 'Rooms & Beds',
+            path: '/admin/rooms',
+            icon: DoorOpen,
+            permission: 'hostel.view',
+            description: 'Explore room inventory, types, and bed allocations',
           },
         ],
       },
@@ -123,6 +131,7 @@ export const ROLE_NAVIGATION = {
         group: 'Facility & Inventory',
         items: [
           { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2, permission: 'hostel.view' },
+          { label: 'Rooms & Beds', path: '/admin/rooms', icon: DoorOpen, permission: 'hostel.view' },
         ],
       },
       {
@@ -156,6 +165,7 @@ export const ROLE_NAVIGATION = {
         group: 'Facility & Inventory',
         items: [
           { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2, permission: 'hostel.view' },
+          { label: 'Rooms & Beds', path: '/admin/rooms', icon: DoorOpen, permission: 'hostel.view' },
         ],
       },
       {
@@ -362,6 +372,7 @@ export function resolveBreadcrumb(pathname, roleConfig) {
   const routeMap = {
     '/admin/dashboard': { group: 'Overview', title: 'Dashboard' },
     '/admin/hostels': { group: 'Facility & Inventory', title: 'Hostels & Blocks' },
+    '/admin/rooms': { group: 'Facility & Inventory', title: 'Rooms & Beds' },
     '/admin/staff': { group: 'Community Management', title: 'College Staff' },
     '/admin/incharges': { group: 'Community Management', title: 'Hostel In-Charges' },
     '/admin/security-assignments': { group: 'Community Management', title: 'Security Personnel' },

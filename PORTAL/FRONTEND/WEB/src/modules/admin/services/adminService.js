@@ -37,8 +37,18 @@ export const adminService = {
     const res = await api.get(`/college/hostels/${hostelId}/blocks`);
     return res.data || res;
   },
+  async getBlockById(hostelId, blockId) {
+    const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}`);
+    return res.data || res;
+  },
   async createBlock(hostelId, payload) {
     return api.post(`/college/hostels/${hostelId}/blocks`, payload);
+  },
+  async updateBlock(hostelId, blockId, payload) {
+    return api.put(`/college/hostels/${hostelId}/blocks/${blockId}`, payload);
+  },
+  async updateBlockStatus(hostelId, blockId, status) {
+    return api.patch(`/college/hostels/${hostelId}/blocks/${blockId}/status`, { status });
   },
 
   // Floors
@@ -46,8 +56,18 @@ export const adminService = {
     const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}/floors`);
     return res.data || res;
   },
+  async getFloorById(hostelId, blockId, floorId) {
+    const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}`);
+    return res.data || res;
+  },
   async createFloor(hostelId, blockId, payload) {
     return api.post(`/college/hostels/${hostelId}/blocks/${blockId}/floors`, payload);
+  },
+  async updateFloor(hostelId, blockId, floorId, payload) {
+    return api.put(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}`, payload);
+  },
+  async updateFloorStatus(hostelId, blockId, floorId, status) {
+    return api.patch(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/status`, { status });
   },
 
   // Rooms
@@ -55,13 +75,50 @@ export const adminService = {
     const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms`);
     return res.data || res;
   },
+  async getRoomById(hostelId, blockId, floorId, roomId) {
+    const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}`);
+    return res.data || res;
+  },
   async createRoom(hostelId, blockId, floorId, payload) {
     return api.post(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms`, payload);
+  },
+  async updateRoom(hostelId, blockId, floorId, roomId, payload) {
+    return api.put(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}`, payload);
+  },
+  async updateRoomStatus(hostelId, blockId, floorId, roomId, status) {
+    return api.patch(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}/status`, { status });
   },
 
   // Beds
   async getBeds(hostelId, blockId, floorId, roomId) {
     const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}/beds`);
+    return res.data || res;
+  },
+  async getBedById(hostelId, blockId, floorId, roomId, bedId) {
+    const res = await api.get(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}/beds/${bedId}`);
+    return res.data || res;
+  },
+  async createBed(hostelId, blockId, floorId, roomId, payload) {
+    return api.post(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}/beds`, payload);
+  },
+  async updateBed(hostelId, blockId, floorId, roomId, bedId, payload) {
+    return api.put(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}/beds/${bedId}`, payload);
+  },
+  async updateBedStatus(hostelId, blockId, floorId, roomId, bedId, status) {
+    return api.patch(`/college/hostels/${hostelId}/blocks/${blockId}/floors/${floorId}/rooms/${roomId}/beds/${bedId}/status`, { status });
+  },
+
+  // Bed Allocations & Occupancy
+  async getBedAllocations(params = {}) {
+    const res = await api.get('/college/bed-allocations', { params });
+    return res.data || res;
+  },
+  async getCurrentBedAllocations() {
+    const res = await api.get('/college/bed-allocations/current');
+    return res.data || res;
+  },
+  async getBedAllocationById(id) {
+    const res = await api.get(`/college/bed-allocations/${id}`);
     return res.data || res;
   },
 
