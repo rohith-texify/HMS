@@ -1,7 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP, SUPER_ADMIN_URL } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP } from '../shared/auth/portalAuthService';
+import {
+  Shield,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  Building2,
+  GraduationCap,
+  Users,
+  LayoutDashboard,
+  AlertCircle,
+  HelpCircle,
+  X,
+  CheckCircle2,
+} from 'lucide-react';
 import '../shared/styles/portal.css';
 
 export default function SharedLoginPage() {
@@ -11,28 +26,30 @@ export default function SharedLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [superAdminNotice, setSuperAdminNotice] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // If already authenticated, redirect to authorized dashboard
+  // If already authenticated as an admin, redirect to admin dashboard
   useEffect(() => {
-    if (isAuthenticated && user?.role && ROLE_ROUTE_MAP[user.role]) {
-      const fromPath = location.state?.from?.pathname;
-      const targetPath = fromPath || ROLE_ROUTE_MAP[user.role].path;
-      navigate(targetPath, { replace: true });
+    if (isAuthenticated && user?.role) {
+      const allowedAdminRoles = ['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'];
+      if (allowedAdminRoles.includes(user.role)) {
+        const fromPath = location.state?.from?.pathname;
+        const targetPath = fromPath || '/admin/dashboard';
+        navigate(targetPath, { replace: true });
+      }
     }
   }, [isAuthenticated, user, navigate, location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    setSuperAdminNotice(false);
 
     if (!email.trim()) {
-      setError('Please provide your institutional email address.');
+      setError('Please provide your college administrator email address.');
       return;
     }
     if (!password) {
@@ -44,109 +61,172 @@ export default function SharedLoginPage() {
     try {
       const result = await login(email, password, rememberMe);
 
+      // Block Super Admin accounts from this portal
       if (result.isSuperAdmin) {
-        setSuperAdminNotice(true);
+        setError('Super Administrator accounts cannot access the College Admin portal. Please sign in with your College Administrator credentials.');
         setLoading(false);
         return;
       }
 
-      const targetPath = location.state?.from?.pathname || result.redirectPath;
+      // Restrict access strictly to College Admin roles for current design phase
+      const role = result.user?.role || '';
+      const allowedAdminRoles = ['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'];
+      if (!allowedAdminRoles.includes(role)) {
+        setError('Access is currently limited to College Administrators while the Admin module is under active development.');
+        setLoading(false);
+        return;
+      }
+
+      const targetPath = location.state?.from?.pathname || '/admin/dashboard';
       navigate(targetPath, { replace: true });
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your credentials.');
+      setError(err.message || 'Authentication failed. Please verify your administrator credentials.');
       setLoading(false);
     }
   };
 
+  const adminCapabilities = [
+    { label: 'Admin Dashboard', icon: LayoutDashboard, desc: 'Occupancy & campus KPIs' },
+    { label: 'Hostels & Blocks', icon: Building2, desc: 'Structures, wings & rooms' },
+    { label: 'College Staff', icon: Users, desc: 'Wardens & supervisors' },
+    { label: 'Student Directory', icon: GraduationCap, desc: 'Allotments & records' },
+  ];
+
   return (
     <div className="portal-auth-container">
       <div className="portal-card">
-        {/* Institutional Header */}
-        <div className="portal-header">
-          <div className="portal-badge-pill">Hostel Management System</div>
-          <h1 className="portal-title">Institutional Portal</h1>
-          <p className="portal-subtitle">
-            Sign in with your registered college credentials. You will be automatically routed to your authorized operational dashboard.
-          </p>
-        </div>
-
-        {/* Super Admin Notice Banner */}
-        {superAdminNotice && (
-          <div className="alert-banner alert-warning" role="alert">
-            <div>
-              <strong>Super Administrator Identity Detected</strong>
-              <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-                Platform administrators manage multi-tenant infrastructure from the dedicated Super Admin control plane.
-              </p>
-              <div style={{ marginTop: '10px' }}>
-                <a
-                  href={SUPER_ADMIN_URL}
-                  className="btn-portal-primary"
-                  style={{ display: 'inline-block', textDecoration: 'none', padding: '6px 14px', fontSize: '0.85rem' }}
-                >
-                  Launch Super Admin Console →
-                </a>
-              </div>
+        {/* Brand & Header Topbar */}
+        <div className="portal-brand-block">
+          <div className="portal-brand-identity">
+            <img
+              src="/texify-logo.png"
+              alt="Texify Technologies"
+              className="portal-brand-logo-img"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                if (e.currentTarget.nextSibling) {
+                  e.currentTarget.nextSibling.style.display = 'flex';
+                }
+              }}
+            />
+            <div className="portal-brand-fallback-logo" style={{ display: 'none' }}>
+              <Building2 size={18} />
+            </div>
+            <div className="portal-brand-name-group">
+              <span className="portal-brand-main-title">Texify HMS</span>
+              <span className="portal-brand-caption">College Administration</span>
             </div>
           </div>
-        )}
+
+          <div className="portal-badge-pill">
+            <span className="portal-live-indicator-dot" />
+            <span>Admin Module</span>
+          </div>
+        </div>
+
+        {/* Title Block */}
+        <div className="portal-header-titles">
+          <h1 className="portal-title">College Admin Sign In</h1>
+          <p className="portal-subtitle">
+            Sign in with your College Administrator credentials to manage campus hostels, staff, students, and operational allocations.
+          </p>
+        </div>
 
         {/* Error Alert */}
         {error && (
           <div className="alert-banner alert-error" role="alert">
-            <span>⚠️ {error}</span>
+            <AlertCircle size={18} className="alert-banner-icon" />
+            <div className="alert-banner-content">
+              <span>{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Expandable Help / Information Notice */}
+        {showHelp && (
+          <div className="portal-help-box">
+            <div className="portal-help-header">
+              <span>Need Assistance?</span>
+              <button
+                type="button"
+                className="portal-help-close-btn"
+                onClick={() => setShowHelp(false)}
+                aria-label="Close help"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <p style={{ margin: 0 }}>
+              College Administrator accounts are provisioned during college onboarding. If you require credentials or password resets, contact your institutional IT department or platform onboarding representative.
+            </p>
           </div>
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} noValidate>
+        <form onSubmit={handleSubmit} noValidate className="portal-login-form">
+          {/* Administrator Email Field */}
           <div className="form-field">
             <label className="field-label" htmlFor="portal-email">
-              Institutional Email
+              <span className="field-label-text">
+                <Mail size={14} className="field-label-icon" />
+                <span>Administrator Email</span>
+              </span>
             </label>
-            <input
-              id="portal-email"
-              type="email"
-              className="field-input"
-              placeholder="e.g. admin@college.edu or student@college.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-              autoComplete="email"
-              required
-            />
+            <div className="input-with-action">
+              <input
+                id="portal-email"
+                type="email"
+                className="field-input"
+                placeholder="admin@college.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
+                autoComplete="username"
+                required
+              />
+              <span className="input-leading-icon">
+                <Mail size={16} />
+              </span>
+            </div>
           </div>
 
+          {/* Password Field */}
           <div className="form-field">
             <label className="field-label" htmlFor="portal-password">
-              Password
+              <span className="field-label-text">
+                <Lock size={14} className="field-label-icon" />
+                <span>Password</span>
+              </span>
             </label>
             <div className="input-with-action">
               <input
                 id="portal-password"
                 type={showPassword ? 'text' : 'password'}
                 className="field-input"
-                placeholder="Enter your password"
+                placeholder="Enter your administrator password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
                 autoComplete="current-password"
                 required
               />
+              <span className="input-leading-icon">
+                <Lock size={16} />
+              </span>
               <button
                 type="button"
                 className="btn-password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? '🙈' : '👁️'}
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
 
+          {/* Options Row */}
           <div className="form-options">
-            <label className="remember-checkbox">
+            <label className="remember-checkbox-label">
               <input
                 type="checkbox"
                 checked={rememberMe}
@@ -155,8 +235,18 @@ export default function SharedLoginPage() {
               />
               <span>Keep me signed in</span>
             </label>
+
+            <button
+              type="button"
+              className="btn-help-link"
+              onClick={() => setShowHelp((prev) => !prev)}
+            >
+              <HelpCircle size={13} />
+              <span>Forgot password?</span>
+            </button>
           </div>
 
+          {/* Submit Action */}
           <button
             type="submit"
             className="btn-portal-primary"
@@ -165,27 +255,46 @@ export default function SharedLoginPage() {
           >
             {loading ? (
               <span className="spinner-inline">
-                <span className="spinner" /> Authenticating...
+                <span className="portal-spinner" />
+                <span>Authenticating...</span>
               </span>
             ) : (
-              'Sign In to Institutional Portal'
+              <span>Sign In to College Admin</span>
             )}
           </button>
         </form>
 
-        {/* Role Routing Matrix Guide */}
-        <div className="portal-footer">
-          <div className="roles-guide-title">Supported Institutional Roles:</div>
+        {/* Admin Module Features Pill Grid */}
+        <div className="portal-footer-roles">
+          <div className="roles-guide-title">
+            <span>Admin Module Management Scope</span>
+          </div>
           <div className="roles-pill-grid">
-            <span className="role-chip" title="College Administration">🏛️ Admin</span>
-            <span className="role-chip" title="Resident Student">🎓 Student</span>
-            <span className="role-chip" title="Parent / Guardian">👨‍👩‍👧 Parent</span>
-            <span className="role-chip" title="Hostel In-Charge & Wardens">📋 Incharge</span>
-            <span className="role-chip" title="Campus Security Gate">🛡️ Security</span>
+            {adminCapabilities.map((cap) => {
+              const IconComp = cap.icon;
+              return (
+                <div
+                  key={cap.label}
+                  className="role-chip-card"
+                  title={cap.desc}
+                >
+                  <span className="role-chip-icon">
+                    <IconComp size={13} />
+                  </span>
+                  <span>{cap.label}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
+
+      {/* Outer Bottom Bar */}
+      <footer className="portal-outer-footer">
+        <span className="portal-outer-copyright">
+          © {new Date().getFullYear()} Texify Technologies Platform Engine • College Administration
+        </span>
+      </footer>
     </div>
   );
 }
-

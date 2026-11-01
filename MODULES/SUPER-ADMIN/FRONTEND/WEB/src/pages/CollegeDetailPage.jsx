@@ -975,13 +975,12 @@ export default function CollegeDetailPage() {
                     </td>
                     <td>
                       <span
-                        className={`badge ${
-                          step.status === 'COMPLETED'
+                        className={`badge ${step.status === 'COMPLETED'
                             ? 'badge-success'
                             : step.status === 'IN_PROGRESS'
-                            ? 'badge-warning'
-                            : 'badge-muted'
-                        }`}
+                              ? 'badge-warning'
+                              : 'badge-muted'
+                          }`}
                       >
                         {step.status}
                       </span>
@@ -1337,8 +1336,8 @@ export default function CollegeDetailPage() {
                   {lifecycleSubmitting
                     ? 'Processing...'
                     : lifecycleMode === 'APPROVAL'
-                    ? 'Submit Approval Request'
-                    : 'Confirm Status Change'}
+                      ? 'Submit Approval Request'
+                      : 'Confirm Status Change'}
                 </button>
               </div>
             </form>

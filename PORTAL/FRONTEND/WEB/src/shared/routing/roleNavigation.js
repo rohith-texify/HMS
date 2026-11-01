@@ -1,122 +1,222 @@
+import {
+  Compass,
+  Building2,
+  Users,
+  GraduationCap,
+  LayoutDashboard,
+  Send,
+  Wrench,
+  BedDouble,
+  ClipboardList,
+  ShieldCheck,
+} from 'lucide-react';
+
 /**
  * Authoritative module navigation configurations per role.
+ * Structured with hierarchical nav groups and semantic Lucide vector icons.
  */
 export const ROLE_NAVIGATION = {
   // College Administration
   COLLEGE_ADMIN: {
     brand: 'College Admin',
-    icon: '🏛️',
+    moduleTitle: 'College Administration',
+    icon: Building2,
     basePath: '/admin',
-    navItems: [
-      { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-      { label: 'Students', path: '/admin/students', icon: '🎓' },
-      { label: 'College Staff', path: '/admin/staff', icon: '👥' },
-      { label: 'Hostels & Blocks', path: '/admin/hostels', icon: '🏢' },
+    navGroups: [
+      {
+        group: 'Overview',
+        items: [
+          { label: 'Dashboard', path: '/admin/dashboard', icon: Compass },
+        ],
+      },
+      {
+        group: 'Facility & Inventory',
+        items: [
+          { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2 },
+        ],
+      },
+      {
+        group: 'Community Management',
+        items: [
+          { label: 'College Staff', path: '/admin/staff', icon: Users },
+          { label: 'Students Directory', path: '/admin/students', icon: GraduationCap },
+        ],
+      },
     ],
   },
   HOSTEL_ADMIN: {
     brand: 'Hostel Admin',
-    icon: '🏛️',
+    moduleTitle: 'Hostel Administration',
+    icon: Building2,
     basePath: '/admin',
-    navItems: [
-      { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-      { label: 'Students', path: '/admin/students', icon: '🎓' },
-      { label: 'College Staff', path: '/admin/staff', icon: '👥' },
-      { label: 'Hostels & Blocks', path: '/admin/hostels', icon: '🏢' },
+    navGroups: [
+      {
+        group: 'Overview',
+        items: [
+          { label: 'Dashboard', path: '/admin/dashboard', icon: Compass },
+        ],
+      },
+      {
+        group: 'Facility & Inventory',
+        items: [
+          { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2 },
+        ],
+      },
+      {
+        group: 'Community Management',
+        items: [
+          { label: 'College Staff', path: '/admin/staff', icon: Users },
+          { label: 'Students Directory', path: '/admin/students', icon: GraduationCap },
+        ],
+      },
     ],
   },
   ADMIN: {
     brand: 'Administration',
-    icon: '🏛️',
+    moduleTitle: 'Institutional Administration',
+    icon: Building2,
     basePath: '/admin',
-    navItems: [
-      { label: 'Dashboard', path: '/admin/dashboard', icon: '📊' },
-      { label: 'Students', path: '/admin/students', icon: '🎓' },
-      { label: 'College Staff', path: '/admin/staff', icon: '👥' },
-      { label: 'Hostels & Blocks', path: '/admin/hostels', icon: '🏢' },
+    navGroups: [
+      {
+        group: 'Overview',
+        items: [
+          { label: 'Dashboard', path: '/admin/dashboard', icon: Compass },
+        ],
+      },
+      {
+        group: 'Facility & Inventory',
+        items: [
+          { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2 },
+        ],
+      },
+      {
+        group: 'Community Management',
+        items: [
+          { label: 'College Staff', path: '/admin/staff', icon: Users },
+          { label: 'Students Directory', path: '/admin/students', icon: GraduationCap },
+        ],
+      },
     ],
   },
 
-  // Student Portal
+  // Supporting Portals
   STUDENT: {
     brand: 'Student Portal',
-    icon: '🎓',
+    moduleTitle: 'Student Residential Suite',
+    icon: GraduationCap,
     basePath: '/student',
-    navItems: [
-      { label: 'My Overview', path: '/student/dashboard', icon: '📊' },
-      { label: 'Leave Requests', path: '/student/leaves', icon: '✈️' },
-      { label: 'Complaints', path: '/student/complaints', icon: '🔧' },
+    navGroups: [
+      {
+        group: 'Student Overview',
+        items: [
+          { label: 'My Overview', path: '/student/dashboard', icon: Compass },
+          { label: 'Leave Requests', path: '/student/leaves', icon: Send },
+          { label: 'Complaints', path: '/student/complaints', icon: Wrench },
+        ],
+      },
     ],
   },
 
-  // Parent Portal
   PARENT: {
     brand: 'Parent Portal',
-    icon: '👨‍👩‍👧',
+    moduleTitle: 'Parent & Guardian Portal',
+    icon: Users,
     basePath: '/parent',
-    navItems: [
-      { label: 'Ward Overview', path: '/parent/dashboard', icon: '📊' },
-      { label: 'Leave History', path: '/parent/leaves', icon: '✈️' },
+    navGroups: [
+      {
+        group: 'Ward Status',
+        items: [
+          { label: 'Ward Overview', path: '/parent/dashboard', icon: Compass },
+          { label: 'Leave History', path: '/parent/leaves', icon: Send },
+        ],
+      },
     ],
   },
 
-  // Hostel Incharge Portal
   HOSTEL_INCHARGE: {
     brand: 'Hostel In-Charge',
-    icon: '📋',
+    moduleTitle: 'Warden & Hostel Incharge',
+    icon: ClipboardList,
     basePath: '/hostel-incharge',
-    navItems: [
-      { label: 'Overview', path: '/hostel-incharge/dashboard', icon: '📊' },
-      { label: 'Rooms & Occupancy', path: '/hostel-incharge/rooms', icon: '🛏️' },
-      { label: 'Complaints', path: '/hostel-incharge/complaints', icon: '🔧' },
-      { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: '📝' },
+    navGroups: [
+      {
+        group: 'Operations',
+        items: [
+          { label: 'Overview', path: '/hostel-incharge/dashboard', icon: Compass },
+          { label: 'Rooms & Occupancy', path: '/hostel-incharge/rooms', icon: BedDouble },
+          { label: 'Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
+        ],
+      },
     ],
   },
   INCHARGE: {
     brand: 'Hostel In-Charge',
-    icon: '📋',
+    moduleTitle: 'Warden & Hostel Incharge',
+    icon: ClipboardList,
     basePath: '/hostel-incharge',
-    navItems: [
-      { label: 'Overview', path: '/hostel-incharge/dashboard', icon: '📊' },
-      { label: 'Rooms & Occupancy', path: '/hostel-incharge/rooms', icon: '🛏️' },
-      { label: 'Complaints', path: '/hostel-incharge/complaints', icon: '🔧' },
-      { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: '📝' },
+    navGroups: [
+      {
+        group: 'Operations',
+        items: [
+          { label: 'Overview', path: '/hostel-incharge/dashboard', icon: Compass },
+          { label: 'Rooms & Occupancy', path: '/hostel-incharge/rooms', icon: BedDouble },
+          { label: 'Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
+        ],
+      },
     ],
   },
   WARDEN: {
     brand: 'Hostel Warden',
-    icon: '📋',
+    moduleTitle: 'Warden Residential Suite',
+    icon: ClipboardList,
     basePath: '/hostel-incharge',
-    navItems: [
-      { label: 'Overview', path: '/hostel-incharge/dashboard', icon: '📊' },
-      { label: 'Rooms & Occupancy', path: '/hostel-incharge/rooms', icon: '🛏️' },
-      { label: 'Complaints', path: '/hostel-incharge/complaints', icon: '🔧' },
-      { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: '📝' },
+    navGroups: [
+      {
+        group: 'Operations',
+        items: [
+          { label: 'Overview', path: '/hostel-incharge/dashboard', icon: Compass },
+          { label: 'Rooms & Occupancy', path: '/hostel-incharge/rooms', icon: BedDouble },
+          { label: 'Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
+        ],
+      },
     ],
   },
 
-  // Security Portal
   SECURITY: {
     brand: 'Campus Security',
-    icon: '🛡️',
+    moduleTitle: 'Campus Gate & Perimeter Security',
+    icon: ShieldCheck,
     basePath: '/security',
-    navItems: [
-      { label: 'Gate Operations', path: '/security/dashboard', icon: '📊' },
-      { label: 'Gate Checkpoints', path: '/security/gates', icon: '🚪' },
-      { label: 'Student Gate Passes', path: '/security/leaves', icon: '🎫' },
-      { label: 'Student Directory', path: '/security/students', icon: '🎓' },
+    navGroups: [
+      {
+        group: 'Gate Operations',
+        items: [
+          { label: 'Gate Console', path: '/security/dashboard', icon: Compass },
+          { label: 'Checkpoints', path: '/security/gates', icon: ShieldCheck },
+          { label: 'Active Passes', path: '/security/leaves', icon: Send },
+          { label: 'Student Gate Roster', path: '/security/students', icon: GraduationCap },
+        ],
+      },
     ],
   },
   SECURITY_GUARD: {
-    brand: 'Security Guard',
-    icon: '🛡️',
+    brand: 'Campus Security',
+    moduleTitle: 'Campus Gate & Perimeter Security',
+    icon: ShieldCheck,
     basePath: '/security',
-    navItems: [
-      { label: 'Gate Operations', path: '/security/dashboard', icon: '📊' },
-      { label: 'Gate Checkpoints', path: '/security/gates', icon: '🚪' },
-      { label: 'Student Gate Passes', path: '/security/leaves', icon: '🎫' },
-      { label: 'Student Directory', path: '/security/students', icon: '🎓' },
+    navGroups: [
+      {
+        group: 'Gate Operations',
+        items: [
+          { label: 'Gate Console', path: '/security/dashboard', icon: Compass },
+          { label: 'Checkpoints', path: '/security/gates', icon: ShieldCheck },
+          { label: 'Active Passes', path: '/security/leaves', icon: Send },
+          { label: 'Student Gate Roster', path: '/security/students', icon: GraduationCap },
+        ],
+      },
     ],
   },
 };
-
