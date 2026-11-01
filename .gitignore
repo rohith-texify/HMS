@@ -86,3 +86,6 @@ scratch/
 *.exe
 *.o
 *.so
+
+# Local Go cache/path
+.go/

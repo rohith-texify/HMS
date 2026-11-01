@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { ROLE_NAVIGATION } from '../routing/roleNavigation';
+import { getFilteredNavigation, resolveBreadcrumb } from './roleNavigation';
+import NotificationDisplay from '../components/NotificationDisplay';
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,7 +12,8 @@ import {
   LogOut,
   Building2,
   Shield,
-  Bell,
+  User,
+  ChevronDown,
 } from 'lucide-react';
 import '../styles/layout.css';
 
@@ -20,27 +22,33 @@ export default function InstitutionalLayout() {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const profileMenuRef = useRef(null);
 
   const userRole = (user?.role || 'COLLEGE_ADMIN').toUpperCase();
-  const navConfig = ROLE_NAVIGATION[userRole] || ROLE_NAVIGATION.COLLEGE_ADMIN;
+  const navConfig = getFilteredNavigation(userRole, user?.permissions);
 
   const adminEmail = user?.email || 'admin@college.edu';
   const adminRoleTitle = user?.roleName || 'College Administrator';
-  const userInitials = adminEmail.slice(0, 2).toUpperCase();
+  const userInitials = (adminEmail.slice(0, 2) || 'AD').toUpperCase();
+  const collegeName = user?.collegeName || user?.collegeCode || navConfig.brand;
 
-  // Derive active breadcrumb
-  const getBreadcrumbTitle = (pathname) => {
-    const routeMap = {
-      '/admin/dashboard': { group: 'Overview', title: 'Dashboard' },
-      '/admin/hostels': { group: 'Facility & Inventory', title: 'Hostels & Blocks' },
-      '/admin/staff': { group: 'Community Management', title: 'College Staff' },
-      '/admin/students': { group: 'Community Management', title: 'Students Directory' },
+  // Dynamically derive active breadcrumbs
+  const breadcrumbs = resolveBreadcrumb(location.pathname, navConfig);
+
+  // Close profile dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target)) {
+        setProfileMenuOpen(false);
+      }
     };
-    return routeMap[pathname] || { group: 'College Administration', title: 'Overview' };
-  };
-
-  const breadcrumbs = getBreadcrumbTitle(location.pathname);
+    if (profileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [profileMenuOpen]);
 
   return (
     <div className={`enterprise-shell ${sidebarCollapsed ? 'sidebar-is-collapsed' : ''}`}>
@@ -50,7 +58,7 @@ export default function InstitutionalLayout() {
           <div className="mobile-bar-badge">
             <Building2 size={16} />
           </div>
-          <span className="mobile-bar-title">{navConfig.brand}</span>
+          <span className="mobile-bar-title">{collegeName}</span>
         </div>
         <button
           type="button"
@@ -86,7 +94,7 @@ export default function InstitutionalLayout() {
             {!sidebarCollapsed && (
               <div className="sidebar-brand-info">
                 <span className="sidebar-brand-title">Texify HMS</span>
-                <span className="sidebar-brand-tag">{navConfig.brand}</span>
+                <span className="sidebar-brand-tag" title={collegeName}>{collegeName}</span>
               </div>
             )}
           </div>
@@ -210,19 +218,96 @@ export default function InstitutionalLayout() {
 
           {/* Header Right Actions */}
           <div className="header-actions-group">
-            <div className="header-status-pill" title="College Database Nominal">
+            {/* Notification Center */}
+            <NotificationDisplay />
+
+            {/* Operational Status Pill */}
+            <div className="header-status-pill" title="College Database Connected & Nominal">
               <span className="status-dot green" />
               <span>Operational</span>
             </div>
 
-            <div className="header-profile-pill">
-              <div className="header-avatar-circle">{userInitials}</div>
-              <div className="header-profile-text">
-                <span className="profile-name" title={adminEmail}>
-                  {adminEmail.split('@')[0]}
-                </span>
-                <span className="profile-role">College Admin</span>
-              </div>
+            {/* User Profile Dropdown Pill */}
+            <div className="header-profile-menu-container" ref={profileMenuRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                className="header-profile-pill"
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                style={{ cursor: 'pointer', border: '1px solid var(--border-color)', background: '#ffffff' }}
+                aria-label="Open user profile menu"
+              >
+                <div className="header-avatar-circle">{userInitials}</div>
+                <div className="header-profile-text">
+                  <span className="profile-name" title={adminEmail}>
+                    {adminEmail.split('@')[0]}
+                  </span>
+                  <span className="profile-role">{adminRoleTitle}</span>
+                </div>
+                <ChevronDown size={14} style={{ color: 'var(--text-muted, #94a3b8)', marginLeft: '2px' }} />
+              </button>
+
+              {profileMenuOpen && (
+                <div
+                  className="profile-dropdown-card fade-in-up"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '260px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color, #e2e8f0)',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                    zIndex: 85,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-color, #e2e8f0)', backgroundColor: '#f8fafc' }}>
+                    <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary, #0f172a)' }}>
+                      {adminEmail}
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--primary-color, #2563eb)', fontWeight: 600, marginTop: '2px' }}>
+                      {adminRoleTitle}
+                    </div>
+                    {user?.collegeId && (
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
+                        Tenant ID: <span className="code-pill">{user.collegeId.slice(0, 8)}...</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        logout();
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '9px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        background: 'transparent',
+                        color: '#dc2626',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'background-color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <LogOut size={15} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </header>

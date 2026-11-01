@@ -13,7 +13,7 @@ const baseURL =
 
 const api = axios.create({
   baseURL: baseURL || undefined,
-  timeout: 8000,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -35,14 +35,14 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Default to COLLEGE scope for institutional operations
+    // Explicit institutional scope for all college requests
     config.headers['X-Scope'] = 'COLLEGE';
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to normalize response data
+// Response interceptor to normalize response data and handle auth expiration
 api.interceptors.response.use(
   (response) => {
     if (response.data && response.data.success !== undefined) {
@@ -66,9 +66,18 @@ api.interceptors.response.use(
     }
 
     const responseData = error.response?.data;
-    const message = responseData?.error?.message || error.message || 'An unexpected error occurred';
-    const code = responseData?.error?.code || 'NETWORK_ERROR';
+    const message = responseData?.error?.message || responseData?.message || error.message || 'An unexpected error occurred';
+    const code = responseData?.error?.code || (error.response ? 'HTTP_ERROR' : 'NETWORK_ERROR');
     const status = error.response?.status || 500;
+
+    // Handle 401 Unauthorized / Expired Token
+    if (status === 401 && typeof window !== 'undefined') {
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login');
+      if (!isAuthEndpoint && !window.location.pathname.includes('/login')) {
+        // Broadcast auth expiration event so AuthProvider can sync state
+        window.dispatchEvent(new CustomEvent('hms:auth_expired', { detail: { status, message } }));
+      }
+    }
 
     return Promise.reject({
       status,
@@ -81,4 +90,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-

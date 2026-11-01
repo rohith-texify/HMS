@@ -47,12 +47,25 @@ export function AuthProvider({ children }) {
     setToken(null);
   }, []);
 
+  // Listen for session expiration events from API client
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      logout();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('hms:auth_expired', handleAuthExpired);
+      return () => window.removeEventListener('hms:auth_expired', handleAuthExpired);
+    }
+  }, [logout]);
+
   const isAuthenticated = Boolean(token && user && user.role);
 
   const value = {
     user,
     token,
     role: user?.role || null,
+    scope: user?.scope || null,
+    collegeId: user?.collegeId || null,
     isAuthenticated,
     isLoading,
     login,
@@ -63,4 +76,3 @@ export function AuthProvider({ children }) {
 }
 
 export default AuthProvider;
-
