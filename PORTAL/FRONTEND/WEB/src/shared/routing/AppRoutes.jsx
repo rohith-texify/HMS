@@ -18,6 +18,10 @@ const AdminStaffPage = lazy(() => import('../../modules/admin/pages/StaffPage'))
 const AdminHostelsPage = lazy(() => import('../../modules/admin/pages/HostelsPage'));
 const AdminAllocationsPage = lazy(() => import('../../modules/admin/pages/AllocationsPage'));
 const AdminParentsPage = lazy(() => import('../../modules/admin/pages/ParentsPage'));
+const AdminAttendancePage = lazy(() => import('../../modules/admin/pages/AttendancePage'));
+const AdminLeavesPage = lazy(() => import('../../modules/admin/pages/LeavesPage'));
+const AdminMovementPage = lazy(() => import('../../modules/admin/pages/MovementPage'));
+const AdminGatePassesPage = lazy(() => import('../../modules/admin/pages/GatePassesPage'));
 
 // Lazy-loaded Student Pages
 const StudentDashboardPage = lazy(() => import('../../modules/student/pages/DashboardPage'));
@@ -93,6 +97,10 @@ export default function AppRoutes() {
           <Route path="rooms" element={<AdminHostelsPage />} />
           <Route path="allocations" element={<AdminAllocationsPage />} />
           <Route path="parents" element={<AdminParentsPage />} />
+          <Route path="attendance" element={<AdminAttendancePage />} />
+          <Route path="leaves" element={<AdminLeavesPage />} />
+          <Route path="movement" element={<AdminMovementPage />} />
+          <Route path="gate-passes" element={<AdminGatePassesPage />} />
         </Route>
 
         {/* ============================================================== */}

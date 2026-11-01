@@ -16,6 +16,9 @@ import {
   FileText,
   KeyRound,
   DoorOpen,
+  ClipboardCheck,
+  Footprints,
+  Ticket,
 } from 'lucide-react';
 
 /**
@@ -118,6 +121,39 @@ export const ROLE_NAVIGATION = {
           },
         ],
       },
+      {
+        group: 'Operations & Movement',
+        items: [
+          {
+            label: 'Daily Attendance',
+            path: '/admin/attendance',
+            icon: ClipboardCheck,
+            permission: 'people.view',
+            description: 'Nightly curfew roll-call logs and presence tracking',
+          },
+          {
+            label: 'Leave Requests',
+            path: '/admin/leaves',
+            icon: FileText,
+            permission: 'requests.view',
+            description: 'Student outpass applications, approvals, and weekend permissions',
+          },
+          {
+            label: 'Student Movement',
+            path: '/admin/movement',
+            icon: Footprints,
+            permission: 'people.view',
+            description: 'Campus gate checkpoints and security officer postings',
+          },
+          {
+            label: 'Gate Clearances',
+            path: '/admin/gate-passes',
+            icon: Ticket,
+            permission: 'requests.view',
+            description: 'Authorized departure clearances and gate security verification',
+          },
+        ],
+      },
     ],
   },
 
@@ -153,6 +189,15 @@ export const ROLE_NAVIGATION = {
           { label: 'Password & Access', path: '/admin/passwords', icon: KeyRound, permission: 'people.view' },
         ],
       },
+      {
+        group: 'Operations & Movement',
+        items: [
+          { label: 'Daily Attendance', path: '/admin/attendance', icon: ClipboardCheck, permission: 'people.view' },
+          { label: 'Leave Requests', path: '/admin/leaves', icon: FileText, permission: 'requests.view' },
+          { label: 'Student Movement', path: '/admin/movement', icon: Footprints, permission: 'people.view' },
+          { label: 'Gate Clearances', path: '/admin/gate-passes', icon: Ticket, permission: 'requests.view' },
+        ],
+      },
     ],
   },
 
@@ -186,6 +231,15 @@ export const ROLE_NAVIGATION = {
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
           { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
           { label: 'Password & Access', path: '/admin/passwords', icon: KeyRound, permission: 'people.view' },
+        ],
+      },
+      {
+        group: 'Operations & Movement',
+        items: [
+          { label: 'Daily Attendance', path: '/admin/attendance', icon: ClipboardCheck, permission: 'people.view' },
+          { label: 'Leave Requests', path: '/admin/leaves', icon: FileText, permission: 'requests.view' },
+          { label: 'Student Movement', path: '/admin/movement', icon: Footprints, permission: 'people.view' },
+          { label: 'Gate Clearances', path: '/admin/gate-passes', icon: Ticket, permission: 'requests.view' },
         ],
       },
     ],
@@ -389,6 +443,10 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/students': { group: 'Community Management', title: 'Students Directory' },
     '/admin/parents': { group: 'Community Management', title: 'Parents & Guardians' },
     '/admin/passwords': { group: 'Community Management', title: 'Password & Access' },
+    '/admin/attendance': { group: 'Operations & Movement', title: 'Daily Attendance' },
+    '/admin/leaves': { group: 'Operations & Movement', title: 'Leave Requests' },
+    '/admin/movement': { group: 'Operations & Movement', title: 'Student Movement' },
+    '/admin/gate-passes': { group: 'Operations & Movement', title: 'Gate Clearances' },
   };
 
   return routeMap[pathname] || { group: roleConfig?.brand || 'College Administration', title: 'Dashboard' };

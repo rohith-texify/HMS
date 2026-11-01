@@ -261,6 +261,19 @@ export const adminService = {
     const res = await api.get('/college/gates');
     return res.data || res;
   },
+  async getGateById(gateId) {
+    const res = await api.get(`/college/gates/${gateId}`);
+    return res.data || res;
+  },
+  async createGate(payload) {
+    return api.post('/college/gates', payload);
+  },
+  async updateGate(gateId, payload) {
+    return api.put(`/college/gates/${gateId}`, payload);
+  },
+  async updateGateStatus(gateId, status) {
+    return api.patch(`/college/gates/${gateId}/status`, { status });
+  },
   async getSecurityAssignments() {
     const res = await api.get('/college/security-assignments');
     return res.data || res;
@@ -293,15 +306,44 @@ export const adminService = {
     const res = await api.get('/college/attendance/students', { params });
     return res.data || res;
   },
+  async getStudentAttendanceById(recordId) {
+    const res = await api.get(`/college/attendance/students/${recordId}`);
+    return res.data || res;
+  },
+  async markStudentAttendance(payload) {
+    return api.post('/college/attendance/students', payload);
+  },
+  async bulkMarkStudentAttendance(payload) {
+    return api.post('/college/attendance/students/bulk', payload);
+  },
+  async submitAttendanceCorrection(payload) {
+    return api.post('/college/attendance/corrections', payload);
+  },
+  async approveAttendanceCorrection(correctionId, payload) {
+    return api.patch(`/college/attendance/corrections/${correctionId}/decision`, payload);
+  },
 
   // Leaves
   async getLeaveRequests(params = {}) {
     const res = await api.get('/college/leaves', { params });
     return res.data || res;
   },
+  async getLeaveRequestById(leaveId) {
+    const res = await api.get(`/college/leaves/${leaveId}`);
+    return res.data || res;
+  },
   async getLeaveSummary() {
     const res = await api.get('/college/leaves/reports/summary');
     return res.data || res;
+  },
+  async createLeaveRequest(payload) {
+    return api.post('/college/leaves', payload);
+  },
+  async processLeaveDecision(leaveId, payload) {
+    return api.post(`/college/leaves/${leaveId}/decision`, payload);
+  },
+  async cancelLeaveRequest(leaveId) {
+    return api.post(`/college/leaves/${leaveId}/cancel`);
   },
 
   // Complaints
