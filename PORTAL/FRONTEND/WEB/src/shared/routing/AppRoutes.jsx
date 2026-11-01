@@ -16,6 +16,7 @@ const AdminDashboardPage = lazy(() => import('../../modules/admin/pages/Dashboar
 const AdminStudentsPage = lazy(() => import('../../modules/admin/pages/StudentsPage'));
 const AdminStaffPage = lazy(() => import('../../modules/admin/pages/StaffPage'));
 const AdminHostelsPage = lazy(() => import('../../modules/admin/pages/HostelsPage'));
+const AdminAllocationsPage = lazy(() => import('../../modules/admin/pages/AllocationsPage'));
 const AdminParentsPage = lazy(() => import('../../modules/admin/pages/ParentsPage'));
 
 // Lazy-loaded Student Pages
@@ -90,6 +91,7 @@ export default function AppRoutes() {
           <Route path="passwords" element={<AdminStaffPage defaultTab="passwords" />} />
           <Route path="hostels" element={<AdminHostelsPage />} />
           <Route path="rooms" element={<AdminHostelsPage />} />
+          <Route path="allocations" element={<AdminAllocationsPage />} />
           <Route path="parents" element={<AdminParentsPage />} />
         </Route>
 

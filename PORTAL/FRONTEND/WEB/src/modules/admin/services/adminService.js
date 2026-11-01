@@ -121,6 +121,18 @@ export const adminService = {
     const res = await api.get(`/college/bed-allocations/${id}`);
     return res.data || res;
   },
+  async createBedAllocation(payload) {
+    return api.post('/college/bed-allocations', payload);
+  },
+  async updateBedAllocation(id, payload) {
+    return api.put(`/college/bed-allocations/${id}`, payload);
+  },
+  async releaseBedAllocation(id, payload) {
+    return api.patch(`/college/bed-allocations/${id}/release`, payload);
+  },
+  async transferBedAllocation(id, payload) {
+    return api.patch(`/college/bed-allocations/${id}/transfer`, payload);
+  },
 
   // Students Directory
   async getStudents(params = {}) {

@@ -62,6 +62,13 @@ export const ROLE_NAVIGATION = {
             permission: 'hostel.view',
             description: 'Explore room inventory, types, and bed allocations',
           },
+          {
+            label: 'Room Allocations',
+            path: '/admin/allocations',
+            icon: BedDouble,
+            permission: 'people.view',
+            description: 'Resident student room allocations, bed assignments, and transfer workflows',
+          },
         ],
       },
       {
@@ -132,6 +139,7 @@ export const ROLE_NAVIGATION = {
         items: [
           { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2, permission: 'hostel.view' },
           { label: 'Rooms & Beds', path: '/admin/rooms', icon: DoorOpen, permission: 'hostel.view' },
+          { label: 'Room Allocations', path: '/admin/allocations', icon: BedDouble, permission: 'people.view' },
         ],
       },
       {
@@ -166,6 +174,7 @@ export const ROLE_NAVIGATION = {
         items: [
           { label: 'Hostels & Blocks', path: '/admin/hostels', icon: Building2, permission: 'hostel.view' },
           { label: 'Rooms & Beds', path: '/admin/rooms', icon: DoorOpen, permission: 'hostel.view' },
+          { label: 'Room Allocations', path: '/admin/allocations', icon: BedDouble, permission: 'people.view' },
         ],
       },
       {
@@ -373,6 +382,7 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/dashboard': { group: 'Overview', title: 'Dashboard' },
     '/admin/hostels': { group: 'Facility & Inventory', title: 'Hostels & Blocks' },
     '/admin/rooms': { group: 'Facility & Inventory', title: 'Rooms & Beds' },
+    '/admin/allocations': { group: 'Facility & Inventory', title: 'Room Allocations' },
     '/admin/staff': { group: 'Community Management', title: 'College Staff' },
     '/admin/incharges': { group: 'Community Management', title: 'Hostel In-Charges' },
     '/admin/security-assignments': { group: 'Community Management', title: 'Security Personnel' },
