@@ -23,6 +23,8 @@ import {
   ShieldAlert,
   Megaphone,
   CreditCard,
+  BarChart3,
+  Sliders,
 } from 'lucide-react';
 
 /**
@@ -217,6 +219,32 @@ export const ROLE_NAVIGATION = {
           },
         ],
       },
+      {
+        group: 'Administration & Governance',
+        items: [
+          {
+            label: 'Reports & Analytics',
+            path: '/admin/reports',
+            icon: BarChart3,
+            permission: 'reports.view',
+            description: 'Executive institutional intelligence, occupancy analytics, and report exports',
+          },
+          {
+            label: 'Institution Settings',
+            path: '/admin/settings',
+            icon: Sliders,
+            permission: 'hostel.view',
+            description: 'College profile, licensed modules, timezone configuration, and branding',
+          },
+          {
+            label: 'Audit & Activity Log',
+            path: '/admin/audit-logs',
+            icon: FileText,
+            permission: 'people.view',
+            description: 'Immutable operational audit trail, administrative events, and compliance records',
+          },
+        ],
+      },
     ],
   },
 
@@ -278,6 +306,14 @@ export const ROLE_NAVIGATION = {
           { label: 'Hostel Fees & Invoicing', path: '/admin/fees', icon: CreditCard, permission: 'people.view' },
         ],
       },
+      {
+        group: 'Administration & Governance',
+        items: [
+          { label: 'Reports & Analytics', path: '/admin/reports', icon: BarChart3, permission: 'reports.view' },
+          { label: 'Institution Settings', path: '/admin/settings', icon: Sliders, permission: 'hostel.view' },
+          { label: 'Audit & Activity Log', path: '/admin/audit-logs', icon: FileText, permission: 'people.view' },
+        ],
+      },
     ],
   },
 
@@ -337,6 +373,14 @@ export const ROLE_NAVIGATION = {
           { label: 'Hostel Mess & Food', path: '/admin/food', icon: Utensils, permission: 'hostel.view' },
           { label: 'Notice & Broadcasts', path: '/admin/announcements', icon: Megaphone, permission: 'hostel.view' },
           { label: 'Hostel Fees & Invoicing', path: '/admin/fees', icon: CreditCard, permission: 'people.view' },
+        ],
+      },
+      {
+        group: 'Administration & Governance',
+        items: [
+          { label: 'Reports & Analytics', path: '/admin/reports', icon: BarChart3, permission: 'reports.view' },
+          { label: 'Institution Settings', path: '/admin/settings', icon: Sliders, permission: 'hostel.view' },
+          { label: 'Audit & Activity Log', path: '/admin/audit-logs', icon: FileText, permission: 'people.view' },
         ],
       },
     ],
@@ -551,6 +595,9 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/food': { group: 'Campus Living & Welfare', title: 'Hostel Mess & Food' },
     '/admin/announcements': { group: 'Campus Living & Welfare', title: 'Notice & Broadcasts' },
     '/admin/fees': { group: 'Campus Living & Welfare', title: 'Hostel Fees & Invoicing' },
+    '/admin/reports': { group: 'Administration & Governance', title: 'Reports & Analytics' },
+    '/admin/settings': { group: 'Administration & Governance', title: 'Institution Settings' },
+    '/admin/audit-logs': { group: 'Administration & Governance', title: 'Audit & Activity Log' },
   };
 
   return routeMap[pathname] || { group: roleConfig?.brand || 'College Administration', title: 'Dashboard' };

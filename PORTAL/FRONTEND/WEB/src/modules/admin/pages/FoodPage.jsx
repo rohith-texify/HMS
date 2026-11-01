@@ -1142,3 +1142,4 @@ export default function AdminFoodPage() {
     </div>
   );
 }
+

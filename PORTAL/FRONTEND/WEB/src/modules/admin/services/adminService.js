@@ -467,6 +467,14 @@ export const adminService = {
     const res = await api.get('/college/reports/staff');
     return res.data || res;
   },
+
+  // =========================================================================
+  // Institution & Settings Operations
+  // =========================================================================
+  async getCollegeBootstrap() {
+    const res = await api.get('/college/bootstrap');
+    return res.data || res;
+  },
 };
 
 export default adminService;
