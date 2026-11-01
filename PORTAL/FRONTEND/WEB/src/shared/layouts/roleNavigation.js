@@ -72,6 +72,13 @@ export const ROLE_NAVIGATION = {
             permission: 'people.view',
             description: 'Active student residents, enrollment data, bed allocations, and guardians',
           },
+          {
+            label: 'Parents & Guardians',
+            path: '/admin/parents',
+            icon: Users,
+            permission: 'people.view',
+            description: 'Registered parent profiles, emergency contacts, and student linkages',
+          },
         ],
       },
     ],
@@ -101,6 +108,7 @@ export const ROLE_NAVIGATION = {
         items: [
           { label: 'College Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
+          { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
         ],
       },
     ],
@@ -130,6 +138,7 @@ export const ROLE_NAVIGATION = {
         items: [
           { label: 'College Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
+          { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
         ],
       },
     ],
@@ -327,6 +336,7 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/hostels': { group: 'Facility & Inventory', title: 'Hostels & Blocks' },
     '/admin/staff': { group: 'Community Management', title: 'College Staff' },
     '/admin/students': { group: 'Community Management', title: 'Students Directory' },
+    '/admin/parents': { group: 'Community Management', title: 'Parents & Guardians' },
   };
 
   return routeMap[pathname] || { group: roleConfig?.brand || 'College Administration', title: 'Dashboard' };

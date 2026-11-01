@@ -84,14 +84,54 @@ export const adminService = {
     return api.patch(`/college/students/${id}/status`, { status });
   },
 
-  // Student Parents & Emergency Contacts
+  // Parents Directory & Management
+  async getParents(params = {}) {
+    const res = await api.get('/college/parents', { params });
+    return res.data || res;
+  },
+  async getParentById(id) {
+    const res = await api.get(`/college/parents/${id}`);
+    return res.data || res;
+  },
+  async createParent(payload) {
+    return api.post('/college/parents', payload);
+  },
+  async updateParent(id, payload) {
+    return api.put(`/college/parents/${id}`, payload);
+  },
+
+  // Student Parents (Relationships & Linking)
   async getStudentParents(studentId) {
     const res = await api.get(`/college/students/${studentId}/parents`);
     return res.data || res;
   },
+  async linkStudentParent(studentId, payload) {
+    return api.post(`/college/students/${studentId}/parents`, payload);
+  },
+  async getStudentParent(studentId, relationshipId) {
+    const res = await api.get(`/college/students/${studentId}/parents/${relationshipId}`);
+    return res.data || res;
+  },
+  async updateStudentParent(studentId, relationshipId, payload) {
+    return api.put(`/college/students/${studentId}/parents/${relationshipId}`, payload);
+  },
+  async unlinkStudentParent(studentId, relationshipId) {
+    return api.delete(`/college/students/${studentId}/parents/${relationshipId}`);
+  },
+
+  // Student Emergency Contacts
   async getEmergencyContacts(studentId) {
     const res = await api.get(`/college/students/${studentId}/emergency-contacts`);
     return res.data || res;
+  },
+  async createEmergencyContact(studentId, payload) {
+    return api.post(`/college/students/${studentId}/emergency-contacts`, payload);
+  },
+  async updateEmergencyContact(studentId, contactId, payload) {
+    return api.put(`/college/students/${studentId}/emergency-contacts/${contactId}`, payload);
+  },
+  async deleteEmergencyContact(studentId, contactId) {
+    return api.delete(`/college/students/${studentId}/emergency-contacts/${contactId}`);
   },
 
   // Bed Allocations
