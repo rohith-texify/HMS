@@ -4,7 +4,7 @@ export const reportService = {
   // Get platform-wide aggregated reporting summary
   getSummary: async () => {
     try {
-      const res = await api.get('/api/v1/super-admin/reports/summary', { timeout: 8000 });
+      const res = await api.get('/super-admin/reports/summary', { timeout: 8000 });
       return res.data || res;
     } catch {
       return { total_colleges: 0, active_users: 0, adoption_rate: 0 };
@@ -14,7 +14,7 @@ export const reportService = {
   // Get college-wise usage metrics with small-count suppression applied
   getCollegeUsage: async (params = {}) => {
     try {
-      const res = await api.get('/api/v1/super-admin/reports/college-usage', { params, timeout: 8000 });
+      const res = await api.get('/super-admin/reports/college-usage', { params, timeout: 8000 });
       return res.data || res;
     } catch {
       return [];
@@ -24,7 +24,7 @@ export const reportService = {
   // Get module adoption statistics
   getModuleAdoption: async () => {
     try {
-      const res = await api.get('/api/v1/super-admin/reports/module-adoption', { timeout: 8000 });
+      const res = await api.get('/super-admin/reports/module-adoption', { timeout: 8000 });
       return res.data || res;
     } catch {
       return [];
@@ -34,7 +34,7 @@ export const reportService = {
   // Get login security event trends
   getLoginSecurity: async (days = 7) => {
     try {
-      const res = await api.get('/api/v1/super-admin/reports/login-security', {
+      const res = await api.get('/super-admin/reports/login-security', {
         params: { days },
         timeout: 8000,
       });
@@ -46,7 +46,7 @@ export const reportService = {
 
   // Export audited CSV for college usage reports with anti-formula injection
   exportCollegeUsageCsv: async (params = {}) => {
-    const response = await api.get('/api/v1/super-admin/reports/export/college-usage', {
+    const response = await api.get('/super-admin/reports/export/college-usage', {
       params,
       responseType: 'blob',
     });

@@ -1,60 +1,80 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { ScrollText, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
 
-export default function RecentActivityTable({ activities }) {
-  const hasActivities = activities && activities.length > 0;
+export default function RecentActivityTable({ activities = [] }) {
+  const displayActivities = activities && activities.length > 0 ? activities.slice(0, 8) : [];
+  const hasActivities = displayActivities.length > 0;
 
   return (
-    <div className="card">
+    <div className="card enterprise-card">
       <div className="card-header">
         <div className="card-title">
-          <span>🕒 Recent Administrative Activity</span>
-          <span className="badge badge-muted">Audit Trail</span>
+          <ScrollText size={18} className="text-blue-600" />
+          <span>Recent Administrative Activity</span>
+          <span className="badge-enterprise badge-muted">Audit Trail</span>
         </div>
+        <Link to="/audit-logs" className="card-header-link">
+          <span>View All Audit Logs</span>
+          <ArrowRight size={13} />
+        </Link>
       </div>
 
       {!hasActivities ? (
-        <div className="empty-box">
-          <div className="empty-text">No administrative events recorded for the selected filter range.</div>
+        <div className="empty-state-clean">
+          <ShieldCheck size={24} className="text-slate-400" />
+          <div className="empty-state-title">No administrative events recorded</div>
+          <div className="empty-state-subtitle">No audit trail records match the selected filter criteria.</div>
         </div>
       ) : (
         <div className="table-responsive">
           <table className="data-table">
             <thead>
               <tr>
-                <th>Timestamp</th>
+                <th style={{ width: '180px' }}>Timestamp</th>
                 <th>Action</th>
-                <th>Module</th>
+                <th style={{ width: '140px' }}>Module</th>
                 <th>Actor</th>
-                <th>College</th>
-                <th>Outcome</th>
+                <th>College Tenant</th>
+                <th style={{ width: '100px' }}>Outcome</th>
               </tr>
             </thead>
             <tbody>
-              {activities.map((item) => (
+              {displayActivities.map((item) => (
                 <tr key={item.audit_id}>
-                  <td style={{ whiteSpace: 'nowrap' }}>
+                  <td className="text-slate-500 whitespace-nowrap text-xs">
                     {new Date(item.created_at).toLocaleString()}
                   </td>
                   <td>
-                    <strong>{item.action}</strong>
+                    <div className="font-semibold text-slate-800">{item.action}</div>
                     {item.reason && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      <div className="text-xs text-slate-500 mt-0.5">
                         {item.reason}
                       </div>
                     )}
                   </td>
                   <td>
-                    <span className="badge badge-info">{item.module}</span>
+                    <span className="badge-enterprise badge-blue">{item.module}</span>
                   </td>
                   <td>
-                    <div>{item.actor_safe_id}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                    <div className="text-slate-800 font-medium">{item.actor_safe_id}</div>
+                    <div className="text-xs text-slate-400">
                       {item.actor_role}
                     </div>
                   </td>
-                  <td>{item.college_name || (item.college_id ? item.college_id.slice(0, 8) : 'Global')}</td>
                   <td>
-                    <span className="badge badge-success">{item.outcome}</span>
+                    <span className="text-slate-700">
+                      {item.college_name || (item.college_id ? item.college_id.slice(0, 8) : 'Global Platform')}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      className={`badge-enterprise ${
+                        item.outcome === 'SUCCESS' ? 'badge-green' : 'badge-rose'
+                      }`}
+                    >
+                      {item.outcome}
+                    </span>
                   </td>
                 </tr>
               ))}

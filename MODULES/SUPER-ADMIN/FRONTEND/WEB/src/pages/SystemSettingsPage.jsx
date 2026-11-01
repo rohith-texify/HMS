@@ -1,4 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Sliders,
+  ShieldCheck,
+  AlertTriangle,
+  Building2,
+  History,
+  Search,
+  X,
+  RotateCw,
+  ChevronRight,
+  CheckCircle2,
+  Lock,
+  Unlock,
+  Sparkles,
+  Copy,
+  Check,
+  FileCode,
+  RefreshCcw,
+  Clock,
+  ShieldAlert,
+  Layers,
+  ExternalLink,
+  Info,
+  AlertCircle,
+} from 'lucide-react';
 import {
   fetchSystemSettings,
   updateSystemSetting,
@@ -9,20 +35,107 @@ import {
   DEFAULT_SYSTEM_SETTINGS,
 } from '../services/systemSettingsService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
+// Case-tolerant normalizers
+const getSettingKey = (s) => s?.setting_key || s?.key || '';
+const getDisplayName = (s) => {
+  if (s?.display_name) return s.display_name;
+  if (s?.name) return s.name;
+  const raw = getSettingKey(s);
+  return raw
+    .replace(/^[a-z_]+\./, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+};
+const getCategory = (s) => (s?.category || 'system').toLowerCase();
+const getSettingValue = (s) => s?.setting_value ?? s?.value ?? {};
+const getAllowOverride = (s) => !!(s?.allow_override ?? s?.allow_tenant_override ?? true);
+
 export default function SystemSettingsPage() {
-  const [activeTab, setActiveTab] = useState('security'); // 'security' | 'system' | 'maintenance' | 'inheritance' | 'history'
+  // Navigation tabs: 'security' | 'system' | 'maintenance' | 'inheritance' | 'history'
+  const [activeTab, setActiveTab] = useState('security');
   const [settings, setSettings] = useState(DEFAULT_SYSTEM_SETTINGS);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [overrideFilter, setOverrideFilter] = useState('ALL'); // 'ALL' | 'PERMITTED' | 'LOCKED'
+
   // Edit Modal State
-  const [selectedSetting, setSelectedSetting] = useState(null);
-  const [editJsonString, setEditJsonString] = useState('');
-  const [editReason, setEditReason] = useState('');
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editError, setEditError] = useState(null);
+  const [editModal, setEditModal] = useState({
+    isOpen: false,
+    setting: null,
+    jsonString: '',
+    reason: '',
+    submitting: false,
+    error: null,
+  });
+
+  // Reset Modal State (Replaces window.confirm/prompt)
+  const [resetModal, setResetModal] = useState({
+    isOpen: false,
+    setting: null,
+    reason: 'Reset to company platform default baseline',
+    submitting: false,
+    error: null,
+  });
+
+  // Rollback Modal State (Replaces window.confirm/prompt)
+  const [rollbackModal, setRollbackModal] = useState({
+    isOpen: false,
+    historyItem: null,
+    reason: 'Reverting to stable previous version',
+    submitting: false,
+    error: null,
+  });
 
   // History State
   const [historyList, setHistoryList] = useState([]);
@@ -33,9 +146,13 @@ export default function SystemSettingsPage() {
   const [inheritanceList, setInheritanceList] = useState([]);
   const [inheritanceLoading, setInheritanceLoading] = useState(false);
 
+  // Copied Key Feedback
+  const [copiedKey, setCopiedKey] = useState(null);
+
   // Load Settings
-  const loadSettings = useCallback(async () => {
+  const loadSettings = useCallback(async (isSilent = false) => {
     try {
+      if (!isSilent) setLoading(true);
       setIsRefreshing(true);
       setError(null);
       const res = await fetchSystemSettings();
@@ -88,714 +205,1083 @@ export default function SystemSettingsPage() {
 
   // Open Edit Modal
   const openEditModal = (st) => {
-    setSelectedSetting(st);
-    setEditJsonString(JSON.stringify(st.setting_value, null, 2));
-    setEditReason('');
-    setEditError(null);
+    setEditModal({
+      isOpen: true,
+      setting: st,
+      jsonString: JSON.stringify(getSettingValue(st), null, 2),
+      reason: '',
+      submitting: false,
+      error: null,
+    });
+  };
+
+  // Prettify JSON in Edit Modal
+  const handlePrettifyJson = () => {
+    try {
+      const parsed = JSON.parse(editModal.jsonString);
+      setEditModal((prev) => ({
+        ...prev,
+        jsonString: JSON.stringify(parsed, null, 2),
+        error: null,
+      }));
+    } catch (err) {
+      setEditModal((prev) => ({
+        ...prev,
+        error: 'Cannot format: Invalid JSON syntax (' + err.message + ')',
+      }));
+    }
   };
 
   // Submit Edit
-  const handleSaveSetting = async () => {
-    if (!selectedSetting) return;
+  const handleSaveSetting = async (e) => {
+    e.preventDefault();
+    if (!editModal.setting) return;
+
+    let parsedValue;
     try {
-      setEditSubmitting(true);
-      setEditError(null);
+      parsedValue = JSON.parse(editModal.jsonString);
+    } catch (err) {
+      setEditModal((prev) => ({
+        ...prev,
+        error: 'Invalid JSON format: ' + err.message,
+      }));
+      return;
+    }
 
-      let parsedValue;
-      try {
-        parsedValue = JSON.parse(editJsonString);
-      } catch (err) {
-        setEditError('Invalid JSON format: ' + err.message);
-        setEditSubmitting(false);
-        return;
-      }
+    if (!editModal.reason.trim() || editModal.reason.trim().length < 3) {
+      setEditModal((prev) => ({
+        ...prev,
+        error: 'An authoritative change justification is required (minimum 3 characters).',
+      }));
+      return;
+    }
 
-      if (!editReason.trim() || editReason.trim().length < 3) {
-        setEditError('A valid change reason is required (minimum 3 characters).');
-        setEditSubmitting(false);
-        return;
-      }
+    setEditModal((prev) => ({ ...prev, submitting: true, error: null }));
 
-      await updateSystemSetting(selectedSetting.setting_key, {
+    try {
+      const key = getSettingKey(editModal.setting);
+      await updateSystemSetting(key, {
         setting_value: parsedValue,
-        reason: editReason.trim(),
+        reason: editModal.reason.trim(),
       });
 
-      setFeedback({ type: 'success', text: `Setting '${selectedSetting.display_name}' updated successfully.` });
-      setSelectedSetting(null);
-      await loadSettings();
+      setFeedback({
+        type: 'success',
+        text: `Policy "${getDisplayName(editModal.setting)}" updated successfully.`,
+      });
+      setTimeout(() => setFeedback(null), 6000);
+      setEditModal({ isOpen: false, setting: null, jsonString: '', reason: '', submitting: false, error: null });
+      await loadSettings(true);
     } catch (err) {
-      setEditError(err.response?.data?.error?.message || err.message || 'Failed to update setting');
-    } finally {
-      setEditSubmitting(false);
+      setEditModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: err.response?.data?.error?.message || err.message || 'Failed to update setting',
+      }));
     }
   };
 
-  // Reset to Factory Default
-  const handleResetSetting = async (st) => {
-    const confirm = window.confirm(
-      `Are you sure you want to reset '${st.display_name}' to company factory defaults?`
-    );
-    if (!confirm) return;
+  // Submit Factory Reset
+  const handleConfirmReset = async (e) => {
+    e.preventDefault();
+    if (!resetModal.setting) return;
 
-    const reason = window.prompt('Enter reason for factory reset:', 'Reset to company platform default');
-    if (!reason) return;
-
+    setResetModal((prev) => ({ ...prev, submitting: true, error: null }));
     try {
-      await resetSystemSetting(st.setting_key, reason);
-      setFeedback({ type: 'success', text: `Setting '${st.display_name}' reset to factory default.` });
-      await loadSettings();
+      const key = getSettingKey(resetModal.setting);
+      await resetSystemSetting(key, resetModal.reason.trim());
+      setFeedback({
+        type: 'success',
+        text: `Setting "${getDisplayName(resetModal.setting)}" reset to company factory baseline.`,
+      });
+      setTimeout(() => setFeedback(null), 6000);
+      setResetModal({ isOpen: false, setting: null, reason: '', submitting: false, error: null });
+      await loadSettings(true);
     } catch (err) {
-      alert(err.response?.data?.error?.message || err.message || 'Failed to reset setting');
+      setResetModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: err.response?.data?.error?.message || err.message || 'Failed to reset setting',
+      }));
     }
   };
 
-  // Rollback from History
-  const handleRollback = async (h) => {
-    const confirm = window.confirm(
-      `Are you sure you want to roll back '${h.setting_key}' to the version from ${new Date(h.created_at).toLocaleString()}?`
-    );
-    if (!confirm) return;
+  // Submit Rollback
+  const handleConfirmRollback = async (e) => {
+    e.preventDefault();
+    if (!rollbackModal.historyItem) return;
 
-    const reason = window.prompt('Enter reason for version rollback:', 'Reverting to stable previous version');
-    if (!reason) return;
-
+    setRollbackModal((prev) => ({ ...prev, submitting: true, error: null }));
     try {
-      await revertSystemSetting(h.setting_key, h.history_id, reason);
-      setFeedback({ type: 'success', text: `Successfully rolled back '${h.setting_key}'.` });
-      await loadSettings();
+      const h = rollbackModal.historyItem;
+      await revertSystemSetting(h.setting_key, h.history_id, rollbackModal.reason.trim());
+      setFeedback({
+        type: 'success',
+        text: `Successfully rolled back policy "${h.setting_key}" to version from ${new Date(h.created_at).toLocaleDateString()}.`,
+      });
+      setTimeout(() => setFeedback(null), 6000);
+      setRollbackModal({ isOpen: false, historyItem: null, reason: '', submitting: false, error: null });
+      await loadSettings(true);
       if (activeTab === 'history') await loadHistory(historyKeyFilter);
     } catch (err) {
-      alert(err.response?.data?.error?.message || err.message || 'Failed to revert version');
+      setRollbackModal((prev) => ({
+        ...prev,
+        submitting: false,
+        error: err.response?.data?.error?.message || err.message || 'Failed to revert version',
+      }));
     }
   };
 
-  // Maintenance Quick Toggle
-  const maintenanceSetting = settings.find((s) => s.setting_key === 'maintenance_mode');
+  // Copy JSON Code Snippet
+  const handleCopyJson = (key, value) => {
+    navigator.clipboard.writeText(JSON.stringify(value, null, 2));
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
 
-  const filteredSettings = settings.filter((s) => {
-    if (activeTab === 'security') return s.category === 'security';
-    if (activeTab === 'system') return s.category === 'system' && s.setting_key !== 'maintenance_mode';
-    if (activeTab === 'maintenance') return s.setting_key === 'maintenance_mode';
-    return true;
-  });
+  // Maintenance Setting Selector
+  const maintenanceSetting = useMemo(() => {
+    return settings.find((s) => getSettingKey(s).includes('maintenance_mode'));
+  }, [settings]);
+
+  const isMaintenanceActive = useMemo(() => {
+    const val = getSettingValue(maintenanceSetting);
+    return !!val.enabled;
+  }, [maintenanceSetting]);
+
+  // KPI Statistics
+  const stats = useMemo(() => {
+    const total = settings.length;
+    let securityCount = 0;
+    let allowOverrideCount = 0;
+
+    settings.forEach((s) => {
+      if (getCategory(s) === 'security') securityCount++;
+      if (getAllowOverride(s)) allowOverrideCount++;
+    });
+
+    return { total, securityCount, allowOverrideCount };
+  }, [settings]);
+
+  // Filtered Settings List
+  const filteredSettings = useMemo(() => {
+    return settings.filter((s) => {
+      const key = getSettingKey(s);
+      const cat = getCategory(s);
+      const name = getDisplayName(s).toLowerCase();
+      const desc = (s.description || '').toLowerCase();
+      const allowOverride = getAllowOverride(s);
+
+      // Category matching
+      if (activeTab === 'security' && cat !== 'security') return false;
+      if (activeTab === 'system' && (cat !== 'system' || key.includes('maintenance_mode'))) return false;
+      if (activeTab === 'maintenance' && !key.includes('maintenance_mode')) return false;
+
+      // Override filter
+      if (overrideFilter === 'PERMITTED' && !allowOverride) return false;
+      if (overrideFilter === 'LOCKED' && allowOverride) return false;
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        return name.includes(q) || key.toLowerCase().includes(q) || desc.includes(q);
+      }
+
+      return true;
+    });
+  }, [settings, activeTab, overrideFilter, searchQuery]);
+
+  // Active filters count
+  const activeFiltersCount = (overrideFilter !== 'ALL' ? 1 : 0) + (searchQuery.trim() ? 1 : 0);
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: '#f8fafc' }}>
-      {/* Page Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-          <span style={{ fontSize: '2rem' }}>⚙️</span>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+    <div className="settings-page-container">
+      {/* Breadcrumbs & Header Section */}
+      <div className="settings-header-section">
+        <div className="settings-header-left">
+          <div className="breadcrumb-trail" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: '#64748B', marginBottom: '6px' }}>
+            <Link to="/dashboard" style={{ color: '#64748B', textDecoration: 'none' }}>Dashboard</Link>
+            <ChevronRight size={14} />
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>System Settings</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <h1 className="page-title" style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
               System Configuration & Platform Defaults
             </h1>
-            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.9rem' }}>
-              Manage authoritative company-wide settings, security baselines, maintenance mode, and tenant override policies.
-            </p>
+            <span
+              className={`setting-override-badge ${isMaintenanceActive ? 'strict' : 'permitted'}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+            >
+              {isMaintenanceActive ? (
+                <>
+                  <AlertTriangle size={12} />
+                  <span>MAINTENANCE ACTIVE</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={12} />
+                  <span>PLATFORM OPERATIONAL</span>
+                </>
+              )}
+            </span>
           </div>
+          <p className="page-subtitle" style={{ fontSize: '0.86rem', color: '#64748B', margin: '4px 0 0 0' }}>
+            Manage authoritative company-wide settings, security baselines, maintenance mode, and tenant override policies.
+          </p>
+        </div>
+
+        {/* Header Actions */}
+        <div className="settings-header-right">
+          <Link to="/audit-logs" className="btn-enterprise btn-outline-soft" style={{ textDecoration: 'none' }}>
+            <History size={14} />
+            <span>Audit Trail</span>
+          </Link>
+
+          <button
+            type="button"
+            className={`btn-enterprise btn-outline-soft ${isRefreshing ? 'is-loading' : ''}`}
+            onClick={() => loadSettings(false)}
+            disabled={isRefreshing}
+          >
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Global Feedback Banner */}
+      {/* Top 4 KPI Stat Cards */}
+      <div className="settings-kpi-grid">
+        {/* Card 1: Total Policies */}
+        <div className="settings-stat-card card-stagger-1">
+          <div className="settings-stat-header">
+            <span className="settings-stat-label">Platform Policies</span>
+            <div className="settings-stat-icon-wrap blue">
+              <Sliders size={18} />
+            </div>
+          </div>
+          <div className="settings-stat-value text-slate-900">
+            <CountUpNumber value={stats.total} />
+          </div>
+          <div className="settings-stat-subtext">Active system policy configurations</div>
+          <div className="settings-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 2: Security Baselines */}
+        <div className="settings-stat-card card-stagger-2">
+          <div className="settings-stat-header">
+            <span className="settings-stat-label">Security Baselines</span>
+            <div className="settings-stat-icon-wrap green">
+              <ShieldCheck size={18} />
+            </div>
+          </div>
+          <div className="settings-stat-value text-emerald-600">
+            <CountUpNumber value={stats.securityCount} />
+          </div>
+          <div className="settings-stat-subtext">Mandatory encryption & auth floors</div>
+          <div className="settings-stat-accent-bar green" />
+        </div>
+
+        {/* Card 3: Tenant Overrides Permitted */}
+        <div className="settings-stat-card card-stagger-3">
+          <div className="settings-stat-header">
+            <span className="settings-stat-label">Overrides Allowed</span>
+            <div className="settings-stat-icon-wrap amber">
+              <Building2 size={18} />
+            </div>
+          </div>
+          <div className="settings-stat-value text-amber-600">
+            <CountUpNumber value={stats.allowOverrideCount} />
+          </div>
+          <div className="settings-stat-subtext">Customizable by institutional tenants</div>
+          <div className="settings-stat-accent-bar amber" />
+        </div>
+
+        {/* Card 4: Global Health & Maintenance */}
+        <div className="settings-stat-card card-stagger-4">
+          <div className="settings-stat-header">
+            <span className="settings-stat-label">Global Killswitch</span>
+            <div className={`settings-stat-icon-wrap ${isMaintenanceActive ? 'rose' : 'purple'}`}>
+              <AlertTriangle size={18} />
+            </div>
+          </div>
+          <div className={`settings-stat-value ${isMaintenanceActive ? 'text-rose-600' : 'text-purple-600'}`} style={{ fontSize: '1.25rem', paddingTop: '6px' }}>
+            {isMaintenanceActive ? 'MAINTENANCE' : 'OPERATIONAL'}
+          </div>
+          <div className="settings-stat-subtext">
+            {isMaintenanceActive ? 'Non-superadmin writes disabled' : 'All tenant services nominal'}
+          </div>
+          <div className={`settings-stat-accent-bar ${isMaintenanceActive ? 'rose' : 'purple'}`} />
+        </div>
+      </div>
+
+      {/* Dismissible Feedback Banner */}
       {feedback && (
-        <div
-          style={{
-            padding: '12px 16px',
-            marginBottom: '20px',
-            borderRadius: '8px',
-            background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${feedback.type === 'success' ? '#10b981' : '#ef4444'}`,
-            color: feedback.type === 'success' ? '#6ee7b7' : '#fca5a5',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>{feedback.text}</span>
+        <div className={`alert alert-${feedback.type}`} style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'fadeIn 0.3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} />
+            <span>{feedback.text}</span>
+          </div>
           <button
             onClick={() => setFeedback(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          borderBottom: '1px solid #334155',
-          marginBottom: '24px',
-          overflowX: 'auto',
-        }}
-      >
-        {[
-          { id: 'security', label: '🔒 Security Policies & Baselines' },
-          { id: 'system', label: '🛠️ Platform Defaults & Flags' },
-          { id: 'maintenance', label: '🚨 Global Maintenance Mode' },
-          { id: 'inheritance', label: '🏢 Tenant Inheritance Matrix' },
-          { id: 'history', label: '📜 Version History & Rollback' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '10px 18px',
-              border: 'none',
-              borderBottom: activeTab === tab.id ? '2px solid #38bdf8' : '2px solid transparent',
-              background: 'none',
-              color: activeTab === tab.id ? '#38bdf8' : '#94a3b8',
-              fontWeight: activeTab === tab.id ? 600 : 500,
-              fontSize: '0.95rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {tab.label}
+      {/* Global Error Banner */}
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
+            <X size={15} />
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Tab: Maintenance Mode View */}
-      {activeTab === 'maintenance' && maintenanceSetting && (
-        <div
-          style={{
-            background: '#1e293b',
-            border: '1px solid #334155',
-            borderRadius: '12px',
-            padding: '24px',
-            marginBottom: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-            <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f8fafc' }}>
-                Global Maintenance Mode Killswitch
-              </h2>
-              <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.875rem' }}>
-                When activated, non-superadmin API access across all tenant portals is suspended with an informational banner.
-              </p>
-            </div>
+      {/* Main Card Container */}
+      <div className="settings-main-card">
+        {/* Navigation Toolbar */}
+        <div className="settings-toolbar">
+          {/* Segmented Pill Tabs */}
+          <div className="settings-tabs-pillbox">
             <button
-              onClick={() => openEditModal(maintenanceSetting)}
-              style={{
-                padding: '8px 16px',
-                background: '#0284c7',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-              }}
+              type="button"
+              className={`settings-tab-pill ${activeTab === 'security' ? 'active' : ''}`}
+              onClick={() => setActiveTab('security')}
             >
-              Configure Maintenance
+              <ShieldCheck size={14} />
+              <span>Security Policies</span>
+              <span className="pill-counter">{stats.securityCount}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`settings-tab-pill ${activeTab === 'system' ? 'active' : ''}`}
+              onClick={() => setActiveTab('system')}
+            >
+              <Sliders size={14} />
+              <span>Platform Flags</span>
+              <span className="pill-counter">{stats.total - stats.securityCount}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`settings-tab-pill ${activeTab === 'maintenance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('maintenance')}
+            >
+              <AlertTriangle size={14} />
+              <span>Maintenance Mode</span>
+            </button>
+
+            <button
+              type="button"
+              className={`settings-tab-pill ${activeTab === 'inheritance' ? 'active' : ''}`}
+              onClick={() => setActiveTab('inheritance')}
+            >
+              <Building2 size={14} />
+              <span>Tenant Inheritance</span>
+              <span className="pill-counter">{inheritanceList.length || '•'}</span>
+            </button>
+
+            <button
+              type="button"
+              className={`settings-tab-pill ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => setActiveTab('history')}
+            >
+              <History size={14} />
+              <span>Version Audit</span>
+              <span className="pill-counter">{historyList.length || '•'}</span>
             </button>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              gap: '16px',
-              marginTop: '16px',
-            }}
-          >
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Status</div>
-              <div
-                style={{
-                  fontSize: '1.25rem',
-                  fontWeight: 700,
-                  marginTop: '4px',
-                  color: maintenanceSetting.setting_value?.enabled ? '#ef4444' : '#10b981',
-                }}
+          {/* Search & Filter Group */}
+          {(activeTab === 'security' || activeTab === 'system') && (
+            <div className="settings-filters-group">
+              <div className="settings-search-box">
+                <Search size={15} style={{ color: '#94A3B8' }} />
+                <input
+                  type="text"
+                  placeholder="Search policies or keys..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="settings-search-input"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94A3B8' }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={overrideFilter}
+                onChange={(e) => setOverrideFilter(e.target.value)}
+                className="settings-select-dropdown"
               >
-                {maintenanceSetting.setting_value?.enabled ? 'MAINTENANCE ACTIVE' : 'PLATFORM OPERATIONAL'}
-              </div>
-            </div>
+                <option value="ALL">All Overrides</option>
+                <option value="PERMITTED">Tenant Overrides Allowed</option>
+                <option value="LOCKED">Strict Platform Baseline</option>
+              </select>
 
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Banner Message</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 500, marginTop: '4px', color: '#cbd5e1' }}>
-                {maintenanceSetting.setting_value?.banner_message || '(No broadcast message set)'}
-              </div>
-            </div>
-
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Scheduled End Time</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 500, marginTop: '4px', color: '#cbd5e1' }}>
-                {maintenanceSetting.setting_value?.scheduled_end_time
-                  ? new Date(maintenanceSetting.setting_value.scheduled_end_time).toLocaleString()
-                  : 'Indefinite / Unscheduled'}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tab: Standard Settings Cards (Security or System) */}
-      {(activeTab === 'security' || activeTab === 'system') && (
-        <div>
-          {loading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-              Loading platform configuration...
-            </div>
-          ) : error ? (
-            <div style={{ padding: '24px', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5', borderRadius: '8px' }}>
-              {error}
-            </div>
-          ) : filteredSettings.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-              No settings registered for this category.
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(480px, 1fr))', gap: '20px' }}>
-              {filteredSettings.map((st) => (
-                <div
-                  key={st.setting_key}
-                  style={{
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '10px',
-                    padding: '20px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setOverrideFilter('ALL');
                   }}
+                  className="btn-enterprise btn-outline-soft"
+                  style={{ fontSize: '0.78rem', padding: '6px 10px' }}
                 >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, color: '#f8fafc' }}>
-                        {st.display_name}
-                      </h3>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          background: st.allow_override ? 'rgba(56, 189, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                          color: st.allow_override ? '#38bdf8' : '#fbbf24',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {st.allow_override ? 'Tenant Override Allowed' : 'Strict Platform Baseline'}
-                      </span>
-                    </div>
+                  Reset ({activeFiltersCount})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
-                    <p style={{ margin: '0 0 14px 0', fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                      {st.description}
-                    </p>
-
-                    {/* Minimum Baseline Alert */}
-                    {st.min_value && (
-                      <div
-                        style={{
-                          padding: '8px 12px',
-                          background: 'rgba(59, 130, 246, 0.08)',
-                          borderLeft: '3px solid #3b82f6',
-                          borderRadius: '0 6px 6px 0',
-                          marginBottom: '12px',
-                          fontSize: '0.8rem',
-                          color: '#93c5fd',
-                        }}
-                      >
-                        <strong>Security Baseline Floor: </strong>
-                        <code>{JSON.stringify(st.min_value)}</code>
-                      </div>
-                    )}
-
-                    {/* Setting Value Preview */}
-                    <div
-                      style={{
-                        background: '#0f172a',
-                        border: '1px solid #334155',
-                        borderRadius: '6px',
-                        padding: '12px',
-                        fontFamily: 'monospace',
-                        fontSize: '0.825rem',
-                        color: '#a7f3d0',
-                        maxHeight: '180px',
-                        overflowY: 'auto',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-all',
-                      }}
-                    >
-                      {JSON.stringify(st.setting_value, null, 2)}
-                    </div>
-                  </div>
-
-                  {/* Actions Bar */}
-                  <div
-                    style={{
-                      marginTop: '16px',
-                      paddingTop: '12px',
-                      borderTop: '1px solid #334155',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
+        {/* TAB 1 & 2: SECURITY & SYSTEM POLICIES GRID */}
+        {(activeTab === 'security' || activeTab === 'system') && (
+          <div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div className="spinner" style={{ margin: '0 auto 14px' }}></div>
+                <p style={{ color: '#64748B', fontSize: '0.88rem' }}>Loading platform system configurations...</p>
+              </div>
+            ) : filteredSettings.length === 0 ? (
+              <div className="modules-empty-state">
+                <Sliders size={42} style={{ color: '#CBD5E1', marginBottom: '12px' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1E293B', margin: '0 0 6px 0' }}>
+                  No Configuration Policies Found
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', maxWidth: '380px', margin: '0 0 16px 0' }}>
+                  No settings match your current search and filter criteria.
+                </p>
+                {activeFiltersCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn-enterprise btn-primary"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setOverrideFilter('ALL');
                     }}
                   >
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      Updated: {new Date(st.updated_at).toLocaleDateString()}
-                    </span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        onClick={() => handleResetSetting(st)}
-                        style={{
-                          padding: '6px 12px',
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          borderRadius: '6px',
-                          color: '#fca5a5',
-                          fontSize: '0.8rem',
-                          fontWeight: 500,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Reset Default
-                      </button>
-                      <button
-                        onClick={() => openEditModal(st)}
-                        style={{
-                          padding: '6px 14px',
-                          background: '#0284c7',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: '#ffffff',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Edit Policy
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                    Clear All Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="settings-policy-grid">
+                {filteredSettings.map((st) => {
+                  const key = getSettingKey(st);
+                  const name = getDisplayName(st);
+                  const allowOverride = getAllowOverride(st);
+                  const val = getSettingValue(st);
+                  const isCopied = copiedKey === key;
 
-      {/* Tab: Tenant Inheritance Matrix */}
-      {activeTab === 'inheritance' && (
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Tenant Inheritance & Override Matrix</h3>
-            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
-              Tracks which tenant colleges inherit company defaults versus those maintaining explicit custom configurations.
-            </p>
-          </div>
+                  return (
+                    <div key={key} className="setting-policy-card">
+                      <div>
+                        {/* Header */}
+                        <div className="setting-policy-header">
+                          <div>
+                            <h3 className="setting-policy-title">{name}</h3>
+                            <code className="setting-policy-key">{key}</code>
+                          </div>
+                          <span className={`setting-override-badge ${allowOverride ? 'permitted' : 'strict'}`}>
+                            {allowOverride ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <Unlock size={11} />
+                                <span>Tenant Override</span>
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <Lock size={11} />
+                                <span>Strict Baseline</span>
+                              </span>
+                            )}
+                          </span>
+                        </div>
 
-          {inheritanceLoading ? (
-            <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>Analyzing tenant configurations...</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
-              <thead>
-                <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', color: '#94a3b8' }}>
-                  <th style={{ padding: '12px 16px' }}>Policy Key</th>
-                  <th style={{ padding: '12px 16px' }}>Category</th>
-                  <th style={{ padding: '12px 16px' }}>Total Active Tenants</th>
-                  <th style={{ padding: '12px 16px' }}>Inherited Defaults</th>
-                  <th style={{ padding: '12px 16px' }}>Custom Overrides</th>
-                  <th style={{ padding: '12px 16px' }}>Override Permission</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inheritanceList.map((item) => (
-                  <tr key={item.setting_key} style={{ borderBottom: '1px solid #334155' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#f8fafc' }}>
-                      {item.display_name}
-                      <div style={{ fontSize: '0.75rem', color: '#64748b', fontFamily: 'monospace' }}>
-                        {item.setting_key}
+                        {/* Description */}
+                        <p className="setting-policy-desc">{st.description || 'Global configuration parameter.'}</p>
+
+                        {/* Minimum Baseline Floor Warning */}
+                        {st.min_value && (
+                          <div className="setting-baseline-floor">
+                            <span style={{ fontWeight: 700 }}>Security Baseline Floor: </span>
+                            <code>{JSON.stringify(st.min_value)}</code>
+                          </div>
+                        )}
+
+                        {/* JSON Code Snippet Preview */}
+                        <div className="setting-json-preview-container">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <span style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: '#94A3B8', fontWeight: 700, letterSpacing: '0.05em' }}>
+                              JSON Configuration
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyJson(key, val)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: isCopied ? '#10B981' : '#94A3B8',
+                                cursor: 'pointer',
+                                fontSize: '0.72rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 4px',
+                              }}
+                              title="Copy JSON Payload"
+                            >
+                              {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                              <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                            </button>
+                          </div>
+                          <pre className="setting-json-code">
+                            {JSON.stringify(val, null, 2)}
+                          </pre>
+                        </div>
                       </div>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#94a3b8', textTransform: 'capitalize' }}>
-                      {item.category}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>{item.total_tenants}</td>
-                    <td style={{ padding: '12px 16px', color: '#10b981', fontWeight: 600 }}>
-                      {item.inherited_tenants} colleges
-                    </td>
-                    <td style={{ padding: '12px 16px', color: item.overridden_tenants > 0 ? '#38bdf8' : '#64748b' }}>
-                      {item.overridden_tenants} colleges
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          background: item.allow_tenant_override ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                          color: item.allow_tenant_override ? '#6ee7b7' : '#fca5a5',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {item.allow_tenant_override ? 'Permitted' : 'Locked Global'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
 
-      {/* Tab: Version History & Rollback */}
-      {activeTab === 'history' && (
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden' }}>
-          <div
-            style={{
-              padding: '16px 20px',
-              borderBottom: '1px solid #334155',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Configuration Version History & Audit</h3>
-              <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
-                Inspect timestamped modifications, change rationale, and execute one-click rollbacks.
-              </p>
-            </div>
-            <select
-              value={historyKeyFilter}
-              onChange={(e) => setHistoryKeyFilter(e.target.value)}
-              style={{
-                padding: '6px 12px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-              }}
-            >
-              <option value="">All Settings</option>
-              {settings.map((s) => (
-                <option key={s.setting_key} value={s.setting_key}>
-                  {s.display_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {historyLoading ? (
-            <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>Loading version trail...</div>
-          ) : historyList.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
-              No configuration history recorded yet.
-            </div>
-          ) : (
-            <div style={{ padding: '16px' }}>
-              {historyList.map((h) => (
-                <div
-                  key={h.history_id}
-                  style={{
-                    background: '#0f172a',
-                    border: '1px solid #334155',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '12px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: h.action === 'UPDATE' ? '#0369a1' : h.action === 'REVERT' ? '#b45309' : '#475569',
-                          color: '#ffffff',
-                          fontWeight: 600,
-                          marginRight: '8px',
-                        }}
-                      >
-                        {h.action}
-                      </span>
-                      <strong style={{ color: '#f8fafc' }}>{h.setting_key}</strong>
-                      <span style={{ color: '#64748b', fontSize: '0.8rem', marginLeft: '12px' }}>
-                        by {h.actor_role} at {new Date(h.created_at).toLocaleString()}
-                      </span>
+                      {/* Card Footer Actions */}
+                      <div className="setting-card-footer">
+                        <span style={{ fontSize: '0.73rem', color: '#94A3B8' }}>
+                          Updated {st.updated_at ? new Date(st.updated_at).toLocaleDateString() : 'recently'}
+                        </span>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            type="button"
+                            className="btn-module-action"
+                            onClick={() => setResetModal({ isOpen: true, setting: st, reason: 'Reset to factory defaults', submitting: false, error: null })}
+                            title="Reset this setting to company factory baseline"
+                          >
+                            <RefreshCcw size={12} />
+                            <span>Reset</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-module-action primary"
+                            onClick={() => openEditModal(st)}
+                          >
+                            <FileCode size={12} />
+                            <span>Edit Policy</span>
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => handleRollback(h)}
-                      style={{
-                        padding: '4px 10px',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid rgba(245, 158, 11, 0.4)',
-                        borderRadius: '4px',
-                        color: '#fbbf24',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Rollback to this version
-                    </button>
-                  </div>
-
-                  <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginBottom: '10px' }}>
-                    <strong>Reason: </strong> {h.reason}
-                  </div>
-
-                  <div
-                    style={{
-                      background: '#020617',
-                      padding: '8px 12px',
-                      borderRadius: '6px',
-                      fontFamily: 'monospace',
-                      fontSize: '0.775rem',
-                      color: '#a7f3d0',
-                      maxHeight: '120px',
-                      overflowY: 'auto',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    {JSON.stringify(h.new_value, null, 2)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Edit Configuration Modal Drawer */}
-      {selectedSetting && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #475569',
-              borderRadius: '12px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '650px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 4px 0', color: '#f8fafc' }}>
-              Edit Platform Policy: {selectedSetting.display_name}
-            </h2>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: '#94a3b8' }}>
-              Setting Key: <code>{selectedSetting.setting_key}</code>
-            </p>
-
-            {editError && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid #ef4444',
-                  borderRadius: '6px',
-                  color: '#fca5a5',
-                  fontSize: '0.85rem',
-                  marginBottom: '16px',
-                }}
-              >
-                {editError}
+                  );
+                })}
               </div>
             )}
+          </div>
+        )}
 
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                Configuration JSON Payload
-              </label>
-              <textarea
-                value={editJsonString}
-                onChange={(e) => setEditJsonString(e.target.value)}
-                rows={10}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '6px',
-                  color: '#f8fafc',
-                  fontFamily: 'monospace',
-                  fontSize: '0.85rem',
-                  padding: '10px',
-                }}
-              />
+        {/* TAB 3: GLOBAL MAINTENANCE MODE KILLSWITCH */}
+        {activeTab === 'maintenance' && maintenanceSetting && (
+          <div>
+            <div className={`maintenance-killswitch-panel ${isMaintenanceActive ? 'active-state' : ''}`}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <ShieldAlert size={22} style={{ color: isMaintenanceActive ? '#E11D48' : '#2563EB' }} />
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                      Global Maintenance Mode Killswitch
+                    </h2>
+                  </div>
+                  <p style={{ margin: 0, color: '#64748B', fontSize: '0.86rem', maxWidth: '680px' }}>
+                    When activated, non-superadmin write requests across all tenant portals (Student, Parent, Incharge, Security, Admin) are suspended with an informational maintenance broadcast.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className={`btn-enterprise ${isMaintenanceActive ? 'btn-primary' : 'btn-danger'}`}
+                  onClick={() => openEditModal(maintenanceSetting)}
+                >
+                  <Sliders size={14} />
+                  <span>Configure Maintenance Killswitch</span>
+                </button>
+              </div>
+
+              {/* Maintenance Status Indicators Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Operational Status
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '1.15rem',
+                      fontWeight: 800,
+                      marginTop: '6px',
+                      color: isMaintenanceActive ? '#E11D48' : '#10B981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                    }}
+                  >
+                    {isMaintenanceActive ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+                    <span>{isMaintenanceActive ? 'MAINTENANCE ACTIVE' : 'PLATFORM OPERATIONAL'}</span>
+                  </div>
+                </div>
+
+                <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Broadcast Banner Message
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginTop: '6px', color: '#1E293B' }}>
+                    {getSettingValue(maintenanceSetting).banner_message || getSettingValue(maintenanceSetting).message || '(No broadcast message set)'}
+                  </div>
+                </div>
+
+                <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Scheduled Maintenance End Time
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginTop: '6px', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={15} style={{ color: '#64748B' }} />
+                    <span>
+                      {getSettingValue(maintenanceSetting).scheduled_end_time
+                        ? new Date(getSettingValue(maintenanceSetting).scheduled_end_time).toLocaleString()
+                        : 'Indefinite / Unscheduled'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: TENANT INHERITANCE MATRIX */}
+        {activeTab === 'inheritance' && (
+          <div>
+            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ color: '#64748B', fontSize: '0.84rem', margin: 0 }}>
+                Audits which institutional college tenants inherit company defaults versus those maintaining explicit custom configurations.
+              </p>
+              <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                Tracking {inheritanceList.length} global policy definitions
+              </span>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                Audit Change Reason (Mandatory)
-              </label>
-              <input
-                type="text"
-                value={editReason}
-                onChange={(e) => setEditReason(e.target.value)}
-                placeholder="e.g. Updating platform password floor per Q4 compliance audit"
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '6px',
-                  color: '#f8fafc',
-                  fontSize: '0.85rem',
-                  padding: '10px',
-                }}
-              />
-            </div>
+            {inheritanceLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div className="spinner" style={{ margin: '0 auto 10px' }}></div>
+                <p style={{ color: '#64748B', fontSize: '0.85rem' }}>Analyzing tenant configurations...</p>
+              </div>
+            ) : inheritanceList.length === 0 ? (
+              <div className="modules-empty-state">
+                <Building2 size={40} style={{ color: '#CBD5E1', marginBottom: '10px' }} />
+                <p style={{ color: '#64748B', fontSize: '0.86rem' }}>No tenant inheritance matrix records found.</p>
+              </div>
+            ) : (
+              <div className="modules-table-container">
+                <table className="modules-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '28%' }}>Policy Definition</th>
+                      <th style={{ width: '14%' }}>Category</th>
+                      <th style={{ width: '14%' }}>Total Tenants</th>
+                      <th style={{ width: '16%' }}>Inherited Defaults</th>
+                      <th style={{ width: '14%' }}>Custom Overrides</th>
+                      <th style={{ width: '14%', textAlign: 'right' }}>Override Permission</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inheritanceList.map((item) => (
+                      <tr key={item.setting_key}>
+                        <td>
+                          <div style={{ fontWeight: 700, color: '#0F172A' }}>{item.display_name}</div>
+                          <code style={{ fontSize: '0.74rem', background: '#F1F5F9', color: '#475569', padding: '1px 5px', borderRadius: '4px' }}>
+                            {item.setting_key}
+                          </code>
+                        </td>
+                        <td>
+                          <span className={`module-kind-pill ${item.category === 'security' ? 'app' : 'module'}`}>
+                            {item.category}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 600, color: '#334155' }}>
+                          {item.total_tenants} colleges
+                        </td>
+                        <td>
+                          <span style={{ color: '#059669', fontWeight: 700, fontSize: '0.82rem' }}>
+                            {item.inherited_tenants} colleges
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: item.overridden_tenants > 0 ? '#2563EB' : '#94A3B8', fontWeight: 600, fontSize: '0.82rem' }}>
+                            {item.overridden_tenants} colleges
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <span className={`setting-override-badge ${item.allow_tenant_override ? 'permitted' : 'strict'}`}>
+                            {item.allow_tenant_override ? 'Permitted' : 'Locked Global'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                onClick={() => setSelectedSetting(null)}
-                style={{
-                  padding: '8px 16px',
-                  background: 'transparent',
-                  border: '1px solid #475569',
-                  borderRadius: '6px',
-                  color: '#cbd5e1',
-                  cursor: 'pointer',
-                  fontWeight: 500,
-                }}
+        {/* TAB 5: VERSION HISTORY & ROLLBACK */}
+        {activeTab === 'history' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <p style={{ color: '#64748B', fontSize: '0.84rem', margin: 0 }}>
+                Timestamped audit records from <code>platform.system_settings_history</code>. Execute one-click rollbacks to restore verified stable baselines.
+              </p>
+
+              <select
+                value={historyKeyFilter}
+                onChange={(e) => setHistoryKeyFilter(e.target.value)}
+                className="settings-select-dropdown"
+                style={{ minWidth: '220px' }}
               >
-                Cancel
-              </button>
+                <option value="">All Settings</option>
+                {settings.map((s) => (
+                  <option key={getSettingKey(s)} value={getSettingKey(s)}>
+                    {getDisplayName(s)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {historyLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div className="spinner" style={{ margin: '0 auto 10px' }}></div>
+                <p style={{ color: '#64748B', fontSize: '0.85rem' }}>Loading configuration audit trail...</p>
+              </div>
+            ) : historyList.length === 0 ? (
+              <div className="modules-empty-state">
+                <History size={40} style={{ color: '#CBD5E1', marginBottom: '10px' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1E293B', margin: '0 0 6px 0' }}>
+                  No Configuration History Found
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', maxWidth: '380px', margin: 0 }}>
+                  No configuration revisions recorded yet for the selected policy filter.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {historyList.map((h) => (
+                  <div
+                    key={h.history_id || Math.random()}
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #EDF2F7',
+                      borderRadius: '12px',
+                      padding: '16px 20px',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.03)',
+                      transition: 'border-color 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <span
+                          className={`badge ${
+                            h.action === 'UPDATE' ? 'badge-primary' : h.action === 'REVERT' ? 'badge-warning' : 'badge-outline'
+                          }`}
+                          style={{ fontSize: '0.72rem', fontWeight: 700 }}
+                        >
+                          {h.action}
+                        </span>
+                        <strong style={{ color: '#0F172A', fontSize: '0.9rem' }}>{h.setting_key}</strong>
+                        <span style={{ color: '#64748B', fontSize: '0.78rem' }}>
+                          by <strong>{h.actor_role || 'SUPER_ADMIN'}</strong> &bull; {new Date(h.created_at).toLocaleString()}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setRollbackModal({ isOpen: true, historyItem: h, reason: 'Reverting to stable previous version', submitting: false, error: null })}
+                        className="btn-module-action"
+                        style={{ color: '#D97706', borderColor: '#FDE68A', background: '#FFFBEB' }}
+                      >
+                        <RefreshCcw size={12} />
+                        <span>Rollback to this version</span>
+                      </button>
+                    </div>
+
+                    <div style={{ fontSize: '0.82rem', color: '#334155', marginBottom: '10px' }}>
+                      <strong style={{ color: '#475569' }}>Reason: </strong> {h.reason || 'No justification specified'}
+                    </div>
+
+                    <div className="setting-json-preview-container" style={{ margin: 0, padding: '10px 12px' }}>
+                      <pre className="setting-json-code" style={{ maxHeight: '100px' }}>
+                        {JSON.stringify(h.new_value, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* MODAL 1: EDIT CONFIGURATION DRAWER / MODAL */}
+      {editModal.isOpen && editModal.setting && (
+        <div className="modal-backdrop" style={{ zIndex: 1050 }}>
+          <div className="modal-card" style={{ maxWidth: '680px', borderRadius: '16px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sliders size={18} style={{ color: '#2563EB' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                  Edit Policy: {getDisplayName(editModal.setting)}
+                </h2>
+              </div>
               <button
-                type="button"
-                onClick={handleSaveSetting}
-                disabled={editSubmitting}
-                style={{
-                  padding: '8px 20px',
-                  background: '#0284c7',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  cursor: editSubmitting ? 'not-allowed' : 'pointer',
-                }}
+                className="modal-close-btn"
+                onClick={() => setEditModal((p) => ({ ...p, isOpen: false }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
               >
-                {editSubmitting ? 'Saving...' : 'Apply Configuration'}
+                <X size={18} />
               </button>
             </div>
+
+            <form onSubmit={handleSaveSetting} style={{ padding: '24px' }}>
+              {editModal.error && (
+                <div className="alert alert-danger" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={15} />
+                  <span>{editModal.error}</span>
+                </div>
+              )}
+
+              <p style={{ margin: '0 0 16px 0', fontSize: '0.84rem', color: '#64748B' }}>
+                Authoritative Key: <code>{getSettingKey(editModal.setting)}</code>
+              </p>
+
+              {/* JSON Editor with Prettify Tool */}
+              <div style={{ marginBottom: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', margin: 0 }}>
+                    Configuration JSON Payload
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handlePrettifyJson}
+                    className="btn-module-action"
+                    style={{ fontSize: '0.72rem', padding: '3px 8px' }}
+                  >
+                    <Sparkles size={11} />
+                    <span>Auto-Format JSON</span>
+                  </button>
+                </div>
+                <textarea
+                  value={editModal.jsonString}
+                  onChange={(e) => setEditModal((p) => ({ ...p, jsonString: e.target.value }))}
+                  rows={10}
+                  className="input-textarea"
+                  style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontSize: '0.82rem',
+                    background: '#0F172A',
+                    color: '#6EE7B7',
+                    border: '1px solid #334155',
+                    borderRadius: '8px',
+                    width: '100%',
+                    padding: '12px',
+                    lineHeight: 1.45,
+                  }}
+                  required
+                />
+              </div>
+
+              {/* Mandatory Reason Input */}
+              <div style={{ marginBottom: '22px' }}>
+                <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', marginBottom: '6px' }}>
+                  Authoritative Change Justification <span style={{ color: '#DC2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editModal.reason}
+                  onChange={(e) => setEditModal((p) => ({ ...p, reason: e.target.value }))}
+                  placeholder="e.g. Updating platform password floor per Q4 compliance audit"
+                  className="input-text"
+                  style={{ width: '100%', fontSize: '0.84rem', borderRadius: '8px', border: '1px solid #CBD5E1' }}
+                  required
+                />
+              </div>
+
+              {/* Modal Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setEditModal((p) => ({ ...p, isOpen: false }))}
+                  disabled={editModal.submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary"
+                  disabled={editModal.submitting}
+                >
+                  {editModal.submitting ? 'Applying Policy...' : 'Apply Configuration'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: CONFIRM FACTORY RESET MODAL (Replaces window.confirm/prompt) */}
+      {resetModal.isOpen && resetModal.setting && (
+        <div className="modal-backdrop" style={{ zIndex: 1050 }}>
+          <div className="modal-card" style={{ maxWidth: '520px', borderRadius: '16px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <RefreshCcw size={18} style={{ color: '#DC2626' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                  Reset to Company Defaults
+                </h2>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setResetModal((p) => ({ ...p, isOpen: false }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReset} style={{ padding: '24px' }}>
+              {resetModal.error && (
+                <div className="alert alert-danger" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={15} />
+                  <span>{resetModal.error}</span>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '16px', lineHeight: 1.5 }}>
+                Are you sure you want to reset <strong style={{ color: '#0F172A' }}>{getDisplayName(resetModal.setting)}</strong> to the company factory baseline? Any tenant institutions inheriting this policy will immediately receive default values.
+              </p>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', marginBottom: '6px' }}>
+                  Audit Reset Reason
+                </label>
+                <input
+                  type="text"
+                  value={resetModal.reason}
+                  onChange={(e) => setResetModal((p) => ({ ...p, reason: e.target.value }))}
+                  className="input-text"
+                  style={{ width: '100%', fontSize: '0.84rem' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setResetModal((p) => ({ ...p, isOpen: false }))}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-danger"
+                  disabled={resetModal.submitting}
+                >
+                  {resetModal.submitting ? 'Resetting...' : 'Confirm Factory Reset'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: CONFIRM ROLLBACK MODAL (Replaces window.confirm/prompt) */}
+      {rollbackModal.isOpen && rollbackModal.historyItem && (
+        <div className="modal-backdrop" style={{ zIndex: 1050 }}>
+          <div className="modal-card" style={{ maxWidth: '540px', borderRadius: '16px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <History size={18} style={{ color: '#D97706' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                  Rollback Version Revision
+                </h2>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setRollbackModal((p) => ({ ...p, isOpen: false }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmRollback} style={{ padding: '24px' }}>
+              {rollbackModal.error && (
+                <div className="alert alert-danger" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={15} />
+                  <span>{rollbackModal.error}</span>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '14px', lineHeight: 1.5 }}>
+                Roll back policy <strong style={{ color: '#0F172A' }}>{rollbackModal.historyItem.setting_key}</strong> to the version created on{' '}
+                <strong>{new Date(rollbackModal.historyItem.created_at).toLocaleString()}</strong> by {rollbackModal.historyItem.actor_role}?
+              </p>
+
+              {/* Version Value Preview */}
+              <div className="setting-json-preview-container" style={{ marginBottom: '16px' }}>
+                <pre className="setting-json-code" style={{ maxHeight: '110px' }}>
+                  {JSON.stringify(rollbackModal.historyItem.new_value, null, 2)}
+                </pre>
+              </div>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', marginBottom: '6px' }}>
+                  Audit Rollback Justification
+                </label>
+                <input
+                  type="text"
+                  value={rollbackModal.reason}
+                  onChange={(e) => setRollbackModal((p) => ({ ...p, reason: e.target.value }))}
+                  className="input-text"
+                  style={{ width: '100%', fontSize: '0.84rem' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setRollbackModal((p) => ({ ...p, isOpen: false }))}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary"
+                  disabled={rollbackModal.submitting}
+                >
+                  {rollbackModal.submitting ? 'Rolling back...' : 'Confirm Version Rollback'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

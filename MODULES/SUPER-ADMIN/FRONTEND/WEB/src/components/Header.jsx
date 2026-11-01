@@ -1,35 +1,48 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { RotateCw, Plus, FileCheck } from 'lucide-react';
 
 export default function Header({ onRefresh, isRefreshing, generatedAt }) {
   return (
-    <div className="header-container">
-      <div>
-        <h1 className="page-title">Super Admin Dashboard</h1>
-        <p className="page-subtitle">
-          Platform-wide health, college lifecycle status, entitlements, and administrative activity.
-          {generatedAt && (
-            <span style={{ marginLeft: '10px', color: 'var(--text-muted)' }}>
-              Updated: {new Date(generatedAt).toLocaleTimeString()}
-            </span>
-          )}
+    <div className="dashboard-hero-header">
+      <div className="hero-text-block">
+        <h1 className="hero-page-title">Super Admin Dashboard</h1>
+        <p className="hero-page-subtitle">
+          Manage colleges, administrators and platform operations.
         </p>
       </div>
 
-      <div className="quick-actions">
+      <div className="hero-actions-cluster">
+        {/* Refresh Action */}
         <button
-          className="btn btn-outline"
+          type="button"
+          className={`btn-enterprise btn-outline-soft ${isRefreshing ? 'is-loading' : ''}`}
           onClick={onRefresh}
           disabled={isRefreshing}
           title="Refresh dashboard data"
         >
-          {isRefreshing ? 'Refreshing...' : '↻ Refresh'}
+          <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+          <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
         </button>
-        <Link to="/colleges/new" className="btn btn-primary" id="btn-create-college">
-          + Create College
+
+        {/* Review Approvals Action */}
+        <Link
+          to="/approvals"
+          className="btn-enterprise btn-outline-soft"
+          id="btn-review-approvals"
+        >
+          <FileCheck size={14} />
+          <span>Review Approvals</span>
         </Link>
-        <Link to="/approvals" className="btn btn-outline" id="btn-review-approvals">
-          Review Approvals
+
+        {/* Create College Primary Action */}
+        <Link
+          to="/colleges/new"
+          className="btn-enterprise btn-primary-blue"
+          id="btn-create-college"
+        >
+          <Plus size={15} />
+          <span>Create College</span>
         </Link>
       </div>
     </div>

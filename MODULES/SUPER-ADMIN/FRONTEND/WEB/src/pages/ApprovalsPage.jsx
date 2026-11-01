@@ -1,5 +1,30 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import {
+  CheckSquare,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  RotateCw,
+  Search,
+  X,
+  FileText,
+  User,
+  ArrowRight,
+  ShieldCheck,
+  Send,
+  Ban,
+  ChevronLeft,
+  ChevronRight,
+  GitPullRequest,
+  Rocket,
+  AlertTriangle,
+  Building2,
+  Lock,
+  Layers,
+} from 'lucide-react';
 import {
   fetchApprovalRequests,
   fetchApprovalRequest,
@@ -8,9 +33,55 @@ import {
   cancelApprovalRequest,
 } from '../services/approvalService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function ApprovalsPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('inbox'); // 'inbox' | 'my_requests' | 'all' | 'history'
+  const [activeTab, setActiveTab] = useState('inbox'); // 'inbox' | 'my_requests' | 'history' | 'all'
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -19,6 +90,7 @@ export default function ApprovalsPage() {
 
   // Pagination & Filters
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [total, setTotal] = useState(0);
 
   // Modal / Detail State
@@ -39,6 +111,7 @@ export default function ApprovalsPage() {
   const loadRequests = useCallback(async () => {
     try {
       setLoading(true);
+      setIsRefreshing(true);
       setError(null);
       const params = { limit: 50, offset: 0 };
 
@@ -51,7 +124,6 @@ export default function ApprovalsPage() {
         }
         if (statusFilter) params.status = statusFilter;
       } else if (activeTab === 'history') {
-        // Finalized states
         if (statusFilter) {
           params.status = statusFilter;
         }
@@ -66,6 +138,7 @@ export default function ApprovalsPage() {
       setError(err.response?.data?.error?.message || err.message || 'Failed to load approval requests');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [activeTab, statusFilter, user]);
 
@@ -79,16 +152,24 @@ export default function ApprovalsPage() {
       setDetailLoading(true);
       setSelectedRequest(req);
       const res = await fetchApprovalRequest(req.request_id);
-      setSelectedRequest(res.data?.approval_request || res.approval_request || req);
+      const fullReq = res.data?.approval_request || res.approval_request || req;
+      setSelectedRequest(fullReq);
+
+      // Pre-select pending step if available
+      const pendingStep = fullReq.steps?.find((s) => s.status === 'PENDING');
+      if (pendingStep) {
+        setDecisionStepId(pendingStep.step_id);
+      }
     } catch (err) {
-      setError('Failed to fetch full request details: ' + (err.response?.data?.error?.message || err.message));
+      setError('Failed to fetch request details: ' + (err.response?.data?.error?.message || err.message));
     } finally {
       setDetailLoading(false);
     }
   };
 
   // Submit Approval Decision
-  const handleProcessDecision = async () => {
+  const handleProcessDecision = async (e) => {
+    e.preventDefault();
     if (!decisionStepId) return;
     try {
       setSubmittingDecision(true);
@@ -119,7 +200,7 @@ export default function ApprovalsPage() {
     try {
       setLoading(true);
       await executeApprovalRequest(requestId);
-      setFeedback('Approved operation executed successfully in platform transaction.');
+      setFeedback('Approved request executed successfully.');
       setSelectedRequest(null);
       loadRequests();
     } catch (err) {
@@ -130,7 +211,8 @@ export default function ApprovalsPage() {
   };
 
   // Cancel / Withdraw Request
-  const handleCancelRequest = async () => {
+  const handleCancelRequest = async (e) => {
+    e.preventDefault();
     if (!cancellingRequest || !cancelReason.trim()) return;
     try {
       setSubmittingCancel(true);
@@ -147,378 +229,561 @@ export default function ApprovalsPage() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'PENDING':
-        return <span className="badge badge-warning">⏳ Pending Review</span>;
-      case 'APPROVED':
-        return <span className="badge badge-success">✅ Approved</span>;
-      case 'EXECUTED':
-        return <span className="badge badge-info">🚀 Executed</span>;
-      case 'REJECTED':
-        return <span className="badge badge-danger">❌ Rejected</span>;
-      case 'CANCELLED':
-        return <span className="badge badge-secondary">🚫 Cancelled</span>;
-      case 'EXPIRED':
-        return <span className="badge badge-secondary">⌛ Expired</span>;
-      default:
-        return <span className="badge">{status}</span>;
-    }
-  };
+  // Compute Metrics
+  const pendingCount = useMemo(
+    () => requests.filter((r) => r.status === 'PENDING').length,
+    [requests]
+  );
+  const approvedCount = useMemo(
+    () => requests.filter((r) => r.status === 'APPROVED').length,
+    [requests]
+  );
+  const executedCount = useMemo(
+    () => requests.filter((r) => r.status === 'EXECUTED').length,
+    [requests]
+  );
+  const rejectedCount = useMemo(
+    () => requests.filter((r) => r.status === 'REJECTED' || r.status === 'CANCELLED').length,
+    [requests]
+  );
+
+  // Search Filter
+  const filteredRequests = useMemo(() => {
+    if (!searchQuery.trim()) return requests;
+    const q = searchQuery.toLowerCase();
+    return requests.filter(
+      (r) =>
+        r.request_id?.toLowerCase().includes(q) ||
+        r.operation_type?.toLowerCase().includes(q) ||
+        r.entity_type?.toLowerCase().includes(q) ||
+        r.reason?.toLowerCase().includes(q) ||
+        r.requested_by_email?.toLowerCase().includes(q)
+    );
+  }, [requests, searchQuery]);
 
   return (
-    <div className="approvals-page" style={{ padding: '24px' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 6px 0', color: '#0f172a' }}>
-            📋 Approval Workflow & Maker-Checker Queue
-          </h1>
-          <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+    <div className="approvals-page-container animate-fade-in">
+      {/* Top Header & Breadcrumbs */}
+      <div className="approvals-hero-header">
+        <div className="approvals-hero-text">
+          <div className="approvals-breadcrumbs">
+            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">Approvals &amp; Maker-Checker</span>
+          </div>
+          <h1 className="approvals-title">Approval Queue &amp; Maker-Checker</h1>
+          <p className="approvals-subtitle">
             Multi-step authorization queue enforcing maker-checker separation, row-locked executions, and tamper-evident audit logs.
           </p>
         </div>
-        <button onClick={loadRequests} className="btn btn-outline btn-sm" disabled={loading}>
-          🔄 Refresh
-        </button>
-      </div>
 
-      {/* Alerts */}
-      {feedback && (
-        <div style={{ background: '#ecfdf5', border: '1px solid #10b981', color: '#065f46', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-          <span>{feedback}</span>
-          <button onClick={() => setFeedback(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-        </div>
-      )}
-      {error && (
-        <div style={{ background: '#fef2f2', border: '1px solid #ef4444', color: '#991b1b', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-          <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #e2e8f0', marginBottom: '20px' }}>
-        <button
-          onClick={() => { setActiveTab('inbox'); setStatusFilter(''); }}
-          style={{
-            padding: '10px 18px',
-            border: 'none',
-            borderBottom: activeTab === 'inbox' ? '2px solid #2563eb' : '2px solid transparent',
-            background: 'none',
-            color: activeTab === 'inbox' ? '#2563eb' : '#64748b',
-            fontWeight: activeTab === 'inbox' ? '600' : '500',
-            cursor: 'pointer',
-          }}
-        >
-          📥 Approval Inbox (Others' Requests)
-        </button>
-        <button
-          onClick={() => { setActiveTab('my_requests'); setStatusFilter(''); }}
-          style={{
-            padding: '10px 18px',
-            border: 'none',
-            borderBottom: activeTab === 'my_requests' ? '2px solid #2563eb' : '2px solid transparent',
-            background: 'none',
-            color: activeTab === 'my_requests' ? '#2563eb' : '#64748b',
-            fontWeight: activeTab === 'my_requests' ? '600' : '500',
-            cursor: 'pointer',
-          }}
-        >
-          👤 My Submitted Requests
-        </button>
-        <button
-          onClick={() => { setActiveTab('history'); setStatusFilter(''); }}
-          style={{
-            padding: '10px 18px',
-            border: 'none',
-            borderBottom: activeTab === 'history' ? '2px solid #2563eb' : '2px solid transparent',
-            background: 'none',
-            color: activeTab === 'history' ? '#2563eb' : '#64748b',
-            fontWeight: activeTab === 'history' ? '600' : '500',
-            cursor: 'pointer',
-          }}
-        >
-          📜 Approval History
-        </button>
-        <button
-          onClick={() => { setActiveTab('all'); setStatusFilter(''); }}
-          style={{
-            padding: '10px 18px',
-            border: 'none',
-            borderBottom: activeTab === 'all' ? '2px solid #2563eb' : '2px solid transparent',
-            background: 'none',
-            color: activeTab === 'all' ? '#2563eb' : '#64748b',
-            fontWeight: activeTab === 'all' ? '600' : '500',
-            cursor: 'pointer',
-          }}
-        >
-          🔍 All Platform Requests
-        </button>
-      </div>
-
-      {/* Filter Toolbar */}
-      {activeTab !== 'inbox' && (
-        <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <label style={{ fontSize: '13px', fontWeight: '500', color: '#475569' }}>Filter Status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
+        <div className="approvals-header-actions">
+          <button
+            type="button"
+            className={`btn-enterprise btn-outline-soft ${isRefreshing ? 'is-loading' : ''}`}
+            onClick={loadRequests}
+            disabled={isRefreshing}
+            title="Refresh approval queue"
           >
-            <option value="">All Statuses</option>
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="EXECUTED">Executed</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="CANCELLED">Cancelled</option>
-            <option value="EXPIRED">Expired</option>
-          </select>
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Top 4 KPI Stat Cards */}
+      <div className="approvals-kpi-grid">
+        {/* Card 1: Pending */}
+        <div className="approvals-stat-card card-stagger-1">
+          <div className="approvals-stat-header">
+            <span className="approvals-stat-label">Pending In Queue</span>
+            <div className="approvals-stat-icon-wrap amber">
+              <Clock size={17} />
+            </div>
+          </div>
+          <div className="approvals-stat-value text-amber-600">
+            <CountUpNumber value={pendingCount} />
+          </div>
+          <div className="approvals-stat-subtext">Awaiting peer validation decision</div>
+          <div className="approvals-stat-accent-bar amber" />
+        </div>
+
+        {/* Card 2: Approved Awaiting Execution */}
+        <div className="approvals-stat-card card-stagger-2">
+          <div className="approvals-stat-header">
+            <span className="approvals-stat-label">Approved &amp; Ready</span>
+            <div className="approvals-stat-icon-wrap green">
+              <CheckCircle2 size={17} />
+            </div>
+          </div>
+          <div className="approvals-stat-value text-emerald-600">
+            <CountUpNumber value={approvedCount} />
+          </div>
+          <div className="approvals-stat-subtext">Maker-checker gate satisfied</div>
+          <div className="approvals-stat-accent-bar green" />
+        </div>
+
+        {/* Card 3: Executed */}
+        <div className="approvals-stat-card card-stagger-3">
+          <div className="approvals-stat-header">
+            <span className="approvals-stat-label">Executed Operations</span>
+            <div className="approvals-stat-icon-wrap blue">
+              <Rocket size={17} />
+            </div>
+          </div>
+          <div className="approvals-stat-value text-slate-900">
+            <CountUpNumber value={executedCount} />
+          </div>
+          <div className="approvals-stat-subtext">Safely applied to database</div>
+          <div className="approvals-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 4: Rejected / Voided */}
+        <div className="approvals-stat-card card-stagger-4">
+          <div className="approvals-stat-header">
+            <span className="approvals-stat-label">Rejected / Cancelled</span>
+            <div className="approvals-stat-icon-wrap rose">
+              <XCircle size={17} />
+            </div>
+          </div>
+          <div className="approvals-stat-value text-rose-600">
+            <CountUpNumber value={rejectedCount} />
+          </div>
+          <div className="approvals-stat-subtext">Denied by reviewer or withdrawn</div>
+          <div className="approvals-stat-accent-bar rose" />
+        </div>
+      </div>
+
+      {/* Global Feedback Alert */}
+      {feedback && (
+        <div className="approvals-feedback-banner success animate-slide-up">
+          <div className="feedback-content">
+            <CheckCircle2 size={16} />
+            <span>{feedback}</span>
+          </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setFeedback(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      {/* Requests Table */}
-      <div className="card" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      {/* Global Error Banner */}
+      {error && (
+        <div className="approvals-feedback-banner danger animate-slide-up">
+          <div className="feedback-content">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setError(null)}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Main Content Card */}
+      <div className="approvals-main-card card-stagger-4">
+        {/* Unified Balanced Toolbar: Tabs on Left, Status + Search on Right */}
+        <div className="approvals-toolbar">
+          <div className="approvals-nav-tabs">
+            <button
+              type="button"
+              className={`approvals-tab-pill ${activeTab === 'inbox' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('inbox');
+                setStatusFilter('');
+              }}
+            >
+              <Clock size={13} className="inline-icon" />
+              <span>Inbox ({pendingCount})</span>
+            </button>
+            <button
+              type="button"
+              className={`approvals-tab-pill ${activeTab === 'my_requests' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('my_requests');
+                setStatusFilter('');
+              }}
+            >
+              <User size={13} className="inline-icon" />
+              <span>My Requests</span>
+            </button>
+            <button
+              type="button"
+              className={`approvals-tab-pill ${activeTab === 'history' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('history');
+                setStatusFilter('');
+              }}
+            >
+              <CheckSquare size={13} className="inline-icon" />
+              <span>History</span>
+            </button>
+            <button
+              type="button"
+              className={`approvals-tab-pill ${activeTab === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('all');
+                setStatusFilter('');
+              }}
+            >
+              <GitPullRequest size={13} className="inline-icon" />
+              <span>All Requests</span>
+            </button>
+          </div>
+
+          <div className="approvals-controls-cluster">
+            <div className="filter-select-item">
+              <span className="filter-item-label">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="permissions-select-input"
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending Review</option>
+                <option value="APPROVED">Approved</option>
+                <option value="EXECUTED">Executed</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <div className="approvals-search-box">
+              <Search size={15} className="search-icon" />
+              <input
+                type="text"
+                placeholder="Search requests..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="approvals-search-input"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Table / Loading / Empty */}
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading approval queue...</div>
-        ) : requests.length === 0 ? (
-          <div style={{ padding: '48px', textAlign: 'center' }}>
-            <span style={{ fontSize: '36px', display: 'block', marginBottom: '12px' }}>✨</span>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#0f172a' }}>No requests in this view</h3>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+          <div className="approvals-loading-state">
+            <div className="loading-spinner-blue" />
+            <div className="loading-state-title">Loading Approval Queue...</div>
+            <div className="loading-state-sub">Validating maker-checker separation rules and active steps.</div>
+          </div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="approvals-empty-state">
+            <div className="empty-state-badge-stage">
+              <div className="empty-state-badge-pulse" />
+              <div className="empty-state-icon-badge">
+                <CheckSquare size={32} className="text-blue-600" />
+              </div>
+            </div>
+            <h3 className="empty-state-heading">No Requests in Queue</h3>
+            <p className="empty-state-description">
               {activeTab === 'inbox'
-                ? 'Your approval queue is clear. No pending maker-checker actions require your decision.'
-                : 'No approval records match your criteria.'}
+                ? 'Your approval inbox is clear. All required maker-checker validations are up to date.'
+                : 'No approval requests found matching your filter parameters.'}
             </p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Operation Type</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Status</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Target / Scope</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Requester</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Reason</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Created At</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.map((r) => {
-                const isMyOwnRequest = user?.user_id && r.requested_by === user.user_id;
-                return (
-                  <tr key={r.request_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: '600', color: '#0f172a' }}>
-                      <code>{r.operation_type}</code>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>{getStatusBadge(r.status)}</td>
-                    <td style={{ padding: '12px 16px', color: '#475569' }}>
-                      {r.college_id ? (
-                        <span title={r.college_id}>College ({r.college_id.slice(0, 8)}...)</span>
-                      ) : (
-                        <span style={{ color: '#0284c7' }}>Global Platform</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#475569' }}>
-                      {isMyOwnRequest ? (
-                        <span style={{ fontWeight: '600', color: '#2563eb' }}>You (Requester)</span>
-                      ) : (
-                        <span title={r.requested_by}>{r.requested_by.slice(0, 8)}...</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#64748b', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {r.reason || '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#64748b' }}>
-                      {new Date(r.created_at).toLocaleDateString()} {new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => handleOpenDetail(r)}
-                          style={{ padding: '4px 10px', fontSize: '12px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          Details
-                        </button>
-                        {r.status === 'APPROVED' && (
+          <div className="approvals-table-responsive">
+            <table className="approvals-table">
+              <thead>
+                <tr>
+                  <th>Request ID</th>
+                  <th>Operation Type</th>
+                  <th>Target Entity</th>
+                  <th>Requested By</th>
+                  <th>Governance Status</th>
+                  <th>Created At</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRequests.map((req) => {
+                  const isApproved = req.status === 'APPROVED';
+                  const isPending = req.status === 'PENDING';
+                  const isExecuted = req.status === 'EXECUTED';
+
+                  return (
+                    <tr key={req.request_id} className="approvals-table-row">
+                      <td>
+                        <span className="code-pill font-mono">
+                          {req.request_id ? req.request_id.substring(0, 8) : '—'}...
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="operation-tag">
+                          {req.operation_type || 'GENERAL_CONFIG'}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="entity-cell">
+                          <span className="entity-type">{req.entity_type}</span>
+                          {req.entity_id && (
+                            <code className="entity-id font-mono">
+                              {req.entity_id.substring(0, 8)}...
+                            </code>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="requester-cell">
+                          <User size={13} className="text-slate-400" />
+                          <span className="requester-email">
+                            {req.requested_by_email || req.requested_by || 'Platform User'}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className={`node-status-badge ${req.status?.toLowerCase()}`}>
+                          {isPending && <Clock size={11} />}
+                          {isApproved && <CheckCircle2 size={11} />}
+                          {isExecuted && <Rocket size={11} />}
+                          {req.status === 'REJECTED' && <XCircle size={11} />}
+                          {req.status === 'CANCELLED' && <Ban size={11} />}
+                          <span>{req.status}</span>
+                        </span>
+                      </td>
+
+                      <td className="text-xs text-slate-500">
+                        {req.created_at ? new Date(req.created_at).toLocaleDateString() : '—'}
+                      </td>
+
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="approvals-action-buttons">
                           <button
-                            onClick={() => handleExecuteRequest(r.request_id)}
-                            style={{ padding: '4px 10px', fontSize: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            type="button"
+                            className="btn-table-action"
+                            onClick={() => handleOpenDetail(req)}
+                            title="Inspect full request diff and steps"
                           >
-                            Execute
+                            Inspect
                           </button>
-                        )}
-                        {r.status === 'PENDING' && isMyOwnRequest && (
-                          <button
-                            onClick={() => { setCancellingRequest(r); setCancelReason(''); }}
-                            style={{ padding: '4px 10px', fontSize: '12px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '4px', cursor: 'pointer' }}
-                          >
-                            Withdraw
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+                          {isApproved && (
+                            <button
+                              type="button"
+                              className="btn-table-action primary"
+                              onClick={() => handleExecuteRequest(req.request_id)}
+                              title="Execute approved operation"
+                            >
+                              <Rocket size={12} />
+                              <span>Execute</span>
+                            </button>
+                          )}
+
+                          {isPending && req.requested_by === user?.user_id && (
+                            <button
+                              type="button"
+                              className="btn-table-action danger"
+                              onClick={() => {
+                                setCancellingRequest(req);
+                                setCancelReason('');
+                              }}
+                              title="Withdraw your submitted request"
+                            >
+                              <Ban size={12} />
+                              <span>Withdraw</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Details & Decision Modal */}
+      {/* MODAL 1: Request Detail & Maker-Checker Review */}
       {selectedRequest && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '700px', maxWidth: '90vw', maxHeight: '85vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', color: '#0f172a' }}>
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '780px', maxHeight: '90vh' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap blue">
+                <GitPullRequest size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">
                   Approval Request: {selectedRequest.operation_type}
-                </h2>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>ID: {selectedRequest.request_id}</span>
+                </h3>
+                <div className="role-modal-badges">
+                  <span className="code-pill font-mono">{selectedRequest.request_id}</span>
+                  <span className={`node-status-badge ${selectedRequest.status?.toLowerCase()}`}>
+                    {selectedRequest.status}
+                  </span>
+                </div>
               </div>
-              <button onClick={() => setSelectedRequest(null)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setSelectedRequest(null)}
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '16px', background: '#f8fafc', padding: '12px', borderRadius: '8px' }}>
-              <div><strong>Status:</strong> {getStatusBadge(selectedRequest.status)}</div>
-              <div><strong>Scope:</strong> {selectedRequest.college_id ? `College (${selectedRequest.college_id.slice(0, 8)})` : 'Platform Global'}</div>
-              <div><strong>Expires:</strong> {selectedRequest.expires_at ? new Date(selectedRequest.expires_at).toLocaleString() : '72h standard'}</div>
-            </div>
-
-            {selectedRequest.reason && (
-              <div style={{ marginBottom: '16px' }}>
-                <strong style={{ fontSize: '13px', color: '#334155' }}>Proposal Reason:</strong>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#475569', background: '#fff', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '6px' }}>
-                  {selectedRequest.reason}
-                </p>
-              </div>
-            )}
-
-            {/* Payload & Snapshot Inspection */}
-            <div style={{ marginBottom: '20px' }}>
-              <strong style={{ fontSize: '13px', color: '#334155' }}>Operation Payload:</strong>
-              <pre style={{ background: '#0f172a', color: '#38bdf8', padding: '12px', borderRadius: '8px', fontSize: '12px', overflowX: 'auto', marginTop: '4px' }}>
-                {JSON.stringify(selectedRequest.payload, null, 2)}
-              </pre>
-            </div>
-
-            {/* Multi-Step Approval Chain */}
-            <div style={{ marginBottom: '20px' }}>
-              <strong style={{ fontSize: '13px', color: '#334155' }}>Approval Decision Steps:</strong>
+            <div className="modal-dialog-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {detailLoading ? (
-                <p style={{ color: '#64748b', fontSize: '13px' }}>Loading steps...</p>
-              ) : selectedRequest.steps && selectedRequest.steps.length > 0 ? (
-                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {selectedRequest.steps.map((st) => {
-                    const isMyOwnRequest = user?.user_id && selectedRequest.requested_by === user.user_id;
-                    const canIDecide = selectedRequest.status === 'PENDING' && st.decision === 'PENDING' && !isMyOwnRequest;
-
-                    return (
-                      <div key={st.approval_step_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e2e8f0', padding: '10px 14px', borderRadius: '6px', background: st.decision === 'APPROVED' ? '#f0fdf4' : '#fff' }}>
-                        <div>
-                          <span style={{ fontWeight: '600', marginRight: '8px' }}>Step #{st.step_order}</span>
-                          <span style={{ fontSize: '12px', color: '#64748b' }}>
-                            {st.approver_id ? `Assigned to ${st.approver_id.slice(0, 8)}` : 'Any Senior Administrator'}
-                          </span>
-                          <div style={{ fontSize: '12px', color: '#334155', marginTop: '2px' }}>
-                            Decision: <strong>{st.decision}</strong> {st.comment && `— "${st.comment}"`}
-                          </div>
-                        </div>
-
-                        {canIDecide && (
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            <button
-                              onClick={() => {
-                                setDecisionStepId(st.approval_step_id);
-                                setDecisionType('APPROVED');
-                              }}
-                              style={{ padding: '6px 12px', fontSize: '12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => {
-                                setDecisionStepId(st.approval_step_id);
-                                setDecisionType('REJECTED');
-                              }}
-                              style={{ padding: '6px 12px', fontSize: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' }}
-                            >
-                              Reject
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <div className="approvals-loading-state" style={{ padding: '24px' }}>
+                  <div className="loading-spinner-blue" />
+                  <div className="loading-state-title">Loading Full Request Trace...</div>
                 </div>
               ) : (
-                <p style={{ color: '#64748b', fontSize: '13px' }}>Single-tier peer approval.</p>
+                <>
+                  {/* Summary Details Grid */}
+                  <div className="role-detail-summary-grid">
+                    <div className="summary-item-card">
+                      <span className="summary-label">Target Entity</span>
+                      <div className="summary-val text-slate-800" style={{ fontSize: '0.95rem' }}>
+                        {selectedRequest.entity_type}
+                      </div>
+                    </div>
+                    <div className="summary-item-card">
+                      <span className="summary-label">Requester</span>
+                      <div className="summary-val text-blue-600" style={{ fontSize: '0.85rem' }}>
+                        {selectedRequest.requested_by_email || selectedRequest.requested_by}
+                      </div>
+                    </div>
+                    <div className="summary-item-card">
+                      <span className="summary-label">Created At</span>
+                      <div className="summary-val text-slate-600" style={{ fontSize: '0.85rem' }}>
+                        {selectedRequest.created_at ? new Date(selectedRequest.created_at).toLocaleString() : '—'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="form-group-custom mt-3">
+                    <label className="form-label-custom">Audit Justification</label>
+                    <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200">
+                      {selectedRequest.reason || 'No audit reason specified.'}
+                    </div>
+                  </div>
+
+                  {/* Multi-Step Pipeline Visualizer */}
+                  {selectedRequest.steps && selectedRequest.steps.length > 0 && (
+                    <div className="approval-steps-chain mt-4">
+                      <h4 className="section-subheading">Maker-Checker Authorization Steps</h4>
+                      <div className="steps-chain-list">
+                        {selectedRequest.steps.map((st, idx) => (
+                          <div key={st.step_id || idx} className={`step-chain-item ${st.status.toLowerCase()}`}>
+                            <div className="step-chain-dot">
+                              {st.status === 'APPROVED' ? '✓' : st.status === 'REJECTED' ? '✗' : idx + 1}
+                            </div>
+                            <div className="step-chain-content">
+                              <div className="step-chain-header">
+                                <span className="step-chain-role">
+                                  Step {idx + 1}: Required Role <strong>{st.required_role || 'SUPER_ADMIN'}</strong>
+                                </span>
+                                <span className={`step-badge ${st.status.toLowerCase()}`}>
+                                  {st.status}
+                                </span>
+                              </div>
+                              {st.decided_by && (
+                                <div className="text-xs text-slate-500 mt-1">
+                                  Reviewed by: {st.decided_by_email || st.decided_by} ({new Date(st.decided_at).toLocaleString()})
+                                </div>
+                              )}
+                              {st.comment && (
+                                <div className="text-xs text-slate-600 italic mt-1">
+                                  &quot;{st.comment}&quot;
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Proposed Payload Diff Inspector */}
+                  {selectedRequest.payload && (
+                    <div className="payload-inspect-box mt-4">
+                      <h4 className="section-subheading">Proposed Operation Payload</h4>
+                      <pre className="payload-json-view">
+                        {typeof selectedRequest.payload === 'string'
+                          ? selectedRequest.payload
+                          : JSON.stringify(selectedRequest.payload, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Decision Form if Pending and current user is not requester */}
+                  {selectedRequest.status === 'PENDING' && decisionStepId && (
+                    <form onSubmit={handleProcessDecision} className="decision-form-box mt-4">
+                      <h4 className="section-subheading text-blue-600">Submit Peer Review Decision</h4>
+
+                      <div className="decision-radio-group">
+                        <label className={`decision-radio-label ${decisionType === 'APPROVED' ? 'selected-approve' : ''}`}>
+                          <input
+                            type="radio"
+                            name="decision"
+                            value="APPROVED"
+                            checked={decisionType === 'APPROVED'}
+                            onChange={() => setDecisionType('APPROVED')}
+                          />
+                          <CheckCircle2 size={16} className="text-emerald-600" />
+                          <span>Approve Operation</span>
+                        </label>
+
+                        <label className={`decision-radio-label ${decisionType === 'REJECTED' ? 'selected-reject' : ''}`}>
+                          <input
+                            type="radio"
+                            name="decision"
+                            value="REJECTED"
+                            checked={decisionType === 'REJECTED'}
+                            onChange={() => setDecisionType('REJECTED')}
+                          />
+                          <XCircle size={16} className="text-rose-600" />
+                          <span>Reject Operation</span>
+                        </label>
+                      </div>
+
+                      <div className="form-group-custom mt-3">
+                        <label className="form-label-custom">Reviewer Comments</label>
+                        <textarea
+                          rows={2}
+                          placeholder="Optional audit comment..."
+                          value={decisionComment}
+                          onChange={(e) => setDecisionComment(e.target.value)}
+                          className="form-input-custom textarea"
+                        />
+                      </div>
+
+                      <button
+                        type="submit"
+                        disabled={submittingDecision}
+                        className={`btn-enterprise w-full justify-center mt-3 ${
+                          decisionType === 'APPROVED' ? 'btn-primary-blue' : 'btn-danger'
+                        }`}
+                      >
+                        {submittingDecision ? 'Processing...' : `Submit Decision (${decisionType})`}
+                      </button>
+                    </form>
+                  )}
+                </>
               )}
             </div>
 
-            {/* Decision Dialog Panel */}
-            {decisionStepId && (
-              <div style={{ background: '#f8fafc', border: '1px solid #cbd5e1', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-                <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: decisionType === 'APPROVED' ? '#059669' : '#dc2626' }}>
-                  Confirm {decisionType === 'APPROVED' ? 'Approval' : 'Rejection'}
-                </h4>
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-                    Reason / Justification {decisionType === 'REJECTED' && '<span style={{ color: "#dc2626" }}>*required</span>'}:
-                  </label>
-                  <input
-                    type="text"
-                    value={decisionReason}
-                    onChange={(e) => setDecisionReason(e.target.value)}
-                    placeholder="Enter justification for this decision"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                  />
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-                    Optional Decision Comment:
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={decisionComment}
-                    onChange={(e) => setDecisionComment(e.target.value)}
-                    placeholder="Provide any instructions or context for the requester"
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                  <button
-                    onClick={() => setDecisionStepId(null)}
-                    style={{ padding: '6px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleProcessDecision}
-                    disabled={submittingDecision || (decisionType === 'REJECTED' && !decisionReason.trim())}
-                    style={{
-                      padding: '6px 14px',
-                      background: decisionType === 'APPROVED' ? '#10b981' : '#ef4444',
-                      color: '#fff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '600',
-                    }}
-                  >
-                    {submittingDecision ? 'Processing...' : `Submit ${decisionType}`}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div className="modal-dialog-footer">
               <button
+                type="button"
+                className="btn-enterprise btn-outline-soft"
                 onClick={() => setSelectedRequest(null)}
-                style={{ padding: '8px 16px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
               >
                 Close
               </button>
@@ -527,41 +792,64 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      {/* Cancellation Modal */}
+      {/* MODAL 2: Cancel / Withdraw Dialog */}
       {cancellingRequest && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '480px', maxWidth: '90vw', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#0f172a' }}>Withdraw Approval Request</h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
-              Are you sure you want to withdraw proposal for <code>{cancellingRequest.operation_type}</code>? This operation cannot be approved after cancellation.
-            </p>
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>
-                Withdrawal Reason <span style={{ color: '#dc2626' }}>*</span>
-              </label>
-              <textarea
-                rows={3}
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="State reason for withdrawing this proposal..."
-                style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '480px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap rose">
+                <Ban size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Withdraw Approval Request</h3>
+                <p className="modal-header-subtitle">Cancel your submitted pending authorization request.</p>
+              </div>
               <button
+                type="button"
+                className="modal-close-icon-btn"
                 onClick={() => setCancellingRequest(null)}
-                style={{ padding: '6px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
               >
-                Back
-              </button>
-              <button
-                onClick={handleCancelRequest}
-                disabled={submittingCancel || !cancelReason.trim()}
-                style={{ padding: '6px 14px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}
-              >
-                {submittingCancel ? 'Withdrawing...' : 'Confirm Withdrawal'}
+                <X size={16} />
               </button>
             </div>
+
+            <form onSubmit={handleCancelRequest}>
+              <div className="modal-dialog-body">
+                <p className="modal-instruction-text">
+                  Withdrawing this request will immediately mark it as <strong>CANCELLED</strong> and remove it from reviewer queues.
+                </p>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Reason for Withdrawal *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="e.g. Configuration parameters no longer needed or superseded..."
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    className="form-input-custom textarea"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setCancellingRequest(null)}
+                  disabled={submittingCancel}
+                >
+                  Keep Request
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-danger"
+                  disabled={submittingCancel}
+                >
+                  {submittingCancel ? 'Cancelling...' : 'Confirm Withdrawal'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

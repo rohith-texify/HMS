@@ -1,4 +1,34 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  FileText,
+  ShieldCheck,
+  Download,
+  RotateCw,
+  Search,
+  X,
+  ChevronRight,
+  CheckCircle2,
+  AlertTriangle,
+  AlertCircle,
+  Eye,
+  Link2,
+  Layers,
+  ExternalLink,
+  Clock,
+  Tag,
+  User,
+  Building2,
+  Check,
+  XCircle,
+  PlusCircle,
+  MinusCircle,
+  ArrowRight,
+  Filter,
+  ShieldAlert,
+  Sparkles,
+  Key,
+} from 'lucide-react';
 import {
   fetchAuditLogs,
   fetchAuditLogDetail,
@@ -9,8 +39,55 @@ import {
 } from '../services/auditService';
 import { fetchCollegesList } from '../services/collegeService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 350 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function AuditLogsPage() {
-  const [activeTab, setActiveTab] = useState('events'); // 'events' | 'integrity' | 'exports'
+  // Navigation tabs: 'events' | 'integrity' | 'exports'
+  const [activeTab, setActiveTab] = useState('events');
 
   // Records & Pagination
   const [records, setRecords] = useState([]);
@@ -50,7 +127,18 @@ export default function AuditLogsPage() {
   const [exportLoading, setExportLoading] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportReason, setExportReason] = useState('');
+  const [exportTicketRef, setExportTicketRef] = useState('');
   const [exportSubmitting, setExportSubmitting] = useState(false);
+
+  // Export Decision Modal State (Replaces window.prompt)
+  const [decisionModal, setDecisionModal] = useState({
+    isOpen: false,
+    requestId: '',
+    decision: 'APPROVED',
+    reason: 'Authorized audit compliance review',
+    submitting: false,
+    error: null,
+  });
 
   // Feedback Notification
   const [feedback, setFeedback] = useState(null);
@@ -69,9 +157,10 @@ export default function AuditLogsPage() {
   }, []);
 
   // Fetch Audit Logs
-  const loadAuditLogs = useCallback(async () => {
+  const loadAuditLogs = useCallback(async (isSilent = false) => {
     try {
-      setLoading(true);
+      if (!isSilent) setLoading(true);
+      setIsRefreshing(true);
       setError(null);
 
       const params = {
@@ -85,7 +174,7 @@ export default function AuditLogsPage() {
       if (filters.action) params.action = filters.action;
       if (filters.severity) params.severity = filters.severity;
       if (filters.result_status) params.result_status = filters.result_status;
-      if (filters.ticket_reference) params.ticket_reference = filters.ticket_reference;
+      if (filters.ticket_reference.trim()) params.ticket_reference = filters.ticket_reference.trim();
       if (filters.start_date) params.start_date = new Date(filters.start_date).toISOString();
       if (filters.end_date) params.end_date = new Date(filters.end_date).toISOString();
 
@@ -96,6 +185,7 @@ export default function AuditLogsPage() {
       setError(err.response?.data?.error?.message || err.message || 'Failed to retrieve audit events');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [filters, page]);
 
@@ -112,13 +202,17 @@ export default function AuditLogsPage() {
       const res = await verifyAuditIntegrity(200);
       setIntegrityReport(res.integrity_report);
       setFeedback({
-        type: res.integrity_report.is_integrity_intact ? 'success' : 'error',
-        text: res.integrity_report.is_integrity_intact
+        type: res.integrity_report?.is_integrity_intact ? 'success' : 'error',
+        text: res.integrity_report?.is_integrity_intact
           ? `Verified ${res.integrity_report.total_checked} records. Cryptographic hash chain is intact!`
           : `Tampering detected in audit records!`,
       });
+      setTimeout(() => setFeedback(null), 6000);
     } catch (err) {
-      alert('Integrity check failed: ' + (err.response?.data?.error?.message || err.message));
+      setFeedback({
+        type: 'error',
+        text: 'Integrity check failed: ' + (err.response?.data?.error?.message || err.message),
+      });
     } finally {
       setIntegrityLoading(false);
     }
@@ -150,7 +244,10 @@ export default function AuditLogsPage() {
       const res = await fetchAuditLogDetail(id);
       setSelectedEvent(res.record);
     } catch (err) {
-      alert('Failed to load audit detail: ' + (err.response?.data?.error?.message || err.message));
+      setFeedback({
+        type: 'error',
+        text: 'Failed to load audit detail: ' + (err.response?.data?.error?.message || err.message),
+      });
     } finally {
       setDetailLoading(false);
     }
@@ -160,393 +257,768 @@ export default function AuditLogsPage() {
   const handleSubmitExport = async (e) => {
     e.preventDefault();
     if (!exportReason.trim() || exportReason.trim().length < 5) {
-      alert('A valid business justification is mandatory (minimum 5 characters).');
+      setFeedback({
+        type: 'error',
+        text: 'A valid business justification is mandatory (minimum 5 characters).',
+      });
       return;
     }
     try {
       setExportSubmitting(true);
       await requestAuditExport({
-        filters,
+        filters: {
+          ...filters,
+          ticket_reference: exportTicketRef.trim() || undefined,
+        },
         reason: exportReason.trim(),
       });
       setShowExportModal(false);
       setExportReason('');
+      setExportTicketRef('');
       setFeedback({
         type: 'success',
-        text: 'Bulk audit export request created. Awaiting peer Super Admin approval.',
+        text: 'Bulk audit export request created. Awaiting peer Super Admin authorization.',
       });
+      setTimeout(() => setFeedback(null), 6000);
       if (activeTab === 'exports') await loadExportRequests();
     } catch (err) {
-      alert(err.response?.data?.error?.message || err.message || 'Failed to submit export request');
+      setFeedback({
+        type: 'error',
+        text: err.response?.data?.error?.message || err.message || 'Failed to submit export request',
+      });
     } finally {
       setExportSubmitting(false);
     }
   };
 
-  // Approve/Reject Export
-  const handleExportDecision = async (id, decision) => {
-    const reason = window.prompt(`Enter reason for ${decision} export request:`, 'Authorized audit compliance review');
-    if (!reason) return;
+  // Process Export Decision (Replaces window.prompt)
+  const handleConfirmDecision = async (e) => {
+    e.preventDefault();
+    if (!decisionModal.reason.trim()) {
+      setDecisionModal((p) => ({ ...p, error: 'A valid decision justification is required.' }));
+      return;
+    }
 
+    setDecisionModal((p) => ({ ...p, submitting: true, error: null }));
     try {
-      await processAuditExportDecision(id, { decision, reason });
-      setFeedback({ type: 'success', text: `Audit export request ${decision.toLowerCase()} successfully.` });
+      await processAuditExportDecision(decisionModal.requestId, {
+        decision: decisionModal.decision,
+        reason: decisionModal.reason.trim(),
+      });
+      setFeedback({
+        type: 'success',
+        text: `Audit export request ${decisionModal.decision.toLowerCase()} successfully.`,
+      });
+      setTimeout(() => setFeedback(null), 6000);
+      setDecisionModal({ isOpen: false, requestId: '', decision: 'APPROVED', reason: '', submitting: false, error: null });
       await loadExportRequests();
     } catch (err) {
-      alert(err.response?.data?.error?.message || err.message || 'Failed to process decision');
+      setDecisionModal((p) => ({
+        ...p,
+        submitting: false,
+        error: err.response?.data?.error?.message || err.message || 'Failed to process decision',
+      }));
     }
   };
 
+  // KPI Statistics
+  const stats = useMemo(() => {
+    const total = totalRecords;
+    let criticalOrWarning = 0;
+    records.forEach((r) => {
+      const sev = (r.severity || '').toUpperCase();
+      if (sev === 'CRITICAL' || sev === 'ERROR' || sev === 'WARNING') {
+        criticalOrWarning++;
+      }
+    });
+
+    const pendingExports = exportRequests.filter((e) => e.status === 'PENDING').length;
+    return { total, criticalOrWarning, pendingExports };
+  }, [totalRecords, records, exportRequests]);
+
+  // Active Filter Count
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (filters.query.trim()) count++;
+    if (filters.college_id) count++;
+    if (filters.severity) count++;
+    if (filters.result_status) count++;
+    if (filters.ticket_reference.trim()) count++;
+    return count;
+  }, [filters]);
+
+  const handleResetFilters = () => {
+    setFilters({
+      query: '',
+      college_id: '',
+      module: '',
+      action: '',
+      severity: '',
+      result_status: '',
+      ticket_reference: '',
+      start_date: '',
+      end_date: '',
+    });
+    setPage(0);
+  };
+
   return (
-    <div style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', color: '#f8fafc' }}>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '2rem' }}>📜</span>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+    <div className="audit-page-container">
+      {/* Breadcrumbs & Header Section */}
+      <div className="audit-header-section">
+        <div className="audit-header-left">
+          <div className="breadcrumb-trail" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', color: '#64748B', marginBottom: '6px' }}>
+            <Link to="/dashboard" style={{ color: '#64748B', textDecoration: 'none' }}>Dashboard</Link>
+            <ChevronRight size={14} />
+            <span style={{ color: '#0F172A', fontWeight: 600 }}>Audit Logs</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <h1 className="page-title" style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
               Platform Audit &amp; Activity Log
             </h1>
-            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>
-              Immutable record of company-platform actions, security events, before/after diffs, and tamper-evident hash chaining.
-            </p>
+            <span className="audit-severity-pill info">
+              <ShieldCheck size={11} />
+              <span>SHA-256 HASH CHAINED</span>
+            </span>
           </div>
+          <p className="page-subtitle" style={{ fontSize: '0.86rem', color: '#64748B', margin: '4px 0 0 0' }}>
+            Immutable record of company-platform actions, security events, before/after diffs, and tamper-evident hash chaining.
+          </p>
         </div>
 
-        {/* Global Action Buttons */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        {/* Header Actions */}
+        <div className="audit-header-right">
           <button
+            type="button"
+            className="btn-enterprise btn-outline-soft"
             onClick={() => {
               setActiveTab('integrity');
               runIntegrityVerification();
             }}
-            style={{
-              padding: '8px 14px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              border: '1px solid rgba(56, 189, 248, 0.4)',
-              borderRadius: '6px',
-              color: '#38bdf8',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
           >
-            <span>🛡️</span>
+            <ShieldCheck size={14} style={{ color: '#2563EB' }} />
             <span>Verify Tamper Evidence</span>
           </button>
 
           <button
+            type="button"
+            className="btn-enterprise btn-primary"
             onClick={() => setShowExportModal(true)}
-            style={{
-              padding: '8px 16px',
-              background: '#0284c7',
-              border: 'none',
-              borderRadius: '6px',
-              color: '#ffffff',
-              fontWeight: 600,
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
           >
-            <span>📥</span>
+            <Download size={14} />
             <span>Request Bulk Export</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn-enterprise btn-outline-soft ${isRefreshing ? 'is-loading' : ''}`}
+            onClick={() => {
+              if (activeTab === 'events') loadAuditLogs(false);
+              else if (activeTab === 'integrity') runIntegrityVerification();
+              else if (activeTab === 'exports') loadExportRequests();
+            }}
+            disabled={isRefreshing}
+          >
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>
 
-      {/* Global Feedback Banner */}
+      {/* Top 4 KPI Metric Cards */}
+      <div className="audit-kpi-grid">
+        {/* Card 1: Total Audit Records */}
+        <div className="audit-stat-card card-stagger-1">
+          <div className="audit-stat-header">
+            <span className="audit-stat-label">Total Transactions</span>
+            <div className="audit-stat-icon-wrap blue">
+              <FileText size={18} />
+            </div>
+          </div>
+          <div className="audit-stat-value text-slate-900">
+            <CountUpNumber value={stats.total} />
+          </div>
+          <div className="audit-stat-subtext">Immutable audit trail entries</div>
+          <div className="audit-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 2: Security & Warning Alerts */}
+        <div className="audit-stat-card card-stagger-2">
+          <div className="audit-stat-header">
+            <span className="audit-stat-label">Critical / Warnings</span>
+            <div className="audit-stat-icon-wrap amber">
+              <AlertTriangle size={18} />
+            </div>
+          </div>
+          <div className="audit-stat-value text-amber-600">
+            <CountUpNumber value={stats.criticalOrWarning} />
+          </div>
+          <div className="audit-stat-subtext">Elevated severity operations</div>
+          <div className="audit-stat-accent-bar amber" />
+        </div>
+
+        {/* Card 3: Cryptographic Integrity */}
+        <div className="audit-stat-card card-stagger-3">
+          <div className="audit-stat-header">
+            <span className="audit-stat-label">Hash Integrity</span>
+            <div className="audit-stat-icon-wrap green">
+              <ShieldCheck size={18} />
+            </div>
+          </div>
+          <div className="audit-stat-value text-emerald-600" style={{ fontSize: '1.25rem', paddingTop: '6px' }}>
+            {integrityReport?.is_integrity_intact === false ? 'COMPROMISED' : 'TAMPER-FREE'}
+          </div>
+          <div className="audit-stat-subtext">Sequential cryptographic chain</div>
+          <div className="audit-stat-accent-bar green" />
+        </div>
+
+        {/* Card 4: Governance Exports */}
+        <div className="audit-stat-card card-stagger-4">
+          <div className="audit-stat-header">
+            <span className="audit-stat-label">Export Governance</span>
+            <div className="audit-stat-icon-wrap purple">
+              <Download size={18} />
+            </div>
+          </div>
+          <div className="audit-stat-value text-purple-600">
+            <CountUpNumber value={stats.pendingExports} />
+          </div>
+          <div className="audit-stat-subtext">Pending four-eyes reviews</div>
+          <div className="audit-stat-accent-bar purple" />
+        </div>
+      </div>
+
+      {/* Dismissible Feedback Banner */}
       {feedback && (
-        <div
-          style={{
-            padding: '12px 16px',
-            marginBottom: '20px',
-            borderRadius: '8px',
-            background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${feedback.type === 'success' ? '#10b981' : '#ef4444'}`,
-            color: feedback.type === 'success' ? '#6ee7b7' : '#fca5a5',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>{feedback.text}</span>
+        <div className={`alert alert-${feedback.type}`} style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', animation: 'fadeIn 0.3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+            <span>{feedback.text}</span>
+          </div>
           <button
             onClick={() => setFeedback(null)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1.1rem' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', fontWeight: 'bold' }}
           >
-            ✕
+            <X size={15} />
           </button>
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #334155', marginBottom: '24px' }}>
-        {[
-          { id: 'events', label: '📋 Platform Audit Events' },
-          { id: 'integrity', label: '🔗 Tamper-Evident Hash Chain' },
-          { id: 'exports', label: '📤 Controlled Bulk Exports' },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: '10px 18px',
-              border: 'none',
-              borderBottom: activeTab === tab.id ? '2px solid #38bdf8' : '2px solid transparent',
-              background: 'none',
-              color: activeTab === tab.id ? '#38bdf8' : '#94a3b8',
-              fontWeight: activeTab === tab.id ? 600 : 500,
-              fontSize: '0.95rem',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            {tab.label}
+      {/* Global Error Banner */}
+      {error && (
+        <div className="alert alert-danger" style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}>
+            <X size={15} />
           </button>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* TAB 1: AUDIT EVENTS LIST */}
-      {activeTab === 'events' && (
-        <div>
-          {/* Filters Bar */}
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #334155',
-              borderRadius: '10px',
-              padding: '16px',
-              marginBottom: '20px',
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '12px',
-              alignItems: 'center',
-            }}
-          >
-            {/* Search Query */}
-            <input
-              type="text"
-              placeholder="Search module, action, reason, user..."
-              value={filters.query}
-              onChange={(e) => setFilters((prev) => ({ ...prev, query: e.target.value }))}
-              style={{
-                padding: '8px 12px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-                minWidth: '220px',
-                flex: '1',
-              }}
-            />
-
-            {/* College Tenant Filter */}
-            <select
-              value={filters.college_id}
-              onChange={(e) => setFilters((prev) => ({ ...prev, college_id: e.target.value }))}
-              style={{
-                padding: '8px 12px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-              }}
+      {/* Main Card Container */}
+      <div className="audit-main-card">
+        {/* Navigation Toolbar */}
+        <div className="audit-toolbar">
+          {/* Segmented Pill Tabs */}
+          <div className="audit-tabs-pillbox">
+            <button
+              type="button"
+              className={`audit-tab-pill ${activeTab === 'events' ? 'active' : ''}`}
+              onClick={() => setActiveTab('events')}
             >
-              <option value="">All Colleges / Platform</option>
-              {colleges.map((c) => (
-                <option key={c.college_id} value={c.college_id}>
-                  {c.name} ({c.college_code || c.code})
-                </option>
-              ))}
-            </select>
-
-            {/* Severity Filter */}
-            <select
-              value={filters.severity}
-              onChange={(e) => setFilters((prev) => ({ ...prev, severity: e.target.value }))}
-              style={{
-                padding: '8px 12px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-              }}
-            >
-              <option value="">All Severities</option>
-              <option value="DEBUG">DEBUG</option>
-              <option value="INFO">INFO</option>
-              <option value="WARNING">WARNING</option>
-              <option value="ERROR">ERROR</option>
-              <option value="CRITICAL">CRITICAL</option>
-            </select>
-
-            {/* Result Status Filter */}
-            <select
-              value={filters.result_status}
-              onChange={(e) => setFilters((prev) => ({ ...prev, result_status: e.target.value }))}
-              style={{
-                padding: '8px 12px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-              }}
-            >
-              <option value="">All Outcomes</option>
-              <option value="SUCCESS">SUCCESS</option>
-              <option value="FAILURE">FAILURE</option>
-              <option value="DENIED">DENIED</option>
-            </select>
-
-            {/* Ticket Ref Filter */}
-            <input
-              type="text"
-              placeholder="Ticket Ref (e.g. SEC-104)"
-              value={filters.ticket_reference}
-              onChange={(e) => setFilters((prev) => ({ ...prev, ticket_reference: e.target.value }))}
-              style={{
-                padding: '8px 12px',
-                background: '#0f172a',
-                border: '1px solid #334155',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontSize: '0.85rem',
-                width: '150px',
-              }}
-            />
+              <FileText size={14} />
+              <span>Audit Events</span>
+              <span className="pill-counter">{totalRecords}</span>
+            </button>
 
             <button
+              type="button"
+              className={`audit-tab-pill ${activeTab === 'integrity' ? 'active' : ''}`}
               onClick={() => {
-                setPage(0);
-                loadAuditLogs();
-              }}
-              style={{
-                padding: '8px 16px',
-                background: '#334155',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#f8fafc',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
+                setActiveTab('integrity');
+                if (!integrityReport) runIntegrityVerification();
               }}
             >
-              Filter
+              <Link2 size={14} />
+              <span>Cryptographic Hash Chain</span>
+            </button>
+
+            <button
+              type="button"
+              className={`audit-tab-pill ${activeTab === 'exports' ? 'active' : ''}`}
+              onClick={() => setActiveTab('exports')}
+            >
+              <Download size={14} />
+              <span>Controlled Bulk Exports</span>
+              <span className="pill-counter">{exportRequests.length || '•'}</span>
             </button>
           </div>
 
-          {/* Audit Records Table */}
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden' }}>
+          {/* Search & Filter Toolbar (Events Tab) */}
+          {activeTab === 'events' && (
+            <div className="audit-filters-group">
+              <div className="audit-search-box">
+                <Search size={15} style={{ color: '#94A3B8' }} />
+                <input
+                  type="text"
+                  placeholder="Search action, module, actor..."
+                  value={filters.query}
+                  onChange={(e) => setFilters((p) => ({ ...p, query: e.target.value }))}
+                  className="audit-search-input"
+                />
+                {filters.query && (
+                  <button
+                    type="button"
+                    onClick={() => setFilters((p) => ({ ...p, query: '' }))}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#94A3B8' }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* College Filter */}
+              <select
+                value={filters.college_id}
+                onChange={(e) => {
+                  setFilters((p) => ({ ...p, college_id: e.target.value }));
+                  setPage(0);
+                }}
+                className="audit-select-dropdown"
+              >
+                <option value="">All Tenants / Platform</option>
+                {colleges.map((c) => (
+                  <option key={c.college_id} value={c.college_id}>
+                    {c.name} ({c.college_code || c.code})
+                  </option>
+                ))}
+              </select>
+
+              {/* Severity Filter */}
+              <select
+                value={filters.severity}
+                onChange={(e) => {
+                  setFilters((p) => ({ ...p, severity: e.target.value }));
+                  setPage(0);
+                }}
+                className="audit-select-dropdown"
+              >
+                <option value="">All Severities</option>
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARNING">WARNING</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+
+              {/* Outcome Status Filter */}
+              <select
+                value={filters.result_status}
+                onChange={(e) => {
+                  setFilters((p) => ({ ...p, result_status: e.target.value }));
+                  setPage(0);
+                }}
+                className="audit-select-dropdown"
+              >
+                <option value="">All Outcomes</option>
+                <option value="SUCCESS">SUCCESS</option>
+                <option value="FAILURE">FAILURE</option>
+                <option value="DENIED">DENIED</option>
+              </select>
+
+              {activeFiltersCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="btn-enterprise btn-outline-soft"
+                  style={{ fontSize: '0.78rem', padding: '6px 10px' }}
+                >
+                  Reset ({activeFiltersCount})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* TAB 1: AUDIT EVENTS LIST */}
+        {activeTab === 'events' && (
+          <div>
             {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>Loading audit records...</div>
-            ) : error ? (
-              <div style={{ padding: '24px', background: 'rgba(239, 68, 68, 0.1)', color: '#fca5a5' }}>{error}</div>
+              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                <div className="spinner" style={{ margin: '0 auto 14px' }}></div>
+                <p style={{ color: '#64748B', fontSize: '0.88rem' }}>Loading platform audit events...</p>
+              </div>
             ) : records.length === 0 ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No audit records match the criteria.</div>
+              <div className="modules-empty-state">
+                <FileText size={42} style={{ color: '#CBD5E1', marginBottom: '12px' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1E293B', margin: '0 0 6px 0' }}>
+                  No Audit Events Found
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', maxWidth: '380px', margin: '0 0 16px 0' }}>
+                  No records match your selected filter criteria.
+                </p>
+                {activeFiltersCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn-enterprise btn-primary"
+                    onClick={handleResetFilters}
+                  >
+                    Clear All Filters
+                  </button>
+                )}
+              </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+              <div>
+                <div className="modules-table-container">
+                  <table className="modules-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '18%' }}>Timestamp (UTC)</th>
+                        <th style={{ width: '22%' }}>Action & Module</th>
+                        <th style={{ width: '18%' }}>Actor & Role</th>
+                        <th style={{ width: '16%' }}>Tenant Scope</th>
+                        <th style={{ width: '10%' }}>Severity</th>
+                        <th style={{ width: '8%' }}>Outcome</th>
+                        <th style={{ width: '8%', textAlign: 'right' }}>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {records.map((r) => {
+                        const sev = (r.severity || 'INFO').toLowerCase();
+                        const status = (r.result_status || 'SUCCESS').toLowerCase();
+
+                        return (
+                          <tr key={r.audit_id}>
+                            <td style={{ whiteSpace: 'nowrap', fontSize: '0.8rem', color: '#475569' }}>
+                              {new Date(r.created_at).toLocaleString()}
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.86rem' }}>
+                                {r.action}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                                <code style={{ fontSize: '0.72rem', background: '#F1F5F9', color: '#475569', padding: '1px 5px', borderRadius: '4px' }}>
+                                  {r.module}
+                                </code>
+                                {r.ticket_reference && (
+                                  <span style={{ fontSize: '0.72rem', color: '#D97706', display: 'flex', alignItems: 'center', gap: '2px', fontWeight: 600 }}>
+                                    <Tag size={10} />
+                                    <span>{r.ticket_reference}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td>
+                              <div style={{ fontWeight: 600, color: '#1E293B', fontSize: '0.82rem' }}>
+                                {r.actor_email || 'System / Batch'}
+                              </div>
+                              <span className="badge badge-outline" style={{ fontSize: '0.68rem', marginTop: '2px' }}>
+                                {r.actor_role || 'SUPER_ADMIN'}
+                              </span>
+                            </td>
+                            <td>
+                              <div style={{ fontSize: '0.82rem', color: r.college_name ? '#0F172A' : '#64748B', fontWeight: 500 }}>
+                                {r.college_name ? `${r.college_name}` : 'Platform Global'}
+                              </div>
+                              {r.college_code && (
+                                <code style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                                  Tenant #{r.college_code}
+                                </code>
+                              )}
+                            </td>
+                            <td>
+                              <span className={`audit-severity-pill ${sev}`}>
+                                {r.severity || 'INFO'}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`audit-status-pill ${status}`}>
+                                {r.result_status === 'SUCCESS' ? (
+                                  <Check size={11} />
+                                ) : (
+                                  <XCircle size={11} />
+                                )}
+                                <span>{r.result_status}</span>
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <button
+                                type="button"
+                                className="btn-module-action"
+                                onClick={() => handleViewDetail(r.audit_id)}
+                                title="Inspect Before & After Diff and Cryptographic Hash"
+                              >
+                                <Eye size={12} />
+                                <span>Diff</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '16px 4px 4px 4px',
+                    fontSize: '0.82rem',
+                    color: '#64748B',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                  }}
+                >
+                  <span>
+                    Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalRecords)} of {totalRecords} records
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="btn-enterprise btn-outline-soft"
+                      disabled={page === 0}
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                      style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+                    >
+                      Previous
+                    </button>
+                    <span style={{ display: 'flex', alignItems: 'center', padding: '0 8px', fontWeight: 700, color: '#0F172A' }}>
+                      Page {page + 1}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-enterprise btn-outline-soft"
+                      disabled={(page + 1) * pageSize >= totalRecords}
+                      onClick={() => setPage((p) => p + 1)}
+                      style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: TAMPER-EVIDENT HASH CHAIN */}
+        {activeTab === 'integrity' && (
+          <div>
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '24px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <ShieldCheck size={22} style={{ color: '#2563EB' }} />
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                      Cryptographic Hash-Chain Verification
+                    </h2>
+                  </div>
+                  <p style={{ margin: 0, color: '#64748B', fontSize: '0.86rem', maxWidth: '680px' }}>
+                    Validates sequential SHA-256 hash chains across audit logs to mathematically prove records have not been altered, deleted, or backdated.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn-enterprise btn-primary"
+                  onClick={runIntegrityVerification}
+                  disabled={integrityLoading}
+                >
+                  <RotateCw size={14} className={integrityLoading ? 'animate-spin' : ''} />
+                  <span>{integrityLoading ? 'Verifying Hashes...' : 'Re-verify Hash Chain'}</span>
+                </button>
+              </div>
+
+              {integrityReport && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                  <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Chain Status
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '1.15rem',
+                        fontWeight: 800,
+                        marginTop: '6px',
+                        color: integrityReport.is_integrity_intact ? '#10B981' : '#E11D48',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                      }}
+                    >
+                      {integrityReport.is_integrity_intact ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+                      <span>{integrityReport.is_integrity_intact ? 'TAMPER-FREE' : 'COMPROMISED'}</span>
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Records Scanned
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '6px', color: '#0F172A' }}>
+                      {integrityReport.total_checked} blocks
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Tampered Anomalies
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '1.25rem',
+                        fontWeight: 800,
+                        marginTop: '6px',
+                        color: integrityReport.tampered_records > 0 ? '#E11D48' : '#10B981',
+                      }}
+                    >
+                      {integrityReport.tampered_records}
+                    </div>
+                  </div>
+
+                  <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Verified At
+                    </div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600, marginTop: '6px', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Clock size={15} style={{ color: '#64748B' }} />
+                      <span>{new Date(integrityReport.checked_at).toLocaleTimeString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: CONTROLLED BULK EXPORTS */}
+        {activeTab === 'exports' && (
+          <div>
+            <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p style={{ color: '#64748B', fontSize: '0.84rem', margin: 0 }}>
+                Enforces four-eyes approval workflow for bulk audit data extraction to protect company data governance standards.
+              </p>
+              <button
+                type="button"
+                className="btn-enterprise btn-primary"
+                onClick={() => setShowExportModal(true)}
+              >
+                <Download size={14} />
+                <span>New Export Request</span>
+              </button>
+            </div>
+
+            {exportLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px' }}>
+                <div className="spinner" style={{ margin: '0 auto 10px' }}></div>
+                <p style={{ color: '#64748B', fontSize: '0.85rem' }}>Loading export requests...</p>
+              </div>
+            ) : exportRequests.length === 0 ? (
+              <div className="modules-empty-state">
+                <Download size={40} style={{ color: '#CBD5E1', marginBottom: '10px' }} />
+                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1E293B', margin: '0 0 6px 0' }}>
+                  No Export Requests Submitted
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748B', maxWidth: '380px', margin: '0 0 16px 0' }}>
+                  Bulk data downloads require an explicit business justification and peer Super Admin validation.
+                </p>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-primary"
+                  onClick={() => setShowExportModal(true)}
+                >
+                  Create Export Request
+                </button>
+              </div>
+            ) : (
+              <div className="modules-table-container">
+                <table className="modules-table">
                   <thead>
-                    <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', color: '#94a3b8' }}>
-                      <th style={{ padding: '12px 14px' }}>Timestamp (UTC)</th>
-                      <th style={{ padding: '12px 14px' }}>Module / Action</th>
-                      <th style={{ padding: '12px 14px' }}>Actor</th>
-                      <th style={{ padding: '12px 14px' }}>Tenant College</th>
-                      <th style={{ padding: '12px 14px' }}>Severity</th>
-                      <th style={{ padding: '12px 14px' }}>Status</th>
-                      <th style={{ padding: '12px 14px' }}>Ticket</th>
-                      <th style={{ padding: '12px 14px', textAlign: 'right' }}>Actions</th>
+                    <tr>
+                      <th style={{ width: '18%' }}>Request ID</th>
+                      <th style={{ width: '22%' }}>Requester</th>
+                      <th style={{ width: '28%' }}>Business Justification</th>
+                      <th style={{ width: '12%' }}>Status</th>
+                      <th style={{ width: '20%', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {records.map((r) => (
-                      <tr key={r.audit_id} style={{ borderBottom: '1px solid #334155', transition: 'background 0.15s ease' }}>
-                        <td style={{ padding: '12px 14px', whiteSpace: 'nowrap', color: '#cbd5e1' }}>
-                          {new Date(r.created_at).toLocaleString()}
+                    {exportRequests.map((req) => (
+                      <tr key={req.request_id}>
+                        <td>
+                          <code style={{ fontSize: '0.78rem', color: '#2563EB', background: '#EFF6FF', padding: '2px 6px', borderRadius: '4px' }}>
+                            {req.request_id.substring(0, 10)}...
+                          </code>
                         </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <div style={{ fontWeight: 600, color: '#f8fafc' }}>{r.action}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#64748b' }}>{r.module}</div>
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <div style={{ color: '#f8fafc' }}>{r.actor_email || 'System / Batch'}</div>
-                          <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{r.actor_role}</div>
-                        </td>
-                        <td style={{ padding: '12px 14px', color: r.college_name ? '#cbd5e1' : '#64748b' }}>
-                          {r.college_name ? `${r.college_name} (${r.college_code})` : 'Company Platform'}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontWeight: 700,
-                              background:
-                                r.severity === 'CRITICAL'
-                                  ? '#7f1d1d'
-                                  : r.severity === 'ERROR'
-                                  ? '#991b1b'
-                                  : r.severity === 'WARNING'
-                                  ? '#78350f'
-                                  : '#0f172a',
-                              color:
-                                r.severity === 'CRITICAL' || r.severity === 'ERROR'
-                                  ? '#fca5a5'
-                                  : r.severity === 'WARNING'
-                                  ? '#fde68a'
-                                  : '#94a3b8',
-                            }}
-                          >
-                            {r.severity}
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#0F172A', fontSize: '0.82rem' }}>
+                            {req.requester_email || req.requester_user_id}
+                          </div>
+                          <span className="badge badge-outline" style={{ fontSize: '0.68rem', marginTop: '2px' }}>
+                            {req.requester_role}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              fontWeight: 600,
-                              background:
-                                r.result_status === 'SUCCESS'
-                                  ? 'rgba(16, 185, 129, 0.15)'
-                                  : 'rgba(239, 68, 68, 0.15)',
-                              color: r.result_status === 'SUCCESS' ? '#6ee7b7' : '#fca5a5',
-                            }}
-                          >
-                            {r.result_status}
+                        <td>
+                          <span style={{ fontSize: '0.82rem', color: '#334155' }}>
+                            {req.reason}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 14px', color: '#cbd5e1' }}>
-                          {r.ticket_reference || '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                          <button
-                            onClick={() => handleViewDetail(r.audit_id)}
-                            style={{
-                              padding: '5px 12px',
-                              background: '#334155',
-                              border: 'none',
-                              borderRadius: '6px',
-                              color: '#38bdf8',
-                              fontWeight: 600,
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                            }}
+                        <td>
+                          <span
+                            className={`badge ${req.status === 'APPROVED'
+                                ? 'badge-success'
+                                : req.status === 'REJECTED'
+                                  ? 'badge-danger'
+                                  : 'badge-warning'
+                              }`}
+                            style={{ fontSize: '0.72rem', fontWeight: 700 }}
                           >
-                            Inspect Diff
-                          </button>
+                            {req.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {req.status === 'PENDING' ? (
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                              <button
+                                type="button"
+                                className="btn-module-action primary"
+                                onClick={() => setDecisionModal({
+                                  isOpen: true,
+                                  requestId: req.request_id,
+                                  decision: 'APPROVED',
+                                  reason: 'Authorized audit compliance review',
+                                  submitting: false,
+                                  error: null,
+                                })}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-module-action danger"
+                                onClick={() => setDecisionModal({
+                                  isOpen: true,
+                                  requestId: req.request_id,
+                                  decision: 'REJECTED',
+                                  reason: 'Denied: insufficient authorization',
+                                  submitting: false,
+                                  error: null,
+                                })}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+                              Validated by {req.approver_email || 'Operator'}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -554,486 +1026,274 @@ export default function AuditLogsPage() {
                 </table>
               </div>
             )}
-
-            {/* Pagination Controls */}
-            <div
-              style={{
-                padding: '12px 16px',
-                borderTop: '1px solid #334155',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                background: '#0f172a',
-                fontSize: '0.85rem',
-                color: '#94a3b8',
-              }}
-            >
-              <span>
-                Showing {records.length} of {totalRecords} records
-              </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  style={{
-                    padding: '6px 12px',
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '4px',
-                    color: page === 0 ? '#475569' : '#f8fafc',
-                    cursor: page === 0 ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Previous
-                </button>
-                <button
-                  disabled={(page + 1) * pageSize >= totalRecords}
-                  onClick={() => setPage((p) => p + 1)}
-                  style={{
-                    padding: '6px 12px',
-                    background: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '4px',
-                    color: (page + 1) * pageSize >= totalRecords ? '#475569' : '#f8fafc',
-                    cursor: (page + 1) * pageSize >= totalRecords ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* TAB 2: TAMPER-EVIDENT HASH CHAIN */}
-      {activeTab === 'integrity' && (
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f8fafc' }}>
-                Cryptographic Hash-Chain Verification
-              </h2>
-              <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.875rem' }}>
-                Validates sequential SHA-256 hash chains across audit logs to mathematically prove records have not been altered or deleted.
-              </p>
-            </div>
-            <button
-              onClick={runIntegrityVerification}
-              disabled={integrityLoading}
-              style={{
-                padding: '8px 18px',
-                background: '#0284c7',
-                border: 'none',
-                borderRadius: '6px',
-                color: '#ffffff',
-                fontWeight: 600,
-                fontSize: '0.85rem',
-                cursor: integrityLoading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {integrityLoading ? 'Verifying Hashes...' : 'Re-verify Hash Chain'}
-            </button>
-          </div>
-
-          {integrityReport && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Chain Status</div>
-                <div
-                  style={{
-                    fontSize: '1.25rem',
-                    fontWeight: 700,
-                    marginTop: '4px',
-                    color: integrityReport.is_integrity_intact ? '#10b981' : '#ef4444',
-                  }}
-                >
-                  {integrityReport.is_integrity_intact ? 'TAMPER-FREE' : 'COMPROMISED'}
-                </div>
-              </div>
-
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Records Scanned</div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '4px', color: '#f8fafc' }}>
-                  {integrityReport.total_checked}
-                </div>
-              </div>
-
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Tampered Logs</div>
-                <div
-                  style={{
-                    fontSize: '1.25rem',
-                    fontWeight: 700,
-                    marginTop: '4px',
-                    color: integrityReport.tampered_records > 0 ? '#ef4444' : '#10b981',
-                  }}
-                >
-                  {integrityReport.tampered_records}
-                </div>
-              </div>
-
-              <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase' }}>Verified At</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 500, marginTop: '6px', color: '#cbd5e1' }}>
-                  {new Date(integrityReport.checked_at).toLocaleTimeString()}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: CONTROLLED BULK EXPORTS */}
-      {activeTab === 'exports' && (
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '10px', overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid #334155' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>Bulk Audit Export Authorization Pipeline</h3>
-            <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '0.85rem' }}>
-              Enforces four-eyes approval workflow for bulk data downloads to prevent unauthorized extraction of company audit records.
-            </p>
-          </div>
-
-          {exportLoading ? (
-            <div style={{ padding: '30px', textAlign: 'center', color: '#94a3b8' }}>Loading export requests...</div>
-          ) : exportRequests.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>No bulk export requests submitted.</div>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
-              <thead>
-                <tr style={{ background: '#0f172a', borderBottom: '1px solid #334155', color: '#94a3b8' }}>
-                  <th style={{ padding: '12px 16px' }}>Request ID</th>
-                  <th style={{ padding: '12px 16px' }}>Requester</th>
-                  <th style={{ padding: '12px 16px' }}>Reason</th>
-                  <th style={{ padding: '12px 16px' }}>Status</th>
-                  <th style={{ padding: '12px 16px' }}>Approver</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {exportRequests.map((req) => (
-                  <tr key={req.request_id} style={{ borderBottom: '1px solid #334155' }}>
-                    <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#94a3b8' }}>
-                      {req.request_id.substring(0, 8)}...
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#f8fafc' }}>
-                      <div>{req.requester_email || req.requester_user_id}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#38bdf8' }}>{req.requester_role}</div>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#cbd5e1' }}>{req.reason}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontWeight: 600,
-                          background:
-                            req.status === 'APPROVED'
-                              ? 'rgba(16, 185, 129, 0.15)'
-                              : req.status === 'REJECTED'
-                              ? 'rgba(239, 68, 68, 0.15)'
-                              : 'rgba(245, 158, 11, 0.15)',
-                          color:
-                            req.status === 'APPROVED'
-                              ? '#6ee7b7'
-                              : req.status === 'REJECTED'
-                              ? '#fca5a5'
-                              : '#fde68a',
-                        }}
-                      >
-                        {req.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: req.approver_email ? '#cbd5e1' : '#64748b' }}>
-                      {req.approver_email || '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {req.status === 'PENDING' && (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => handleExportDecision(req.request_id, 'APPROVED')}
-                            style={{
-                              padding: '4px 10px',
-                              background: '#059669',
-                              border: 'none',
-                              borderRadius: '4px',
-                              color: '#ffffff',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleExportDecision(req.request_id, 'REJECTED')}
-                            style={{
-                              padding: '4px 10px',
-                              background: '#dc2626',
-                              border: 'none',
-                              borderRadius: '4px',
-                              color: '#ffffff',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* Event Detail Modal (Diff Inspector) */}
+      {/* MODAL 1: EVENT DETAIL / DIFF INSPECTOR MODAL */}
       {selectedEvent && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #475569',
-              borderRadius: '12px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '850px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 4px 0', color: '#f8fafc' }}>
-                  Audit Event: {selectedEvent.action}
+        <div className="modal-backdrop" style={{ zIndex: 1050 }}>
+          <div className="modal-card" style={{ maxWidth: '840px', borderRadius: '16px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Eye size={18} style={{ color: '#2563EB' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                  Audit Event Diff: {selectedEvent.action}
                 </h2>
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
-                  Module: <strong>{selectedEvent.module}</strong> | ID: <code>{selectedEvent.audit_id}</code>
-                </div>
               </div>
               <button
+                className="modal-close-btn"
                 onClick={() => setSelectedEvent(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.25rem', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
               >
-                ✕
+                <X size={18} />
               </button>
             </div>
 
-            {/* Event Metadata Grid */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '12px',
-                background: '#0f172a',
-                padding: '14px',
-                borderRadius: '8px',
-                border: '1px solid #334155',
-                marginBottom: '16px',
-                fontSize: '0.85rem',
-              }}
-            >
-              <div>
-                <span style={{ color: '#64748b' }}>Actor: </span>
-                <span style={{ color: '#f8fafc' }}>{selectedEvent.actor_email || 'System'}</span>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Role: </span>
-                <span style={{ color: '#38bdf8' }}>{selectedEvent.actor_role}</span>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Tenant: </span>
-                <span style={{ color: '#f8fafc' }}>{selectedEvent.college_name || 'Global Platform'}</span>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Outcome: </span>
-                <span style={{ color: selectedEvent.result_status === 'SUCCESS' ? '#10b981' : '#ef4444' }}>
-                  {selectedEvent.result_status}
-                </span>
-              </div>
-              {selectedEvent.ticket_reference && (
+            <div style={{ padding: '24px' }}>
+              {/* Event Metadata Grid */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                  gap: '12px',
+                  background: '#F8FAFC',
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  border: '1px solid #E2E8F0',
+                  marginBottom: '18px',
+                  fontSize: '0.82rem',
+                }}
+              >
                 <div>
-                  <span style={{ color: '#64748b' }}>Ticket Ref: </span>
-                  <span style={{ color: '#fbbf24' }}>{selectedEvent.ticket_reference}</span>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700 }}>Actor</span>
+                  <strong style={{ color: '#0F172A' }}>{selectedEvent.actor_email || 'System'}</strong>
                 </div>
-              )}
-              {selectedEvent.correlation_id && (
                 <div>
-                  <span style={{ color: '#64748b' }}>Correlation ID: </span>
-                  <span style={{ color: '#cbd5e1', fontFamily: 'monospace' }}>
-                    {selectedEvent.correlation_id.substring(0, 8)}...
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700 }}>Role</span>
+                  <span style={{ color: '#2563EB', fontWeight: 600 }}>{selectedEvent.actor_role}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700 }}>Tenant Scope</span>
+                  <span style={{ color: '#0F172A', fontWeight: 600 }}>{selectedEvent.college_name || 'Global Platform'}</span>
+                </div>
+                <div>
+                  <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700 }}>Result Outcome</span>
+                  <span style={{ color: selectedEvent.result_status === 'SUCCESS' ? '#059669' : '#DC2626', fontWeight: 700 }}>
+                    {selectedEvent.result_status}
                   </span>
                 </div>
-              )}
-            </div>
-
-            {/* Reason */}
-            {selectedEvent.reason && (
-              <div style={{ marginBottom: '16px', fontSize: '0.85rem', color: '#cbd5e1' }}>
-                <strong>Justification / Reason: </strong> {selectedEvent.reason}
-              </div>
-            )}
-
-            {/* Before vs After Diff View */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: '#f87171' }}>Before (Old Data)</h4>
-                <pre
-                  style={{
-                    background: '#020617',
-                    border: '1px solid #334155',
-                    borderRadius: '6px',
-                    padding: '12px',
-                    fontSize: '0.75rem',
-                    color: '#fca5a5',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {selectedEvent.old_data ? JSON.stringify(selectedEvent.old_data, null, 2) : '(none)'}
-                </pre>
-              </div>
-
-              <div>
-                <h4 style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: '#34d399' }}>After (New Data)</h4>
-                <pre
-                  style={{
-                    background: '#020617',
-                    border: '1px solid #334155',
-                    borderRadius: '6px',
-                    padding: '12px',
-                    fontSize: '0.75rem',
-                    color: '#a7f3d0',
-                    maxHeight: '200px',
-                    overflowY: 'auto',
-                    whiteSpace: 'pre-wrap',
-                  }}
-                >
-                  {selectedEvent.new_data ? JSON.stringify(selectedEvent.new_data, null, 2) : '(none)'}
-                </pre>
-              </div>
-            </div>
-
-            {/* Cryptographic Tamper Hash */}
-            {selectedEvent.current_hash && (
-              <div style={{ background: '#020617', padding: '10px', borderRadius: '6px', fontSize: '0.75rem', color: '#94a3b8' }}>
-                <div>
-                  <strong>Cryptographic Hash (SHA-256): </strong>
-                  <code style={{ color: '#38bdf8' }}>{selectedEvent.current_hash}</code>
-                </div>
-                {selectedEvent.previous_hash && (
-                  <div style={{ marginTop: '4px' }}>
-                    <strong>Chained Previous Hash: </strong>
-                    <code style={{ color: '#64748b' }}>{selectedEvent.previous_hash}</code>
+                {selectedEvent.ticket_reference && (
+                  <div>
+                    <span style={{ color: '#64748B', display: 'block', fontSize: '0.72rem', textTransform: 'uppercase', fontWeight: 700 }}>Ticket Ref</span>
+                    <span style={{ color: '#D97706', fontWeight: 700 }}>{selectedEvent.ticket_reference}</span>
                   </div>
                 )}
               </div>
-            )}
+
+              {/* Business Justification */}
+              {selectedEvent.reason && (
+                <div style={{ marginBottom: '18px', fontSize: '0.84rem', color: '#334155', background: '#EFF6FF', padding: '10px 14px', borderRadius: '8px', borderLeft: '3px solid #2563EB' }}>
+                  <strong style={{ color: '#1E40AF' }}>Audit Justification: </strong>
+                  <span>{selectedEvent.reason}</span>
+                </div>
+              )}
+
+              {/* Before vs After Diff Split View */}
+              <div className="audit-diff-grid">
+                <div className="audit-diff-pane">
+                  <div className="audit-diff-header before">
+                    <MinusCircle size={13} />
+                    <span>Before (Previous State)</span>
+                  </div>
+                  <pre className="audit-diff-code">
+                    {selectedEvent.old_data ? JSON.stringify(selectedEvent.old_data, null, 2) : '(No previous record state)'}
+                  </pre>
+                </div>
+
+                <div className="audit-diff-pane">
+                  <div className="audit-diff-header after">
+                    <PlusCircle size={13} />
+                    <span>After (Committed State)</span>
+                  </div>
+                  <pre className="audit-diff-code">
+                    {selectedEvent.new_data ? JSON.stringify(selectedEvent.new_data, null, 2) : '(No mutation state)'}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Cryptographic SHA-256 Hash Chain Box */}
+              {selectedEvent.current_hash && (
+                <div className="audit-hash-chain-box">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <Key size={13} style={{ color: '#38BDF8' }} />
+                    <span style={{ fontWeight: 700, color: '#F8FAFC' }}>Cryptographic Block Hash (SHA-256):</span>
+                  </div>
+                  <code>{selectedEvent.current_hash}</code>
+                  {selectedEvent.previous_hash && (
+                    <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #1E293B' }}>
+                      <span style={{ color: '#64748B' }}>Chained Previous Hash: </span>
+                      <code>{selectedEvent.previous_hash}</code>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setSelectedEvent(null)}
+                >
+                  Close Inspector
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Export Request Modal */}
+      {/* MODAL 2: REQUEST BULK EXPORT MODAL */}
       {showExportModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1000,
-            padding: '16px',
-          }}
-        >
-          <div
-            style={{
-              background: '#1e293b',
-              border: '1px solid #475569',
-              borderRadius: '12px',
-              padding: '24px',
-              width: '100%',
-              maxWidth: '550px',
-            }}
-          >
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 6px 0', color: '#f8fafc' }}>
-              Request Bulk Audit Export
-            </h2>
-            <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: '#94a3b8' }}>
-              Bulk exports require explicit justification and peer approval to adhere to platform compliance standards.
-            </p>
+        <div className="modal-backdrop" style={{ zIndex: 1050 }}>
+          <div className="modal-card" style={{ maxWidth: '540px', borderRadius: '16px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Download size={18} style={{ color: '#2563EB' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                  Request Bulk Audit Export
+                </h2>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setShowExportModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-            <form onSubmit={handleSubmitExport}>
+            <form onSubmit={handleSubmitExport} style={{ padding: '24px' }}>
+              <p style={{ fontSize: '0.84rem', color: '#64748B', marginBottom: '18px' }}>
+                Bulk exports trigger a Maker-Checker validation ticket to safeguard platform and tenant audit records from unmonitored extraction.
+              </p>
+
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-                  Business Justification &amp; Ticket ID (Mandatory)
+                <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', marginBottom: '6px' }}>
+                  Ticket Reference (Optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. SEC-104 or AUDIT-2026-Q4"
+                  value={exportTicketRef}
+                  onChange={(e) => setExportTicketRef(e.target.value)}
+                  className="input-text"
+                  style={{ width: '100%', fontSize: '0.84rem' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '22px' }}>
+                <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', marginBottom: '6px' }}>
+                  Business Justification <span style={{ color: '#DC2626' }}>*</span>
                 </label>
                 <textarea
                   rows={4}
                   value={exportReason}
                   onChange={(e) => setExportReason(e.target.value)}
-                  placeholder="e.g. Statutory regulatory compliance audit requested via Ticket #SEC-982"
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    background: '#0f172a',
-                    border: '1px solid #334155',
-                    borderRadius: '6px',
-                    color: '#f8fafc',
-                    fontSize: '0.85rem',
-                    padding: '10px',
-                  }}
+                  placeholder="Provide an authoritative reason for audit extraction..."
+                  className="input-textarea"
+                  style={{ width: '100%', fontSize: '0.84rem' }}
+                  required
                 />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
                 <button
                   type="button"
+                  className="btn-enterprise btn-outline-soft"
                   onClick={() => setShowExportModal(false)}
-                  style={{
-                    padding: '8px 16px',
-                    background: 'transparent',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    color: '#cbd5e1',
-                    cursor: 'pointer',
-                  }}
+                  disabled={exportSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  className="btn-enterprise btn-primary"
                   disabled={exportSubmitting}
-                  style={{
-                    padding: '8px 18px',
-                    background: '#0284c7',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: '#ffffff',
-                    fontWeight: 600,
-                    cursor: exportSubmitting ? 'not-allowed' : 'pointer',
-                  }}
                 >
                   {exportSubmitting ? 'Submitting...' : 'Submit Request'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: EXPORT DECISION MODAL (Replaces window.prompt) */}
+      {decisionModal.isOpen && (
+        <div className="modal-backdrop" style={{ zIndex: 1050 }}>
+          <div className="modal-card" style={{ maxWidth: '520px', borderRadius: '16px', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={18} style={{ color: decisionModal.decision === 'APPROVED' ? '#059669' : '#DC2626' }} />
+                <h2 className="modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0F172A' }}>
+                  {decisionModal.decision === 'APPROVED' ? 'Approve Export Request' : 'Reject Export Request'}
+                </h2>
+              </div>
+              <button
+                className="modal-close-btn"
+                onClick={() => setDecisionModal((p) => ({ ...p, isOpen: false }))}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDecision} style={{ padding: '24px' }}>
+              {decisionModal.error && (
+                <div className="alert alert-danger" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertCircle size={15} />
+                  <span>{decisionModal.error}</span>
+                </div>
+              )}
+
+              <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '16px' }}>
+                Please confirm your validation decision for Export Request{' '}
+                <code style={{ color: '#2563EB' }}>{decisionModal.requestId.substring(0, 12)}...</code>
+              </p>
+
+              <div style={{ marginBottom: '20px' }}>
+                <label className="label" style={{ fontWeight: 700, fontSize: '0.82rem', color: '#334155', marginBottom: '6px' }}>
+                  Peer Decision Justification <span style={{ color: '#DC2626' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  value={decisionModal.reason}
+                  onChange={(e) => setDecisionModal((p) => ({ ...p, reason: e.target.value }))}
+                  className="input-text"
+                  style={{ width: '100%', fontSize: '0.84rem' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setDecisionModal((p) => ({ ...p, isOpen: false }))}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`btn-enterprise ${decisionModal.decision === 'APPROVED' ? 'btn-primary' : 'btn-danger'}`}
+                  disabled={decisionModal.submitting}
+                >
+                  {decisionModal.submitting
+                    ? 'Processing...'
+                    : decisionModal.decision === 'APPROVED'
+                      ? 'Confirm Approval'
+                      : 'Confirm Rejection'}
                 </button>
               </div>
             </form>

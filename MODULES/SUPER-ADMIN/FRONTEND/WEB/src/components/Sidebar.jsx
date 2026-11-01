@@ -1,8 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import {
+  LayoutDashboard,
+  Compass,
+  Rocket,
+  Building2,
+  Users,
+  KeyRound,
+  ShieldCheck,
+  Lock,
+  AppWindow,
+  FileCheck,
+  GitBranch,
+  Boxes,
+  SlidersHorizontal,
+  ScrollText,
+  Bell,
+  Activity,
+  BarChart3,
+  HelpCircle,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  Shield,
+  UserCheck,
+  X,
+} from 'lucide-react';
 
-export default function Sidebar({ isOpen = false, onClose = () => {} }) {
+export default function Sidebar({
+  isOpen = false,
+  onClose = () => {},
+  isCollapsed = false,
+  onToggleCollapse = () => {},
+}) {
   const { user, logout } = useAuth();
 
   const handleLinkClick = () => {
@@ -11,237 +42,164 @@ export default function Sidebar({ isOpen = false, onClose = () => {} }) {
     }
   };
 
+  const navGroups = [
+    {
+      group: 'Overview',
+      items: [
+        { label: 'Dashboard', to: '/dashboard', icon: Compass },
+      ],
+    },
+    {
+      group: 'Management',
+      items: [
+        { label: 'Onboarding', to: '/onboarding', icon: Rocket },
+        { label: 'Colleges', to: '/colleges', icon: Building2 },
+        { label: 'Company Staff', to: '/staff', icon: Users },
+        { label: 'Roles', to: '/roles', icon: KeyRound },
+        { label: 'Permissions', to: '/permissions', icon: ShieldCheck },
+        { label: 'Access Control', to: '/access-control', icon: Lock },
+      ],
+    },
+    {
+      group: 'Operations',
+      items: [
+        { label: 'Applications', to: '/applications', icon: AppWindow },
+        { label: 'Approvals', to: '/approvals', icon: FileCheck },
+        { label: 'Change Sets', to: '/change-sets', icon: GitBranch },
+      ],
+    },
+    {
+      group: 'Platform',
+      items: [
+        { label: 'Modules', to: '/modules', icon: Boxes },
+        { label: 'System Settings', to: '/system-settings', icon: SlidersHorizontal },
+        { label: 'Audit Logs', to: '/audit-logs', icon: ScrollText },
+        { label: 'Notifications', to: '/notifications', icon: Bell },
+        { label: 'Monitoring', to: '/monitoring', icon: Activity },
+        { label: 'Reports & Analytics', to: '/reports', icon: BarChart3 },
+        { label: 'Support Console', to: '/support', icon: HelpCircle },
+      ],
+    },
+  ];
+
+  const adminEmail =
+    user?.email && !user.email.endsWith('@hms.local') && !user.email.includes('superadmin')
+      ? user.email
+      : 'rohith.texify@gmail.com';
+
+  const adminRole = user?.roleName || user?.role || 'Super Administrator';
+
   return (
-    <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
-      <div className="sidebar-header">
-        <div className="sidebar-title">
-          <span>🛡️</span>
-          <span>HMS Platform</span>
+    <aside
+      className={`sidebar-enterprise ${isOpen ? 'mobile-open' : ''} ${
+        isCollapsed ? 'collapsed' : ''
+      }`}
+    >
+      {/* Brand Header */}
+      <div className="sidebar-brand-wrapper">
+        <div className="sidebar-brand-content">
+          <div className="sidebar-brand-badge">
+            <Shield size={18} className="text-white" />
+          </div>
+          {!isCollapsed && (
+            <div className="sidebar-brand-info">
+              <span className="sidebar-brand-title">HMS Platform</span>
+              <span className="sidebar-brand-tag">Super Admin</span>
+            </div>
+          )}
         </div>
+
+        {/* Desktop Collapse Toggle */}
         <button
           type="button"
-          className="sidebar-close-btn"
+          className="sidebar-collapse-toggle desktop-only"
+          onClick={onToggleCollapse}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+        </button>
+
+        {/* Mobile Close Button */}
+        <button
+          type="button"
+          className="sidebar-close-toggle mobile-only"
           onClick={onClose}
           aria-label="Close sidebar"
         >
-          ✕
+          <X size={16} />
         </button>
       </div>
 
-      <nav className="sidebar-nav">
-        <NavLink
-          to="/dashboard"
-          onClick={handleLinkClick}
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📊</span>
-          <span>Dashboard</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/onboarding"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🚀</span>
-          <span>Onboarding</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/colleges"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🏫</span>
-          <span>Colleges</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/staff"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>👥</span>
-          <span>Company Staff</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/roles"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🔑</span>
-          <span>Roles</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/permissions"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🛡️</span>
-          <span>Permissions</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/access-control"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🔒</span>
-          <span>Access Control</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/approvals"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📋</span>
-          <span>Approvals</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/change-sets"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🔄</span>
-          <span>Change Sets</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/modules"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📦</span>
-          <span>Modules</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/applications"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📱</span>
-          <span>Applications</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/system-settings"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>⚙️</span>
-          <span>System Settings</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/audit-logs"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📜</span>
-          <span>Audit Logs</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/notifications"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📢</span>
-          <span>Notifications</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/monitoring"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📈</span>
-          <span>Monitoring</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/reports"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>📊</span>
-          <span>Reports & Analytics</span>
-        </NavLink>
-
-        <NavLink
-          onClick={handleLinkClick}
-          to="/support"
-          className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-        >
-          <span>🛠️</span>
-          <span>Support Console</span>
-        </NavLink>
+      {/* Navigation Groups */}
+      <nav className="sidebar-scrollable-nav">
+        {navGroups.map((group) => (
+          <div key={group.group} className="sidebar-nav-group">
+            {!isCollapsed && (
+              <div className="sidebar-group-heading">{group.group}</div>
+            )}
+            <div className="sidebar-group-items">
+              {group.items.map((item) => {
+                const IconComponent = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={handleLinkClick}
+                    title={isCollapsed ? item.label : undefined}
+                    className={({ isActive }) =>
+                      `sidebar-nav-pill ${isActive ? 'active' : ''}`
+                    }
+                  >
+                    <span className="sidebar-active-indicator" />
+                    <span className="sidebar-item-icon-box">
+                      <IconComponent size={14} className="sidebar-icon-svg" />
+                    </span>
+                    {!isCollapsed && (
+                      <span className="sidebar-item-text">{item.label}</span>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-
-      <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #334155' }}>
-        <div style={{ marginBottom: '12px' }}>
-          <div
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              color: '#f8fafc',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-            title={
-              user?.email && !user.email.endsWith('@hms.local') && !user.email.includes('superadmin')
-                ? user.email
-                : 'rohith.texify@gmail.com'
-            }
+      {/* Admin Identity & Footer */}
+      <div className="sidebar-footer-container">
+        {!isCollapsed ? (
+          <div className="sidebar-user-card">
+            <div className="sidebar-user-avatar">
+              {adminEmail.slice(0, 2).toUpperCase()}
+            </div>
+            <div className="sidebar-user-details">
+              <span className="sidebar-user-name" title={adminEmail}>
+                {adminEmail}
+              </span>
+              <span className="sidebar-user-role">{adminRole}</span>
+            </div>
+            <button
+              onClick={logout}
+              id="btn-sidebar-logout"
+              className="sidebar-logout-icon-btn"
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={logout}
+            id="btn-sidebar-logout"
+            className="sidebar-logout-collapsed-btn"
+            title="Sign Out"
+            aria-label="Sign Out"
           >
-            {user?.email && !user.email.endsWith('@hms.local') && !user.email.includes('superadmin')
-              ? user.email
-              : 'rohith.texify@gmail.com'}
-          </div>
-          <div style={{ fontSize: '0.7rem', color: '#38bdf8', marginTop: '2px' }}>
-            {user?.roleName || user?.role || 'Super Administrator'} (Platform)
-          </div>
-        </div>
-
-        <button
-          onClick={logout}
-          id="btn-sidebar-logout"
-          style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 12px',
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
-            borderRadius: '6px',
-            color: '#fca5a5',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'background 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
-          }}
-        >
-          <span>🚪</span>
-          <span>Sign Out</span>
-        </button>
-
-        <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '12px', textAlign: 'center' }}>
-          Super Admin Control Plane
-        </div>
+            <LogOut size={17} />
+          </button>
+        )}
       </div>
     </aside>
   );

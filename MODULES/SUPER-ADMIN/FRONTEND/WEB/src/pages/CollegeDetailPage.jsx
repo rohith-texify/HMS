@@ -15,6 +15,27 @@ import {
   getCitiesForState,
   getAreasForCity,
 } from '../constants/indiaLocations';
+import {
+  Rocket,
+  ChevronLeft,
+  SlidersHorizontal,
+  Boxes,
+  AppWindow,
+  AlertTriangle,
+  Building2,
+  Key,
+  Shield,
+  CheckCircle2,
+  Clock,
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  Edit2,
+  RefreshCw,
+  ExternalLink,
+  X,
+} from 'lucide-react';
 
 export default function CollegeDetailPage() {
   const { id } = useParams();
@@ -364,11 +385,15 @@ export default function CollegeDetailPage() {
   if (error || !college) {
     return (
       <div className="card error-box" style={{ maxWidth: '640px', margin: '40px auto' }}>
-        <h2 style={{ fontSize: '1.25rem', marginBottom: '8px' }}>⚠️ College Not Found</h2>
+        <h2 style={{ fontSize: '1.25rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <AlertTriangle size={20} className="text-amber-600" />
+          <span>College Not Found</span>
+        </h2>
         <p>{error || 'The requested college record could not be loaded.'}</p>
         <div style={{ marginTop: '20px' }}>
-          <button className="btn btn-outline" onClick={() => navigate('/colleges')}>
-            ← Return to Directory
+          <button className="btn-enterprise btn-outline-soft" onClick={() => navigate('/colleges')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <ChevronLeft size={14} />
+            <span>Return to Directory</span>
           </button>
         </div>
       </div>
@@ -398,76 +423,93 @@ export default function CollegeDetailPage() {
           </p>
         </div>
 
-        <div className="quick-actions">
+        <div className="quick-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {college.status === 'ONBOARDING' ? (
             <Link
               to={`/colleges/${college.college_id}/onboarding`}
-              className="btn btn-primary"
+              className="btn-enterprise btn-primary-blue"
               id="btn-onboarding-wizard"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              Resume Onboarding 🚀
+              <Rocket size={14} />
+              <span>Resume Onboarding</span>
             </Link>
           ) : (
             <Link
               to={`/colleges/${college.college_id}/onboarding`}
-              className="btn btn-outline"
+              className="btn-enterprise btn-outline-soft"
               id="btn-onboarding-wizard"
               title="View onboarding workspace and setup checklist"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              Onboarding Wizard 🚀
+              <Rocket size={14} />
+              <span>Onboarding Wizard</span>
             </Link>
           )}
-          <Link to="/colleges" className="btn btn-outline" id="btn-back-directory">
-            ← Directory
+          <Link to="/colleges" className="btn-enterprise btn-outline-soft" id="btn-back-directory" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <ChevronLeft size={14} />
+            <span>Directory</span>
           </Link>
           <Link
             to={`/colleges/${college.college_id}/configuration`}
-            className="btn btn-outline"
+            className="btn-enterprise btn-outline-soft"
             id="btn-college-configuration"
             title="Manage platform tenant configuration, security floors, and policies"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            ⚙️ Configuration
+            <SlidersHorizontal size={14} />
+            <span>Configuration</span>
           </Link>
           <Link
             to={`/colleges/${college.college_id}/modules`}
-            className="btn btn-outline"
+            className="btn-enterprise btn-outline-soft"
             id="btn-college-modules"
             title="Manage college module entitlements, dependencies, and matrix"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            📦 Modules
+            <Boxes size={14} />
+            <span>Modules</span>
           </Link>
           <Link
             to={`/colleges/${college.college_id}/applications`}
-            className="btn btn-outline"
+            className="btn-enterprise btn-outline-soft"
             id="btn-college-applications"
             title="Manage mobile and portal application access, version policy, and force-updates"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            📱 Applications
+            <AppWindow size={14} />
+            <span>Applications</span>
           </Link>
           <Link
             to={`/colleges/${college.college_id}/hostel-structure`}
-            className="btn btn-outline"
+            className="btn-enterprise btn-outline-soft"
             id="btn-college-hostel-structure"
             title="Manage physical hostel facilities, buildings, floors, rooms, and beds"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            🏰 Hostel Structure
+            <Building2 size={14} />
+            <span>Hostel Structure</span>
           </Link>
           <Link
             to={`/colleges/${college.college_id}/admins`}
-            className="btn btn-outline"
+            className="btn-enterprise btn-outline-soft"
             id="btn-college-admins"
             title="Manage all college administrator accounts, status, unlock, and login history"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            👥 Admins
+            <Key size={14} />
+            <span>Admins</span>
           </Link>
           <button
-            className="btn btn-outline"
+            className="btn-enterprise btn-outline-soft"
             onClick={() => setShowEditModal(true)}
             disabled={isDeactivated}
             title={isDeactivated ? 'Cannot edit profile while deactivated' : 'Edit college details'}
             id="btn-edit-profile"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            ✏️ Edit Profile
+            <Edit2 size={14} />
+            <span>Edit Profile</span>
           </button>
         </div>
       </div>
@@ -523,9 +565,10 @@ export default function CollegeDetailPage() {
           <button
             className="btn btn-outline btn-sm"
             onClick={() => setActionSuccessNotice(null)}
-            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+            style={{ fontSize: '0.75rem', padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+            aria-label="Dismiss notice"
           >
-            ✕
+            <X size={13} />
           </button>
         </div>
       )}
@@ -548,9 +591,10 @@ export default function CollegeDetailPage() {
             <button
               className="btn btn-outline btn-sm"
               onClick={() => setPasswordSuccessCredentials(null)}
-              style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+              style={{ fontSize: '0.75rem', padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+              aria-label="Dismiss credentials banner"
             >
-              ✕
+              <X size={13} />
             </button>
           </div>
           <p style={{ color: 'var(--success-text)', fontSize: '0.85rem', marginBottom: '12px' }}>
@@ -702,7 +746,10 @@ export default function CollegeDetailPage() {
       <div className="card" style={{ marginBottom: '24px' }}>
         <div className="card-header">
           <div className="card-title">
-            <span>🔑 College Administrator & Module Access</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <Key size={16} style={{ color: '#2563eb' }} />
+              <span>College Administrator &amp; Module Access</span>
+            </span>
             {adminAccount ? (
               <span className="badge badge-success">Credentials Configured</span>
             ) : (
@@ -712,19 +759,23 @@ export default function CollegeDetailPage() {
           <div style={{ display: 'flex', gap: '8px' }}>
             <Link
               to={`/colleges/${college.college_id}/admins`}
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft btn-sm"
               id="btn-manage-all-admins"
               title="View and manage all administrators for this college"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              👥 Manage All Admins
+              <Building2 size={13} />
+              <span>Manage All Admins</span>
             </Link>
             <button
-              className="btn btn-primary btn-sm"
+              className="btn-enterprise btn-primary-blue btn-sm"
               onClick={openPasswordModal}
               id="btn-manage-admin-password"
               title="Update or reset college administrator password"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
-              {adminAccount ? '🔑 Reset Admin Password' : '+ Initialize Admin Credentials'}
+              <Key size={13} />
+              <span>{adminAccount ? 'Reset Admin Password' : 'Initialize Admin Credentials'}</span>
             </button>
           </div>
         </div>
@@ -784,8 +835,11 @@ export default function CollegeDetailPage() {
             </div>
           </div>
         ) : (
-          <div className="notice-box" style={{ marginTop: 0 }}>
-            ⚠️ <strong>No administrator account found:</strong> The College Administrator credentials have not been configured for this institution yet. Click <strong>Initialize Admin Credentials</strong> above to create the administrator account and set their password.
+          <div className="notice-box" style={{ marginTop: 0, display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <AlertTriangle size={16} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+            <div>
+              <strong>No administrator account found:</strong> The College Administrator credentials have not been configured for this institution yet. Click <strong>Initialize Admin Credentials</strong> above to create the administrator account and set their password.
+            </div>
           </div>
         )}
       </div>
@@ -794,7 +848,10 @@ export default function CollegeDetailPage() {
       <div className="card" style={{ marginBottom: '24px' }}>
         <div className="card-header">
           <div className="card-title">
-            <span>🛡️ Lifecycle Management</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <Shield size={16} style={{ color: '#4f46e5' }} />
+              <span>Lifecycle Management</span>
+            </span>
           </div>
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
             Permitted State Transitions
@@ -969,8 +1026,10 @@ export default function CollegeDetailPage() {
                 className="btn btn-outline btn-sm"
                 onClick={() => setShowEditModal(false)}
                 disabled={editSubmitting}
+                style={{ padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+                aria-label="Close edit modal"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
 
@@ -1183,8 +1242,10 @@ export default function CollegeDetailPage() {
                 className="btn btn-outline btn-sm"
                 onClick={() => setShowLifecycleModal(false)}
                 disabled={lifecycleSubmitting}
+                style={{ padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+                aria-label="Close lifecycle modal"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
 
@@ -1297,8 +1358,10 @@ export default function CollegeDetailPage() {
                 className="btn btn-outline btn-sm"
                 onClick={() => setShowPasswordModal(false)}
                 disabled={passwordSubmitting}
+                style={{ padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+                aria-label="Close password modal"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
 

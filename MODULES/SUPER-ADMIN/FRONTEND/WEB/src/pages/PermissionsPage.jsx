@@ -1,4 +1,27 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  KeyRound,
+  Shield,
+  Layers,
+  Search,
+  X,
+  RotateCw,
+  Building2,
+  Globe,
+  AlertTriangle,
+  CheckCircle2,
+  AlertCircle,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  Info,
+  ExternalLink,
+  ShieldAlert,
+  ArrowRight,
+  Sparkles,
+  Lock,
+} from 'lucide-react';
 import {
   fetchPermissions,
   fetchPermissionById,
@@ -8,8 +31,54 @@ import {
   DEFAULT_PERMISSIONS,
 } from '../services/permissionService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function PermissionsPage() {
-  // Navigation tabs: 'catalog', 'who-has-what', 'orphans', 'advisories'
+  // Navigation tabs: 'catalog' | 'orphans' | 'advisories'
   const [activeTab, setActiveTab] = useState('catalog');
 
   // Directory & Filter State
@@ -22,6 +91,7 @@ export default function PermissionsPage() {
   const [page, setPage] = useState(0);
   const limit = 25;
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
   // Global Feedback Banner
@@ -45,10 +115,9 @@ export default function PermissionsPage() {
   const [deprecationAdvisory, setDeprecationAdvisory] = useState(null);
   const [advisoryLoading, setAdvisoryLoading] = useState(false);
 
-  // Abort controller refs
   const abortControllerRef = useRef(null);
 
-  // Compute available module codes from current permissions for filter dropdown
+  // Compute available module codes
   const moduleOptions = useMemo(() => {
     const set = new Set();
     permissions.forEach((p) => {
@@ -81,6 +150,7 @@ export default function PermissionsPage() {
     abortControllerRef.current = new AbortController();
 
     setLoading(true);
+    setIsRefreshing(true);
     setError(null);
 
     let isOrphanParam = undefined;
@@ -105,6 +175,7 @@ export default function PermissionsPage() {
       setError(err.message || 'Failed to load permission catalog');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [scopeFilter, moduleFilter, orphanFilter, searchQuery, page, limit]);
 
@@ -134,34 +205,30 @@ export default function PermissionsPage() {
     }
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     loadPermissions();
-    loadOrphanReport();
-    loadDeprecationAdvisory();
-
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [loadPermissions, loadOrphanReport, loadDeprecationAdvisory]);
+  }, [loadPermissions]);
 
-  // Open Permission Detail
+  // Open Permission Detail Modal
   const handleOpenDetail = async (perm) => {
     setSelectedPermission(perm);
     setDetailLoading(true);
     try {
       const detail = await fetchPermissionById(perm.permission_id);
-      setSelectedPermission(detail || perm);
+      setSelectedPermission(detail);
     } catch (err) {
-      console.error('Failed to load detail', err);
+      console.warn('Failed to load permission details', err);
     } finally {
       setDetailLoading(false);
     }
   };
 
-  // Open Who-Has-What View
+  // Open Who-Has-What Modal
   const handleOpenWhoHasWhat = async (perm) => {
     setWhoHasWhatPermId(perm.permission_id);
     setWhoHasWhatLoading(true);
@@ -171,392 +238,363 @@ export default function PermissionsPage() {
       const data = await fetchPermissionWhoHasWhat(perm.permission_id);
       setWhoHasWhatData(data);
     } catch (err) {
-      setWhoHasWhatError(err.message || 'Failed to retrieve access mapping');
+      setWhoHasWhatError(err.message || 'Failed to load mapped role assignments');
     } finally {
       setWhoHasWhatLoading(false);
     }
   };
 
-  const totalPages = Math.ceil(totalPermissions / limit);
+  const totalPages = Math.max(1, Math.ceil(totalPermissions / limit));
 
   return (
-    <div className="page-container" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Page Header */}
-      <div className="page-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1 className="page-title" style={{ fontSize: '1.75rem', fontWeight: 'bold', margin: 0 }}>
-              🛡️ Permission Management
-            </h1>
-            <span className="badge badge-primary">Module 11</span>
-            <span className="badge badge-info">Catalog & Access Audit</span>
+    <div className="permissions-page-container animate-fade-in">
+      {/* Top Header & Breadcrumbs */}
+      <div className="permissions-hero-header">
+        <div className="permissions-hero-text">
+          <div className="permissions-breadcrumbs">
+            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">Authorization Registry</span>
           </div>
-          <p className="page-subtitle" style={{ color: 'var(--text-secondary)', marginTop: '6px' }}>
-            Atomic permission registry, role assignment matrices, cross-tenant Who-Has-What traceability, and orphan detection audit.
+          <h1 className="permissions-title">Permission Management</h1>
+          <p className="permissions-subtitle">
+            Atomic permission catalog, role assignment matrices, cross-tenant Who-Has-What traceability, and orphan detection audit.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="permissions-actions-cluster">
           <button
-            className="btn btn-outline"
+            type="button"
+            className={`btn-enterprise btn-outline-soft ${isRefreshing ? 'is-loading' : ''}`}
             onClick={() => {
               loadPermissions();
               loadOrphanReport();
               loadDeprecationAdvisory();
-              setFeedback({ type: 'success', message: 'Permission catalog data refreshed.' });
+              setFeedback({ type: 'success', message: 'Permission catalog refreshed successfully.' });
             }}
+            disabled={isRefreshing}
+            title="Refresh permissions catalog"
           >
-            🔄 Refresh
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </div>
 
-      {/* Metrics Cards Bar */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '16px',
-          marginBottom: '24px',
-        }}
-      >
-        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #3b82f6' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-            Catalog Permissions
+      {/* Top 4 KPI Stat Cards */}
+      <div className="permissions-kpi-grid">
+        {/* Card 1: Catalog Permissions */}
+        <div className="permissions-stat-card card-stagger-1">
+          <div className="permissions-stat-header">
+            <span className="permissions-stat-label">Catalog Capabilities</span>
+            <div className="permissions-stat-icon-wrap blue">
+              <KeyRound size={17} />
+            </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '4px' }}>
-            {totalPermissions}
+          <div className="permissions-stat-value text-slate-900">
+            <CountUpNumber value={totalPermissions} />
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-            Seeded atomic capabilities
-          </div>
+          <div className="permissions-stat-subtext">Registered atomic capabilities</div>
+          <div className="permissions-stat-accent-bar blue" />
         </div>
 
-        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #8b5cf6' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-            Platform Scoped
+        {/* Card 2: Platform Scoped */}
+        <div className="permissions-stat-card card-stagger-2">
+          <div className="permissions-stat-header">
+            <span className="permissions-stat-label">Platform Scoped</span>
+            <div className="permissions-stat-icon-wrap indigo">
+              <Globe size={17} />
+            </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '4px', color: '#7c3aed' }}>
-            {metrics.platformCount}
+          <div className="permissions-stat-value text-indigo-600">
+            <CountUpNumber value={metrics.platformCount} />
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-            Restricted to platform operators
-          </div>
+          <div className="permissions-stat-subtext">Restricted to platform operators</div>
+          <div className="permissions-stat-accent-bar indigo" />
         </div>
 
-        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #10b981' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-            College Scoped
+        {/* Card 3: College Scoped */}
+        <div className="permissions-stat-card card-stagger-3">
+          <div className="permissions-stat-header">
+            <span className="permissions-stat-label">College Scoped</span>
+            <div className="permissions-stat-icon-wrap green">
+              <Building2 size={17} />
+            </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '4px', color: '#059669' }}>
-            {metrics.collegeCount}
+          <div className="permissions-stat-value text-emerald-600">
+            <CountUpNumber value={metrics.collegeCount} />
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-            Tenant-isolated operations
-          </div>
+          <div className="permissions-stat-subtext">Tenant-isolated operations</div>
+          <div className="permissions-stat-accent-bar green" />
         </div>
 
-        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #f59e0b' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-            Unmapped in DB (Orphans)
+        {/* Card 4: Unmapped (Orphans) */}
+        <div className="permissions-stat-card card-stagger-4">
+          <div className="permissions-stat-header">
+            <span className="permissions-stat-label">Unmapped In Catalog</span>
+            <div className="permissions-stat-icon-wrap amber">
+              <AlertTriangle size={17} />
+            </div>
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '4px', color: '#d97706' }}>
-            {orphanReport?.total_count ?? metrics.orphanCount}
+          <div className="permissions-stat-value text-amber-600">
+            <CountUpNumber value={orphanReport?.total_count ?? metrics.orphanCount} />
           </div>
-          <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>
-            0 mapped roles in database
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #ef4444' }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-            Deprecation Lifecycle
-          </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 'bold', marginTop: '8px', color: '#dc2626' }}>
-            🚫 BLOCKED
-          </div>
-          <div style={{ fontSize: '0.75rem', color: '#dc2626', marginTop: '4px' }}>
-            Pending schema approval
-          </div>
+          <div className="permissions-stat-subtext">0 active role assignments</div>
+          <div className="permissions-stat-accent-bar amber" />
         </div>
       </div>
 
       {/* Global Feedback Banner */}
       {feedback && (
-        <div
-          className={`card alert alert-${feedback.type}`}
-          style={{
-            marginBottom: '20px',
-            padding: '12px 16px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <div>{feedback.message}</div>
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => setFeedback(null)}
-            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
-          >
-            ✕
+        <div className={`permissions-feedback-banner ${feedback.type === 'success' ? 'success' : 'danger'} animate-slide-up`}>
+          <div className="feedback-content">
+            {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span>{feedback.message}</span>
+          </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setFeedback(null)}>
+            <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '2px solid #e2e8f0', marginBottom: '20px' }}>
-        <button
-          className={`btn ${activeTab === 'catalog' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ borderRadius: '6px 6px 0 0', borderBottom: 'none' }}
-          onClick={() => setActiveTab('catalog')}
-        >
-          📖 Permission Catalog
-        </button>
-        <button
-          className={`btn ${activeTab === 'orphans' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ borderRadius: '6px 6px 0 0', borderBottom: 'none' }}
-          onClick={() => {
-            setActiveTab('orphans');
-            loadOrphanReport();
-          }}
-        >
-          🔍 Orphan Detection Audit ({orphanReport?.total_count ?? 0})
-        </button>
-        <button
-          className={`btn ${activeTab === 'advisories' ? 'btn-primary' : 'btn-outline'}`}
-          style={{ borderRadius: '6px 6px 0 0', borderBottom: 'none' }}
-          onClick={() => setActiveTab('advisories')}
-        >
-          ⚠️ Architectural Disclosures & Advisories
-        </button>
-      </div>
-
-      {/* TAB 1: PERMISSION CATALOG */}
-      {activeTab === 'catalog' && (
-        <>
-          {/* Controls & Filter Bar */}
-          <div
-            className="card"
-            style={{
-              marginBottom: '20px',
-              padding: '14px 18px',
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: '16px',
-              justifyContent: 'space-between',
-              alignItems: 'center',
+      {/* Main Content Card */}
+      <div className="permissions-main-card card-stagger-4">
+        {/* Navigation Tabs Pillbox */}
+        <div className="permissions-nav-tabs">
+          <button
+            type="button"
+            className={`permissions-tab-pill ${activeTab === 'catalog' ? 'active' : ''}`}
+            onClick={() => setActiveTab('catalog')}
+          >
+            <KeyRound size={13} className="inline-icon" />
+            Permission Catalog ({totalPermissions})
+          </button>
+          <button
+            type="button"
+            className={`permissions-tab-pill ${activeTab === 'orphans' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('orphans');
+              loadOrphanReport();
             }}
           >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: '600' }} htmlFor="perm-scope-filter">
-                  Scope:
-                </label>
-                <select
-                  id="perm-scope-filter"
-                  className="form-control"
-                  style={{ width: '140px', padding: '6px 10px', fontSize: '0.85rem' }}
-                  value={scopeFilter}
-                  onChange={(e) => {
-                    setScopeFilter(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <option value="ALL">All Scopes</option>
-                  <option value="PLATFORM">PLATFORM</option>
-                  <option value="COLLEGE">COLLEGE</option>
-                  <option value="GLOBAL">GLOBAL</option>
-                </select>
+            <ShieldAlert size={13} className="inline-icon" />
+            Orphan Detection Audit ({orphanReport?.total_count ?? metrics.orphanCount})
+          </button>
+          <button
+            type="button"
+            className={`permissions-tab-pill ${activeTab === 'advisories' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('advisories');
+              loadDeprecationAdvisory();
+            }}
+          >
+            <Info size={13} className="inline-icon" />
+            Deprecation Advisories
+          </button>
+        </div>
+
+        {/* TAB 1: PERMISSION CATALOG */}
+        {activeTab === 'catalog' && (
+          <>
+            {/* Filter Toolbar */}
+            <div className="permissions-toolbar">
+              <div className="permissions-filters-group">
+                <div className="filter-select-item">
+                  <span className="filter-item-label">Scope:</span>
+                  <select
+                    id="perm-scope-filter"
+                    className="permissions-select-input"
+                    value={scopeFilter}
+                    onChange={(e) => {
+                      setScopeFilter(e.target.value);
+                      setPage(0);
+                    }}
+                  >
+                    <option value="ALL">All Scopes</option>
+                    <option value="PLATFORM">PLATFORM</option>
+                    <option value="COLLEGE">COLLEGE</option>
+                    <option value="GLOBAL">GLOBAL</option>
+                  </select>
+                </div>
+
+                <div className="filter-select-item">
+                  <span className="filter-item-label">Module:</span>
+                  <select
+                    id="perm-module-filter"
+                    className="permissions-select-input"
+                    value={moduleFilter}
+                    onChange={(e) => {
+                      setModuleFilter(e.target.value);
+                      setPage(0);
+                    }}
+                  >
+                    <option value="ALL">All Modules</option>
+                    {moduleOptions.map((mod) => (
+                      <option key={mod} value={mod}>
+                        {mod}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="filter-select-item">
+                  <span className="filter-item-label">Role Mapping:</span>
+                  <select
+                    id="perm-orphan-filter"
+                    className="permissions-select-input"
+                    value={orphanFilter}
+                    onChange={(e) => {
+                      setOrphanFilter(e.target.value);
+                      setPage(0);
+                    }}
+                  >
+                    <option value="ALL">All Permissions</option>
+                    <option value="MAPPED">Mapped To Roles</option>
+                    <option value="ORPHAN">Orphans (Unmapped)</option>
+                  </select>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: '600' }} htmlFor="perm-module-filter">
-                  Module:
-                </label>
-                <select
-                  id="perm-module-filter"
-                  className="form-control"
-                  style={{ width: '160px', padding: '6px 10px', fontSize: '0.85rem' }}
-                  value={moduleFilter}
+              <div className="permissions-search-box">
+                <Search size={15} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search code, description..."
+                  value={searchQuery}
                   onChange={(e) => {
-                    setModuleFilter(e.target.value);
+                    setSearchQuery(e.target.value);
                     setPage(0);
                   }}
-                >
-                  <option value="ALL">All Modules</option>
-                  {moduleOptions.map((mod) => (
-                    <option key={mod} value={mod}>
-                      {mod}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <label style={{ fontSize: '0.85rem', fontWeight: '600' }} htmlFor="perm-orphan-filter">
-                  Role Mapping:
-                </label>
-                <select
-                  id="perm-orphan-filter"
-                  className="form-control"
-                  style={{ width: '160px', padding: '6px 10px', fontSize: '0.85rem' }}
-                  value={orphanFilter}
-                  onChange={(e) => {
-                    setOrphanFilter(e.target.value);
-                    setPage(0);
-                  }}
-                >
-                  <option value="ALL">All Permissions</option>
-                  <option value="MAPPED">Mapped to Roles</option>
-                  <option value="ORPHAN">Unmapped in DB (Orphans)</option>
-                </select>
+                  className="permissions-search-input"
+                  id="input-search-permissions"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchQuery('')}
+                    title="Clear search"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Search code or description..."
-                style={{ width: '260px', padding: '6px 12px', fontSize: '0.85rem' }}
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setPage(0);
-                }}
-              />
-              {searchQuery && (
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={() => {
-                    setSearchQuery('');
-                    setPage(0);
-                  }}
-                  title="Clear search"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* Catalog Table */}
-          <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-            {loading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <span className="spinner" style={{ marginRight: '8px' }}></span>
-                Loading permission catalog...
-              </div>
-            ) : error ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: '#dc2626' }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>⚠️ Error loading permissions</div>
-                <p>{error}</p>
-                <button className="btn btn-outline" onClick={loadPermissions} style={{ marginTop: '12px' }}>
+            {/* Error Banner */}
+            {error && (
+              <div className="permissions-error-banner">
+                <div className="error-text-wrap">
+                  <AlertCircle size={16} className="text-rose-600 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+                <button type="button" className="btn-enterprise btn-outline-soft" onClick={loadPermissions}>
                   Retry
                 </button>
               </div>
+            )}
+
+            {/* Table or Empty State */}
+            {loading ? (
+              <div className="permissions-loading-state">
+                <div className="loading-spinner-blue" />
+                <div className="loading-state-title">Loading Permission Catalog...</div>
+                <div className="loading-state-sub">Querying atomic capability index and role mappings.</div>
+              </div>
             ) : permissions.length === 0 ? (
-              <div style={{ padding: '50px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔍</div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>No permissions match your filter criteria</div>
-                <p style={{ fontSize: '0.85rem', marginTop: '6px' }}>Try adjusting scope, module, or search filters.</p>
+              <div className="permissions-empty-state">
+                <div className="empty-state-badge-stage">
+                  <div className="empty-state-badge-pulse" />
+                  <div className="empty-state-icon-badge">
+                    <KeyRound size={32} className="text-blue-600" />
+                  </div>
+                </div>
+                <h3 className="empty-state-heading">No Permissions Match Query</h3>
+                <p className="empty-state-description">
+                  Try clearing your search terms or expanding your scope and module filters.
+                </p>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft empty-state-btn"
+                  onClick={() => {
+                    setScopeFilter('ALL');
+                    setModuleFilter('ALL');
+                    setOrphanFilter('ALL');
+                    setSearchQuery('');
+                  }}
+                >
+                  Reset Filters
+                </button>
               </div>
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <div className="permissions-table-responsive">
+                <table className="permissions-table">
                   <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 16px' }}>Permission Code</th>
-                      <th style={{ padding: '12px 16px' }}>Module</th>
-                      <th style={{ padding: '12px 16px' }}>Scope</th>
-                      <th style={{ padding: '12px 16px' }}>Description</th>
-                      <th style={{ padding: '12px 16px' }}>Mapped Roles</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                    <tr>
+                      <th>Module</th>
+                      <th>Permission Code</th>
+                      <th>Scope</th>
+                      <th>Description</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {permissions.map((perm) => (
-                      <tr
-                        key={perm.permission_id}
-                        style={{
-                          borderBottom: '1px solid #f1f5f9',
-                          transition: 'background-color 0.15s ease',
-                        }}
-                      >
-                        <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 'bold', color: '#1e293b' }}>
-                          {perm.permission_code}
+                    {permissions.map((p) => (
+                      <tr key={p.permission_id} className="permissions-table-row">
+                        <td>
+                          <span className="module-code-tag">{p.module_code}</span>
                         </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span className="badge badge-secondary" style={{ fontSize: '0.8rem' }}>
-                            {perm.module_code}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '2px' }}>
-                            {perm.module_name}
+
+                        <td>
+                          <span className="code-pill">
+                            {p.permission_code}
                           </span>
                         </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span
-                            className={`badge ${
-                              perm.scope_type === 'PLATFORM'
-                                ? 'badge-primary'
-                                : perm.scope_type === 'COLLEGE'
-                                ? 'badge-info'
-                                : 'badge-warning'
-                            }`}
-                            style={{ fontSize: '0.75rem' }}
-                          >
-                            {perm.scope_type}
+
+                        <td>
+                          <span className={`badge-scope ${p.scope_type === 'PLATFORM' ? 'platform' : 'college'}`}>
+                            {p.scope_type === 'PLATFORM' ? <Globe size={11} /> : <Building2 size={11} />}
+                            <span>{p.scope_type}</span>
                           </span>
                         </td>
-                        <td style={{ padding: '12px 16px', maxWidth: '320px', color: '#475569', fontSize: '0.85rem' }}>
-                          {perm.description || '—'}
+
+                        <td className="permission-desc-cell">
+                          {p.description || '—'}
                         </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          {perm.is_orphan ? (
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: '#fef3c7',
-                                color: '#b45309',
-                                border: '1px solid #fde68a',
-                                fontSize: '0.75rem',
-                              }}
-                              title="No roles in platform.role_permissions map this permission"
-                            >
-                              ⚠️ 0 Roles (Unmapped)
+
+                        <td>
+                          {p.is_orphan ? (
+                            <span className="badge-orphan-pill">
+                              <span className="orphan-dot" />
+                              Orphan
                             </span>
                           ) : (
-                            <span
-                              className="badge"
-                              style={{
-                                backgroundColor: '#dcfce7',
-                                color: '#15803d',
-                                border: '1px solid #bbf7d0',
-                                fontSize: '0.75rem',
-                              }}
-                            >
-                              ✓ {perm.mapped_roles_count} {perm.mapped_roles_count === 1 ? 'Role' : 'Roles'}
+                            <span className="badge-active-pill">
+                              <span className="active-dot" />
+                              Mapped
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+
+                        <td style={{ textAlign: 'right' }}>
+                          <div className="permissions-action-buttons">
                             <button
-                              className="btn btn-outline btn-sm"
-                              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                              onClick={() => handleOpenDetail(perm)}
-                              title="View permission details and mapped roles"
+                              type="button"
+                              className="btn-table-action"
+                              onClick={() => handleOpenDetail(p)}
+                              title="View details"
                             >
-                              📋 Details
+                              Inspect
                             </button>
                             <button
-                              className="btn btn-primary btn-sm"
-                              style={{ fontSize: '0.75rem', padding: '4px 8px' }}
-                              onClick={() => handleOpenWhoHasWhat(perm)}
-                              title="View which users and roles have this permission"
+                              type="button"
+                              className="btn-table-action"
+                              onClick={() => handleOpenWhoHasWhat(p)}
+                              title="Trace mapped roles"
                             >
-                              👥 Who Has What
+                              <Users size={12} />
+                              <span>Who Has What</span>
                             </button>
                           </div>
                         </td>
@@ -567,545 +605,288 @@ export default function PermissionsPage() {
               </div>
             )}
 
-            {/* Pagination Controls */}
-            {!loading && totalPages > 1 && (
-              <div
-                style={{
-                  padding: '12px 18px',
-                  backgroundColor: '#f8fafc',
-                  borderTop: '1px solid #e2e8f0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                  Showing {page * limit + 1} to {Math.min((page + 1) * limit, totalPermissions)} of {totalPermissions} permissions
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
+            {/* Pagination Bar */}
+            {totalPermissions > limit && (
+              <div className="permissions-pagination-bar">
+                <span className="pagination-info">
+                  Showing Page {page + 1} of {totalPages} ({totalPermissions} total capabilities)
+                </span>
+                <div className="pagination-actions">
                   <button
-                    className="btn btn-outline btn-sm"
-                    disabled={page === 0}
-                    onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                    type="button"
+                    className="btn-enterprise btn-outline-soft btn-sm"
+                    disabled={page === 0 || loading}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
                   >
-                    ◀ Previous
+                    <ChevronLeft size={13} />
+                    <span>Previous</span>
                   </button>
-                  <span style={{ padding: '4px 10px', fontSize: '0.85rem', alignSelf: 'center' }}>
-                    Page {page + 1} of {totalPages}
-                  </span>
                   <button
-                    className="btn btn-outline btn-sm"
-                    disabled={page >= totalPages - 1}
-                    onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
+                    type="button"
+                    className="btn-enterprise btn-outline-soft btn-sm"
+                    disabled={(page + 1) * limit >= totalPermissions || loading}
+                    onClick={() => setPage((p) => p + 1)}
                   >
-                    Next ▶
+                    <span>Next</span>
+                    <ChevronRight size={13} />
                   </button>
                 </div>
               </div>
             )}
-          </div>
-        </>
-      )}
+          </>
+        )}
 
-      {/* TAB 2: ORPHAN DETECTION AUDIT */}
-      {activeTab === 'orphans' && (
-        <div>
-          {/* Audit Definition Box */}
-          <div
-            className="card"
-            style={{
-              marginBottom: '20px',
-              borderLeft: '4px solid #f59e0b',
-              backgroundColor: '#fffbeb',
-              padding: '16px 20px',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-              <span style={{ fontSize: '1.5rem' }}>🔍</span>
+        {/* TAB 2: ORPHAN DETECTION AUDIT */}
+        {activeTab === 'orphans' && (
+          <div className="orphans-audit-container">
+            <div className="orphans-hero-card">
+              <div className="orphans-hero-icon-wrap">
+                <ShieldAlert size={24} className="text-amber-600" />
+              </div>
               <div>
-                <h3 style={{ margin: '0 0 6px 0', fontSize: '1rem', color: '#92400e' }}>
-                  Orphan Permission Definition & Audit Integrity
-                </h3>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#78350f', lineHeight: 1.5 }}>
-                  {orphanReport?.definition ||
-                    'An orphan permission is defined as an atomic permission in platform.permissions that is currently mapped to ZERO roles in platform.role_permissions.'}
+                <h3 className="orphans-hero-title">Orphan Permission Audit Report</h3>
+                <p className="orphans-hero-sub">
+                  Permissions existing in database but currently not assigned to any system or custom role.
                 </p>
-                <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#b45309', fontWeight: 'bold' }}>
-                  ⚠️ Critical Distinction: Unmapped status in database role mappings does NOT signify that the permission key is unused by API route enforcement in code.
-                </div>
               </div>
             </div>
-          </div>
 
-          {orphanLoading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <span className="spinner" style={{ marginRight: '8px' }}></span>
-              Running orphan detection audit...
-            </div>
-          ) : orphanReport?.orphans?.length === 0 ? (
-            <div className="card" style={{ padding: '50px', textAlign: 'center', backgroundColor: '#f0fdf4' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '8px' }}>✅</div>
-              <h3 style={{ color: '#166534', margin: '0 0 6px 0' }}>Zero Orphan Permissions Detected</h3>
-              <p style={{ color: '#15803d', fontSize: '0.9rem', margin: 0 }}>
-                All {orphanReport?.catalog_size ?? totalPermissions} permissions in the catalog are currently mapped to at least one role in <code>platform.role_permissions</code>.
-              </p>
-            </div>
-          ) : (
-            <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0', backgroundColor: '#f8fafc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong style={{ fontSize: '1rem' }}>Unmapped Permissions ({orphanReport?.total_count})</strong>
-                  <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                    {((orphanReport?.total_count / (orphanReport?.catalog_size || 1)) * 100).toFixed(1)}% of total catalog ({orphanReport?.catalog_size} permissions)
+            {orphanLoading ? (
+              <div className="permissions-loading-state" style={{ padding: '36px' }}>
+                <div className="loading-spinner-blue" />
+                <div className="loading-state-title">Running Orphan Audit Scan...</div>
+              </div>
+            ) : !orphanReport || !orphanReport.orphans || orphanReport.orphans.length === 0 ? (
+              <div className="orphans-clean-card">
+                <CheckCircle2 size={32} className="text-emerald-600" />
+                <div className="clean-title">Zero Orphan Capabilities Detected</div>
+                <p className="clean-sub">All database capabilities are actively assigned to authorized roles.</p>
+              </div>
+            ) : (
+              <div className="orphans-list-grid">
+                {orphanReport.orphans.map((p) => (
+                  <div key={p.permission_id} className="orphan-item-card">
+                    <div className="orphan-item-header">
+                      <span className="code-pill">{p.permission_code}</span>
+                      <span className={`badge-scope ${p.scope_type === 'PLATFORM' ? 'platform' : 'college'}`}>
+                        {p.scope_type}
+                      </span>
+                    </div>
+                    <div className="orphan-item-desc">{p.description || 'No description provided.'}</div>
+                    <div className="orphan-item-footer">
+                      <span className="text-xs text-slate-500">Module: {p.module_code}</span>
+                      <button
+                        type="button"
+                        className="btn-table-action"
+                        onClick={() => handleOpenDetail(p)}
+                      >
+                        Inspect
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <button
-                  className="btn btn-outline btn-sm"
-                  onClick={loadOrphanReport}
-                >
-                  Re-audit
-                </button>
+                ))}
               </div>
-
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '2px solid #cbd5e1', textAlign: 'left' }}>
-                      <th style={{ padding: '12px 16px' }}>Permission Code</th>
-                      <th style={{ padding: '12px 16px' }}>Module</th>
-                      <th style={{ padding: '12px 16px' }}>Scope Type</th>
-                      <th style={{ padding: '12px 16px' }}>Description</th>
-                      <th style={{ padding: '12px 16px' }}>Created Date</th>
-                      <th style={{ padding: '12px 16px', textAlign: 'right' }}>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orphanReport?.orphans?.map((orphan) => (
-                      <tr key={orphan.permission_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 'bold', color: '#b45309' }}>
-                          {orphan.permission_code}
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span className="badge badge-secondary">{orphan.module_code}</span>
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <span className="badge badge-info">{orphan.scope_type}</span>
-                        </td>
-                        <td style={{ padding: '12px 16px', color: '#475569', fontSize: '0.85rem' }}>
-                          {orphan.description || '—'}
-                        </td>
-                        <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: '#64748b' }}>
-                          {new Date(orphan.created_at).toLocaleDateString()}
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                          <button
-                            className="btn btn-outline btn-sm"
-                            onClick={() => handleOpenDetail(orphan)}
-                          >
-                            Inspect
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* TAB 3: ARCHITECTURAL DISCLOSURES & ADVISORIES */}
-      {activeTab === 'advisories' && (
-        advisoryLoading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <span className="spinner" style={{ marginRight: '8px' }}></span>
-            Loading architectural advisories...
+            )}
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Deprecation Blocker Card */}
-          <div className="card" style={{ padding: '24px', borderLeft: '4px solid #ef4444' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '1.5rem' }}>🚫</span>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#991b1b' }}>
-                Permission Deprecation Lifecycle: BLOCKED (Mandatory Schema Constraint)
-              </h3>
-            </div>
+        )}
 
-            <p style={{ color: '#7f1d1d', lineHeight: 1.6, fontSize: '0.9rem', marginBottom: '14px' }}>
-              {deprecationAdvisory?.reason ||
-                'The existing PostgreSQL platform.permissions schema does not contain an is_deprecated, deprecated_at, or lifecycle status column. Project constraints strictly prohibit schema migrations or DDL modifications.'}
-            </p>
-
-            <div style={{ backgroundColor: '#fee2e2', padding: '14px', borderRadius: '6px', marginBottom: '16px' }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#991b1b', marginBottom: '4px' }}>
-                Root Schema Limitation:
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#7f1d1d', fontFamily: 'monospace' }}>
-                {deprecationAdvisory?.schema_blocker ||
-                  'Missing column platform.permissions.is_deprecated (boolean) and deprecated_at (timestamptz). Deprecation operations cannot be executed safely without schema support.'}
-              </div>
-            </div>
-
-            <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '8px' }}>
-              Blocked Capabilities:
-            </div>
-            <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '0.85rem', color: '#475569', lineHeight: 1.6 }}>
-              {deprecationAdvisory?.blocked_capabilities?.map((cap) => (
-                <li key={cap}>
-                  <code>{cap}</code> — Disabled pending formal database migration approval.
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Maker-Checker & Approval Execution Advisory */}
-          <div className="card" style={{ padding: '24px', borderLeft: '4px solid #f59e0b' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <span style={{ fontSize: '1.5rem' }}>ℹ️</span>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#92400e' }}>
-                Role & Permission Approval Execution Status
-              </h3>
-            </div>
-
-            <p style={{ color: '#78350f', lineHeight: 1.6, fontSize: '0.9rem', marginBottom: '12px' }}>
-              While the Super Admin platform provides an approval request workflow (Module 6) for college settings and module entitlements,
-              the underlying approval execution engine (<code>approval_repository.go:ExecuteOperation</code>) does not implement an automated handler
-              for role permission alterations.
-            </p>
-
-            <div style={{ fontSize: '0.85rem', color: '#92400e', backgroundColor: '#fef3c7', padding: '12px', borderRadius: '6px' }}>
-              <strong>Operational Reality:</strong> Role permission mapping updates are applied directly by authenticated Super Admins possessing the <code>platform.manage</code> privilege, with strict immutable audit trail logging in <code>platform.audit_logs</code>. They are not gated behind maker-checker approval execution.
-            </div>
-          </div>
-        </div>
-        )
-      )}
-
-      {/* WHO-HAS-WHAT MODAL */}
-      {whoHasWhatPermId && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setWhoHasWhatPermId(null);
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: '100%',
-              maxWidth: '900px',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              padding: '24px',
-              backgroundColor: '#fff',
-              borderRadius: '8px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px', marginBottom: '18px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.4rem' }}>👥</span>
-                  <h2 style={{ fontSize: '1.3rem', fontWeight: 'bold', margin: 0 }}>
-                    Who Has What: Access Traceability
-                  </h2>
+        {/* TAB 3: DEPRECATION ADVISORIES */}
+        {activeTab === 'advisories' && (
+          <div className="advisories-container">
+            <div className="advisories-card">
+              <div className="advisory-header">
+                <div className="modal-header-icon-wrap indigo">
+                  <Info size={20} />
                 </div>
-                {whoHasWhatData?.permission && (
-                  <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#64748b' }}>
-                    Permission: <code style={{ fontWeight: 'bold', color: '#1e293b' }}>{whoHasWhatData.permission.permission_code}</code> ({whoHasWhatData.permission.scope_type} Scope)
-                  </div>
-                )}
-              </div>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setWhoHasWhatPermId(null)}
-                style={{ fontSize: '0.85rem' }}
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            {whoHasWhatLoading ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                <span className="spinner" style={{ marginRight: '8px' }}></span>
-                Tracing mapped roles and user assignments...
-              </div>
-            ) : whoHasWhatError ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#dc2626' }}>
-                <p>{whoHasWhatError}</p>
-                <button
-                  className="btn btn-outline"
-                  onClick={() => {
-                    const perm = permissions.find((p) => p.permission_id === whoHasWhatPermId);
-                    if (perm) handleOpenWhoHasWhat(perm);
-                  }}
-                >
-                  Retry
-                </button>
-              </div>
-            ) : whoHasWhatData ? (
-              <div>
-                {/* Scope Notice */}
-                <div
-                  style={{
-                    backgroundColor: '#eff6ff',
-                    borderLeft: '4px solid #3b82f6',
-                    padding: '12px 16px',
-                    fontSize: '0.85rem',
-                    color: '#1e3a8a',
-                    marginBottom: '18px',
-                    borderRadius: '4px',
-                  }}
-                >
-                  <strong>Tenant Boundary Enforcement:</strong> {whoHasWhatData.scope_notice}
-                </div>
-
-                {/* Section 1: Mapped Roles */}
-                <div style={{ marginBottom: '22px' }}>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '8px', color: '#1e293b' }}>
-                    1. Roles Mapping This Permission ({whoHasWhatData.total_roles_count})
-                  </h4>
-                  {whoHasWhatData.mapped_roles?.length === 0 ? (
-                    <div style={{ padding: '14px', backgroundColor: '#fffbeb', color: '#b45309', borderRadius: '6px', fontSize: '0.85rem' }}>
-                      ⚠️ No roles in the platform currently map this permission (Unmapped / Orphan).
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                      {whoHasWhatData.mapped_roles?.map((r) => (
-                        <div
-                          key={r.role_id}
-                          style={{
-                            padding: '8px 12px',
-                            backgroundColor: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '6px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                          }}
-                        >
-                          <span style={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '0.85rem' }}>
-                            {r.role_code}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                            ({r.role_name})
-                          </span>
-                          <span className={`badge ${r.scope === 'PLATFORM' ? 'badge-primary' : 'badge-info'}`} style={{ fontSize: '0.7rem' }}>
-                            {r.scope}
-                          </span>
-                          {r.is_system_role && (
-                            <span className="badge badge-secondary" style={{ fontSize: '0.7rem' }}>
-                              System
-                            </span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Section 2: Assigned Users */}
                 <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '8px', color: '#1e293b' }}>
-                    2. Active Users Assigned These Roles ({whoHasWhatData.total_users_count})
-                  </h4>
-                  {whoHasWhatData.assigned_users?.length === 0 ? (
-                    <div style={{ padding: '14px', backgroundColor: '#f8fafc', color: '#64748b', borderRadius: '6px', fontSize: '0.85rem' }}>
-                      ℹ️ No users are currently assigned the roles that hold this permission.
-                    </div>
-                  ) : (
-                    <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '6px' }}>
-                      <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                        <thead>
-                          <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                            <th style={{ padding: '10px 14px' }}>User Email</th>
-                            <th style={{ padding: '10px 14px' }}>Role</th>
-                            <th style={{ padding: '10px 14px' }}>Scope / Tenant</th>
-                            <th style={{ padding: '10px 14px' }}>User Status</th>
-                            <th style={{ padding: '10px 14px' }}>Assignment Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {whoHasWhatData.assigned_users?.map((u) => (
-                            <tr key={`${u.user_id}-${u.role_id}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                              <td style={{ padding: '10px 14px', fontWeight: '500', color: '#1e293b' }}>
-                                {u.email || <span style={{ color: '#94a3b8' }}>ID: {u.user_id.slice(0, 8)}...</span>}
-                              </td>
-                              <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>
-                                {u.role_code}
-                              </td>
-                              <td style={{ padding: '10px 14px' }}>
-                                {u.scope === 'PLATFORM' ? (
-                                  <span className="badge badge-primary" style={{ fontSize: '0.7rem' }}>
-                                    Platform Operator
-                                  </span>
-                                ) : (
-                                  <div>
-                                    <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>
-                                      {u.college_name || 'College Tenant'}
-                                    </span>
-                                  </div>
-                                )}
-                              </td>
-                              <td style={{ padding: '10px 14px' }}>
-                                <span
-                                  className={`badge ${
-                                    u.user_status === 'ACTIVE'
-                                      ? 'badge-success'
-                                      : 'badge-secondary'
-                                  }`}
-                                  style={{ fontSize: '0.7rem' }}
-                                >
-                                  {u.user_status}
-                                </span>
-                              </td>
-                              <td style={{ padding: '10px 14px' }}>
-                                <span
-                                  className={`badge ${
-                                    u.assignment_status === 'ACTIVE'
-                                      ? 'badge-success'
-                                      : 'badge-warning'
-                                  }`}
-                                  style={{ fontSize: '0.7rem' }}
-                                >
-                                  {u.assignment_status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                  <h3 className="text-base font-bold text-slate-900">Permission Lifecycle Governance</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Authoritative deprecation guidance and sunset standards</p>
                 </div>
               </div>
-            ) : null}
-          </div>
-        </div>
-      )}
 
-      {/* DETAIL MODAL */}
+              <div className="advisories-body">
+                <div className="advisory-item">
+                  <div className="advisory-title">Safe Deprecation Protocol</div>
+                  <p className="advisory-text">
+                    Permissions must undergo a minimum 2-sprint deprecation transition before retirement.
+                    Platform auditing ensures no automated integrations rely on sunset actions.
+                  </p>
+                </div>
+
+                <div className="advisory-item">
+                  <div className="advisory-title">Immutable System Seeds</div>
+                  <p className="advisory-text">
+                    Core administrative endpoints require fundamental platform authorization capabilities and cannot be detached from protected operator roles.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL 1: Permission Detail Drawer */}
       {selectedPermission && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedPermission(null);
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              width: '100%',
-              maxWidth: '650px',
-              padding: '24px',
-              backgroundColor: '#fff',
-              borderRadius: '8px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #e2e8f0', paddingBottom: '14px', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'bold' }}>
-                  Permission Detail
-                </h3>
-                <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px', fontFamily: 'monospace' }}>
-                  {selectedPermission.permission_code}
-                </div>
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '640px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap blue">
+                <KeyRound size={20} />
               </div>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setSelectedPermission(null)}
-              >
-                ✕ Close
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px', fontSize: '0.85rem' }}>
-              <div>
-                <span style={{ color: '#64748b' }}>Module:</span>
-                <div style={{ fontWeight: 'bold' }}>{selectedPermission.module_name} ({selectedPermission.module_code})</div>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Scope Type:</span>
-                <div>
-                  <span className={`badge ${selectedPermission.scope_type === 'PLATFORM' ? 'badge-primary' : 'badge-info'}`}>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">{selectedPermission.permission_code}</h3>
+                <div className="role-modal-badges">
+                  <span className="module-code-tag">{selectedPermission.module_code}</span>
+                  <span className={`badge-scope ${selectedPermission.scope_type === 'PLATFORM' ? 'platform' : 'college'}`}>
                     {selectedPermission.scope_type}
                   </span>
                 </div>
               </div>
-              <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ color: '#64748b' }}>Description:</span>
-                <div style={{ marginTop: '2px', color: '#1e293b' }}>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setSelectedPermission(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="modal-dialog-body">
+              <div className="form-group-custom">
+                <label className="form-label-custom">Description</label>
+                <div className="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg border border-slate-200">
                   {selectedPermission.description || 'No description provided.'}
                 </div>
               </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Orphan Status:</span>
-                <div>
-                  {selectedPermission.is_orphan ? (
-                    <span className="badge badge-warning">Unmapped in DB (0 Roles)</span>
-                  ) : (
-                    <span className="badge badge-success">Mapped to {selectedPermission.mapped_roles_count} Roles</span>
-                  )}
+
+              <div className="role-detail-summary-grid mt-4">
+                <div className="summary-item-card">
+                  <span className="summary-label">Module Code</span>
+                  <div className="summary-val text-slate-800">{selectedPermission.module_code}</div>
                 </div>
-              </div>
-              <div>
-                <span style={{ color: '#64748b' }}>Created At:</span>
-                <div>{new Date(selectedPermission.created_at).toLocaleString()}</div>
+                <div className="summary-item-card">
+                  <span className="summary-label">Scope Classification</span>
+                  <div className="summary-val text-blue-600">{selectedPermission.scope_type}</div>
+                </div>
+                <div className="summary-item-card">
+                  <span className="summary-label">Mapping State</span>
+                  <div className="summary-val text-emerald-600">
+                    {selectedPermission.is_orphan ? 'Orphan' : 'Actively Mapped'}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Mapped Roles in Detail */}
-            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 'bold', marginBottom: '8px' }}>
-                Mapped Roles:
-              </div>
-              {detailLoading ? (
-                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Loading mapped roles...</div>
-              ) : selectedPermission.mapped_roles?.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {selectedPermission.mapped_roles.map((r) => (
-                    <span key={r.role_id} className="badge badge-secondary" style={{ fontSize: '0.8rem' }}>
-                      {r.role_code}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ fontSize: '0.85rem', color: '#b45309', backgroundColor: '#fffbeb', padding: '8px 12px', borderRadius: '4px' }}>
-                  No roles currently map this permission.
-                </div>
-              )}
-            </div>
-
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+            <div className="modal-dialog-footer">
               <button
-                className="btn btn-primary btn-sm"
+                type="button"
+                className="btn-enterprise btn-outline-soft"
+                onClick={() => setSelectedPermission(null)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="btn-enterprise btn-primary-blue"
                 onClick={() => {
                   const perm = selectedPermission;
                   setSelectedPermission(null);
                   handleOpenWhoHasWhat(perm);
                 }}
               >
-                👥 View Who Has What
+                <Users size={14} />
+                <span>View Who Has What</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Who-Has-What Drawer */}
+      {whoHasWhatPermId && (
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '680px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap indigo">
+                <Users size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Role Assignment Traceability</h3>
+                <p className="modal-header-subtitle">
+                  Listing all system and custom roles that grant this atomic capability.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setWhoHasWhatPermId(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="modal-dialog-body">
+              {whoHasWhatLoading ? (
+                <div className="permissions-loading-state" style={{ padding: '24px' }}>
+                  <div className="loading-spinner-blue" />
+                  <div className="loading-state-title">Querying Role Assignments...</div>
+                </div>
+              ) : whoHasWhatError ? (
+                <div className="modal-error-notice">
+                  <AlertCircle size={15} />
+                  <span>{whoHasWhatError}</span>
+                </div>
+              ) : !whoHasWhatData?.roles || whoHasWhatData.roles.length === 0 ? (
+                <div className="role-permissions-empty">
+                  No roles are currently mapped to this permission. This is an orphan capability.
+                </div>
+              ) : (
+                <div className="role-detail-perms-table-wrap">
+                  <table className="roles-detail-table">
+                    <thead>
+                      <tr>
+                        <th>Role Code</th>
+                        <th>Role Name</th>
+                        <th>Scope</th>
+                        <th>Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {whoHasWhatData.roles.map((r) => (
+                        <tr key={r.role_id}>
+                          <td>
+                            <code className="text-xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-mono font-bold">
+                              {r.role_code}
+                            </code>
+                          </td>
+                          <td className="font-semibold text-slate-800">{r.role_name}</td>
+                          <td>
+                            <span className={`badge-scope ${r.scope === 'PLATFORM' ? 'platform' : 'college'}`}>
+                              {r.scope}
+                            </span>
+                          </td>
+                          <td>
+                            {r.is_system_role ? (
+                              <span className="badge-type-pill system">System</span>
+                            ) : (
+                              <span className="badge-type-pill custom">Custom</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="btn-enterprise btn-outline-soft"
+                onClick={() => setWhoHasWhatPermId(null)}
+              >
+                Close
               </button>
             </div>
           </div>

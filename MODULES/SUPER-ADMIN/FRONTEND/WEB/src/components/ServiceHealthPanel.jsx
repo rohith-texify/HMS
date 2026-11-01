@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Activity, ArrowRight, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 
 export default function ServiceHealthPanel({ health }) {
   if (!health) return null;
@@ -7,55 +8,65 @@ export default function ServiceHealthPanel({ health }) {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'HEALTHY':
-        return <span className="badge badge-success">HEALTHY</span>;
+        return (
+          <span className="badge-enterprise badge-green">
+            <span className="status-dot green" />
+            <span>HEALTHY</span>
+          </span>
+        );
       case 'DEGRADED':
-        return <span className="badge badge-warning">DEGRADED</span>;
+        return (
+          <span className="badge-enterprise badge-amber">
+            <span className="status-dot amber" />
+            <span>DEGRADED</span>
+          </span>
+        );
       case 'UNAVAILABLE':
-        return <span className="badge badge-danger">UNAVAILABLE</span>;
+        return (
+          <span className="badge-enterprise badge-rose">
+            <span className="status-dot rose" />
+            <span>UNAVAILABLE</span>
+          </span>
+        );
       default:
-        return <span className="badge badge-muted">UNKNOWN</span>;
+        return (
+          <span className="badge-enterprise badge-muted">
+            <span>{status || 'UNKNOWN'}</span>
+          </span>
+        );
     }
   };
 
   return (
-    <div className="card">
+    <div className="card enterprise-card">
       <div className="card-header">
         <div className="card-title">
-          <span>⚡ Service Health</span>
+          <Activity size={18} className="text-emerald-600" />
+          <span>Service Health</span>
         </div>
         <div>{getStatusBadge(health.overall_status)}</div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="service-checks-stack">
         {health.checks?.map((check) => (
-          <div
-            key={check.service_name}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '8px 12px',
-              backgroundColor: 'var(--bg-primary)',
-              borderRadius: '6px',
-              border: '1px solid var(--border-color)',
-            }}
-          >
-            <div>
-              <div style={{ fontWeight: '600', fontSize: '0.85rem' }}>
+          <div key={check.service_name} className="service-check-row">
+            <div className="service-check-info">
+              <span className="service-name-text">
                 {check.service_name.replace(/_/g, ' ').toUpperCase()}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              </span>
+              <span className="service-desc-text">
                 {check.message}
-              </div>
+              </span>
             </div>
             <div>{getStatusBadge(check.status)}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-        <Link to="/monitoring" style={{ fontSize: '0.82rem', color: '#38bdf8', textDecoration: 'none', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-          Open Telemetry & Monitoring <span>→</span>
+      <div className="card-footer-action">
+        <Link to="/monitoring" className="card-footer-link">
+          <span>Open Telemetry & Monitoring</span>
+          <ArrowRight size={13} />
         </Link>
       </div>
     </div>

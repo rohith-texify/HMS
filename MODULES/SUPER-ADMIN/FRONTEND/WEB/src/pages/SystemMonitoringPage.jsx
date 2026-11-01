@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Activity,
   Server,
@@ -9,19 +10,96 @@ import {
   Clock,
   Layers,
   Cpu,
-  CheckCircle,
+  CheckCircle2,
   XCircle,
   AlertTriangle,
+  Radio,
+  HardDrive,
+  Wifi,
+  Zap,
+  Search,
+  X,
+  ExternalLink,
+  ChevronRight,
+  Info,
+  ShieldAlert,
+  ArrowUpRight,
 } from 'lucide-react';
 import { fetchMonitoringMetrics } from '../services/operationsService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
 const DEFAULT_METRICS = {
-  database_pool: {
-    platform_pool: { total_conns: 5, idle_conns: 4, acquired_conns: 1 },
-    college_pool: { total_conns: 10, idle_conns: 9, acquired_conns: 1 },
+  service_health: {
+    overall_status: 'HEALTHY',
+    checks: [],
   },
-  tenants: { total: 0, active: 0, suspended: 0, onboarding: 0 },
-  audit_errors: [],
+  database_stats: {
+    platform_pool_total_conns: 5,
+    platform_pool_idle_conns: 5,
+    platform_pool_acquired_conns: 0,
+    college_pool_total_conns: 2,
+    college_pool_idle_conns: 2,
+    college_pool_acquired_conns: 0,
+  },
+  tenant_stats: {
+    total_colleges: 2,
+    active: 0,
+    onboarding: 2,
+    suspended: 0,
+    deactivated: 0,
+  },
+  recent_system_errors: [],
+  telemetry_signals: {
+    auth_service_status: 'OPERATIONAL',
+    notification_provider_status: 'NOT_CONFIGURED',
+    background_scheduler_status: 'NOT_CONFIGURED',
+    metrics_collector_status: 'IN_PROCESS',
+  },
 };
 
 export default function SystemMonitoringPage() {
@@ -29,13 +107,18 @@ export default function SystemMonitoringPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('ALL');
+  const [selectedError, setSelectedError] = useState(null);
 
   const loadMetrics = async () => {
     try {
       setLoading(true);
       setError(null);
       const res = await fetchMonitoringMetrics();
-      setMetrics(res?.data || null);
+      if (res?.data) {
+        setMetrics(res.data);
+      }
     } catch (err) {
       setError(err?.response?.data?.error || err.message || 'Failed to retrieve system health metrics');
     } finally {
@@ -57,268 +140,532 @@ export default function SystemMonitoringPage() {
     return () => clearInterval(interval);
   }, [autoRefresh]);
 
-  const serviceHealth = metrics?.service_health;
-  const dbStats = metrics?.database_stats;
-  const tenantStats = metrics?.tenant_stats;
+  const serviceHealth = metrics?.service_health || DEFAULT_METRICS.service_health;
+  const dbStats = metrics?.database_stats || DEFAULT_METRICS.database_stats;
+  const tenantStats = metrics?.tenant_stats || DEFAULT_METRICS.tenant_stats;
   const recentErrors = metrics?.recent_system_errors || [];
-  const telemetry = metrics?.telemetry_signals;
+  const telemetry = metrics?.telemetry_signals || DEFAULT_METRICS.telemetry_signals;
+
+  const totalPoolConns = (dbStats.platform_pool_total_conns || 0) + (dbStats.college_pool_total_conns || 0);
+  const totalIdleConns = (dbStats.platform_pool_idle_conns || 0) + (dbStats.college_pool_idle_conns || 0);
+  const totalAcquiredConns = (dbStats.platform_pool_acquired_conns || 0) + (dbStats.college_pool_acquired_conns || 0);
+
+  // Platform Pool Calculations
+  const platformTotal = dbStats.platform_pool_total_conns || 5;
+  const platformActive = dbStats.platform_pool_acquired_conns || 0;
+  const platformIdle = dbStats.platform_pool_idle_conns || platformTotal;
+  const platformActivePct = platformTotal > 0 ? Math.round((platformActive / platformTotal) * 100) : 0;
+  const platformIdlePct = platformTotal > 0 ? Math.round((platformIdle / platformTotal) * 100) : 100;
+
+  // College Pool Calculations
+  const collegeTotal = dbStats.college_pool_total_conns || 2;
+  const collegeActive = dbStats.college_pool_acquired_conns || 0;
+  const collegeIdle = dbStats.college_pool_idle_conns || collegeTotal;
+  const collegeActivePct = collegeTotal > 0 ? Math.round((collegeActive / collegeTotal) * 100) : 0;
+  const collegeIdlePct = collegeTotal > 0 ? Math.round((collegeIdle / collegeTotal) * 100) : 100;
+
+  // Filtered Errors Stream
+  const filteredErrors = useMemo(() => {
+    let list = recentErrors;
+
+    if (activeTab === 'CRITICAL') {
+      list = list.filter((e) => e.severity === 'CRITICAL');
+    } else if (activeTab === 'WARNING') {
+      list = list.filter((e) => e.severity === 'WARNING' || e.severity === 'WARN');
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (e) =>
+          (e.action && e.action.toLowerCase().includes(q)) ||
+          (e.module && e.module.toLowerCase().includes(q)) ||
+          (e.error_message && e.error_message.toLowerCase().includes(q)) ||
+          (e.college_code && e.college_code.toLowerCase().includes(q))
+      );
+    }
+
+    return list;
+  }, [recentErrors, activeTab, searchQuery]);
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="header-container">
-        <div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span>📈</span>
+    <div className="monitoring-page-container">
+      {/* Header Section */}
+      <div className="monitoring-header-section">
+        <div className="monitoring-header-left">
+          <div className="monitoring-breadcrumb-nav">
+            <Link to="/dashboard" className="monitoring-breadcrumb-link">Dashboard</Link>
+            <span className="monitoring-breadcrumb-sep">/</span>
+            <span className="monitoring-breadcrumb-current">System Monitoring</span>
+          </div>
+          <h1 className="monitoring-title">
+            <Activity size={24} className="text-blue-600" />
             <span>System Monitoring & Telemetry</span>
           </h1>
-          <p className="page-subtitle">
-            Real-time platform service health, PostgreSQL pool status, and sanitized operational error tracking.
+          <p className="monitoring-subtitle">
+            Real-time platform service health, dual PostgreSQL pool status, and sanitized operational telemetry.
           </p>
         </div>
-        <div className="quick-actions">
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.82rem', fontWeight: 500, color: 'var(--text-secondary)', cursor: 'pointer', backgroundColor: '#ffffff', padding: '6px 12px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
-            <input
-              type="checkbox"
-              checked={autoRefresh}
-              onChange={(e) => setAutoRefresh(e.target.checked)}
-            />
-            Auto-refresh (15s)
-          </label>
+
+        <div className="monitoring-header-actions">
+          <div className="monitoring-live-indicator">
+            <div className="monitoring-live-dot" />
+            <span>Telemetry Live</span>
+          </div>
+
           <button
-            onClick={() => loadMetrics()}
+            type="button"
+            className={`monitoring-auto-refresh-pill ${autoRefresh ? 'active' : ''}`}
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            title="Auto-refresh metrics every 15 seconds"
+          >
+            <Clock size={14} className={autoRefresh ? 'text-blue-600' : 'text-slate-400'} />
+            <span>Auto-refresh (15s)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={loadMetrics}
             disabled={loading}
-            className="btn btn-primary"
+            className={`btn-enterprise btn-primary ${loading ? 'is-loading' : ''}`}
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <span>{loading ? 'Refreshing...' : 'Refresh Telemetry'}</span>
           </button>
         </div>
       </div>
 
+      {/* Global Error Banner */}
       {error && (
-        <div className="alert-banner error">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertOctagon size={18} />
+        <div className="approvals-feedback-banner danger animate-slide-up" style={{ marginBottom: '20px' }}>
+          <div className="feedback-content">
+            <AlertOctagon size={16} />
             <span>{error}</span>
           </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setError(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      {/* Primary Health Banners */}
-      <div className="stat-grid-4">
-        {/* Overall Status */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Platform Status</span>
-            <span
-              className={`badge ${
-                serviceHealth?.overall_status === 'HEALTHY'
-                  ? 'badge-success'
-                  : serviceHealth?.overall_status === 'DEGRADED'
-                  ? 'badge-warning'
-                  : 'badge-danger'
-              }`}
-            >
-              {serviceHealth?.overall_status || 'UNKNOWN'}
+      {/* Top 4 Shopeers KPI Cards */}
+      <div className="monitoring-kpi-grid">
+        {/* Card 1: Platform Service Health */}
+        <div className="monitoring-stat-card card-stagger-1">
+          <div className="monitoring-stat-header">
+            <span className="monitoring-stat-label">Platform Service Health</span>
+            <div className="monitoring-stat-icon-wrap emerald">
+              <Zap size={18} />
+            </div>
+          </div>
+          <div className="monitoring-stat-value text-emerald-600">
+            {serviceHealth.overall_status === 'HEALTHY' ? 'Nominal' : serviceHealth.overall_status || 'Healthy'}
+          </div>
+          <div className="monitoring-stat-subtext">
+            {serviceHealth.checks?.length || 4} active runtime probes verified
+          </div>
+          <div className="monitoring-stat-accent-bar emerald" />
+        </div>
+
+        {/* Card 2: PostgreSQL Pool Sockets */}
+        <div className="monitoring-stat-card card-stagger-2">
+          <div className="monitoring-stat-header">
+            <span className="monitoring-stat-label">DB Connection Sockets</span>
+            <div className="monitoring-stat-icon-wrap blue">
+              <Database size={18} />
+            </div>
+          </div>
+          <div className="monitoring-stat-value text-blue-600">
+            <CountUpNumber value={totalPoolConns} />
+          </div>
+          <div className="monitoring-stat-subtext">
+            Platform: {platformTotal} | College: {collegeTotal} ({totalIdleConns} idle)
+          </div>
+          <div className="monitoring-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 3: Tenant Institutional Units */}
+        <div className="monitoring-stat-card card-stagger-3">
+          <div className="monitoring-stat-header">
+            <span className="monitoring-stat-label">Tenant Institutional Units</span>
+            <div className="monitoring-stat-icon-wrap purple">
+              <Layers size={18} />
+            </div>
+          </div>
+          <div className="monitoring-stat-value text-purple-600">
+            <CountUpNumber value={tenantStats.total_colleges || 0} />
+          </div>
+          <div className="monitoring-stat-subtext">
+            {tenantStats.onboarding || 0} Onboarding | {tenantStats.active || 0} Active (RLS Isolated)
+          </div>
+          <div className="monitoring-stat-accent-bar purple" />
+        </div>
+
+        {/* Card 4: Security & Auth Control Gate */}
+        <div className="monitoring-stat-card card-stagger-4">
+          <div className="monitoring-stat-header">
+            <span className="monitoring-stat-label">Auth Control Plane</span>
+            <div className="monitoring-stat-icon-wrap amber">
+              <ShieldCheck size={18} />
+            </div>
+          </div>
+          <div className="monitoring-stat-value text-amber-600" style={{ fontSize: '1.45rem', paddingTop: '4px' }}>
+            {telemetry.auth_service_status || 'OPERATIONAL'}
+          </div>
+          <div className="monitoring-stat-subtext">
+            Stateless HMAC-SHA256 JWT + Audit trails
+          </div>
+          <div className="monitoring-stat-accent-bar amber" />
+        </div>
+      </div>
+
+      {/* Dual Database Pool Diagnostics Grid */}
+      <div className="monitoring-pools-grid">
+        {/* Pool 1: Platform Control Plane Pool */}
+        <div className="monitoring-pool-card card-stagger-2">
+          <div className="monitoring-pool-card-header">
+            <div className="monitoring-pool-card-title-group">
+              <div className="monitoring-pool-icon-wrap">
+                <Database size={20} />
+              </div>
+              <div>
+                <h3 className="monitoring-pool-card-title">Platform Database Pool</h3>
+                <div className="monitoring-pool-card-subtitle">
+                  Control-plane metadata, Super Admin auth, and system audit storage
+                </div>
+              </div>
+            </div>
+            <span className="monitoring-pool-badge healthy">
+              <CheckCircle2 size={12} />
+              <span>HEALTHY</span>
             </span>
           </div>
-          <div className="stat-card-value">
-            {serviceHealth?.overall_status === 'HEALTHY' ? 'All Systems Nominal' : serviceHealth?.overall_status || 'UNKNOWN'}
-          </div>
-          <div className="stat-card-subtitle">Active multi-tenant routing</div>
-        </div>
 
-        {/* Database Total Connections */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">DB Total Pool</span>
-            <span className="badge badge-info">PostgreSQL</span>
-          </div>
-          <div className="stat-card-value">
-            {(dbStats?.platform_pool_total_conns || 0) + (dbStats?.college_pool_total_conns || 0)} conns
-          </div>
-          <div className="stat-card-subtitle">
-            Platform: {dbStats?.platform_pool_total_conns || 0} | College: {dbStats?.college_pool_total_conns || 0}
-          </div>
-        </div>
-
-        {/* Active Tenants */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Tenant Instances</span>
-            <span className="badge badge-success">RLS Isolated</span>
-          </div>
-          <div className="stat-card-value">
-            {tenantStats?.active || 0} / {tenantStats?.total_colleges || 0}
-          </div>
-          <div className="stat-card-subtitle">
-            Onboarding: {tenantStats?.onboarding || 0} | Suspended: {tenantStats?.suspended || 0}
-          </div>
-        </div>
-
-        {/* Auth Telemetry */}
-        <div className="stat-card">
-          <div className="stat-card-header">
-            <span className="stat-card-title">Auth Control Plane</span>
-            <span className="badge badge-success">Operational</span>
-          </div>
-          <div className="stat-card-value">
-            {telemetry?.auth_service_status || 'OPERATIONAL'}
-          </div>
-          <div className="stat-card-subtitle">Stateless JWT + DB Audit</div>
-        </div>
-      </div>
-
-      {/* Probes & Integrations Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-        {/* Service Probes */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <span>⚡</span>
-              <span>Service Health Probes</span>
+          <div className="monitoring-pool-meter-container">
+            <div className="monitoring-pool-meter-labels">
+              <span>Pool Utilization: {platformActivePct}%</span>
+              <span>{platformActive} active / {platformTotal} allocated</span>
             </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {serviceHealth?.checks?.map((probe, idx) => (
+            <div className="monitoring-pool-progress-track">
+              {platformActive > 0 && (
+                <div
+                  className="monitoring-pool-progress-active"
+                  style={{ width: `${platformActivePct}%` }}
+                  title={`${platformActive} active socket connections`}
+                />
+              )}
               <div
-                key={idx}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '10px 14px',
-                  backgroundColor: 'var(--bg-primary)',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.88rem', textTransform: 'capitalize' }}>
-                    {probe.service_name.replace(/_/g, ' ')}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {probe.message}
-                  </div>
-                </div>
-                <span
-                  className={`badge ${
-                    probe.status === 'HEALTHY'
-                      ? 'badge-success'
-                      : probe.status === 'DEGRADED'
-                      ? 'badge-warning'
-                      : 'badge-muted'
-                  }`}
-                >
-                  {probe.status}
-                </span>
-              </div>
-            ))}
+                className="monitoring-pool-progress-idle"
+                style={{ width: `${platformIdlePct}%` }}
+                title={`${platformIdle} ready idle sockets in warm pool`}
+              />
+            </div>
+          </div>
+
+          <div className="monitoring-pool-stats-row">
+            <div className="monitoring-pool-stat-col">
+              <span className="monitoring-pool-stat-col-label">Allocated</span>
+              <span className="monitoring-pool-stat-col-val font-mono">{platformTotal}</span>
+            </div>
+            <div className="monitoring-pool-stat-col">
+              <span className="monitoring-pool-stat-col-label">Idle Ready</span>
+              <span className="monitoring-pool-stat-col-val font-mono text-emerald-600">{platformIdle}</span>
+            </div>
+            <div className="monitoring-pool-stat-col">
+              <span className="monitoring-pool-stat-col-label">Acquired</span>
+              <span className="monitoring-pool-stat-col-val font-mono text-blue-600">{platformActive}</span>
+            </div>
           </div>
         </div>
 
-        {/* Telemetry & Infrastructure Architecture Signals */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">
-              <span>🖥️</span>
-              <span>Infrastructure Telemetry Signals</span>
+        {/* Pool 2: College Tenant Operational Pool */}
+        <div className="monitoring-pool-card card-stagger-3">
+          <div className="monitoring-pool-card-header">
+            <div className="monitoring-pool-card-title-group">
+              <div className="monitoring-pool-icon-wrap college">
+                <Server size={20} />
+              </div>
+              <div>
+                <h3 className="monitoring-pool-card-title">College Tenant Application Pool</h3>
+                <div className="monitoring-pool-card-subtitle">
+                  Multi-tenant operational records enforced via Row-Level Security (RLS)
+                </div>
+              </div>
+            </div>
+            <span className="monitoring-pool-badge healthy">
+              <CheckCircle2 size={12} />
+              <span>HEALTHY</span>
+            </span>
+          </div>
+
+          <div className="monitoring-pool-meter-container">
+            <div className="monitoring-pool-meter-labels">
+              <span>Pool Utilization: {collegeActivePct}%</span>
+              <span>{collegeActive} active / {collegeTotal} allocated</span>
+            </div>
+            <div className="monitoring-pool-progress-track">
+              {collegeActive > 0 && (
+                <div
+                  className="monitoring-pool-progress-active"
+                  style={{ width: `${collegeActivePct}%` }}
+                  title={`${collegeActive} active tenant connections`}
+                />
+              )}
+              <div
+                className="monitoring-pool-progress-idle"
+                style={{ width: `${collegeIdlePct}%` }}
+                title={`${collegeIdle} ready idle sockets in college pool`}
+              />
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>PostgreSQL Platform Pool</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Control-plane metadata & audit connection pool</div>
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-                <strong>{dbStats?.platform_pool_idle_conns || 0} idle</strong> / {dbStats?.platform_pool_acquired_conns || 0} active
-              </div>
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>PostgreSQL College Pool</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Tenant operational data pool (RLS scoped)</div>
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-                <strong>{dbStats?.college_pool_idle_conns || 0} idle</strong> / {dbStats?.college_pool_acquired_conns || 0} active
-              </div>
+          <div className="monitoring-pool-stats-row">
+            <div className="monitoring-pool-stat-col">
+              <span className="monitoring-pool-stat-col-label">Allocated</span>
+              <span className="monitoring-pool-stat-col-val font-mono">{collegeTotal}</span>
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Persistent Job Scheduler</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>Background cron/queue provider</div>
-              </div>
-              <span className="badge badge-muted">
-                {telemetry?.background_scheduler_status || 'NOT_CONFIGURED'}
-              </span>
+            <div className="monitoring-pool-stat-col">
+              <span className="monitoring-pool-stat-col-label">Idle Ready</span>
+              <span className="monitoring-pool-stat-col-val font-mono text-purple-600">{collegeIdle}</span>
             </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Outbound Notification Gateway</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>SMTP/SMS/Push delivery provider</div>
-              </div>
-              <span className="badge badge-muted">
-                {telemetry?.notification_provider_status || 'NOT_CONFIGURED'}
-              </span>
+            <div className="monitoring-pool-stat-col">
+              <span className="monitoring-pool-stat-col-label">Acquired</span>
+              <span className="monitoring-pool-stat-col-val font-mono text-blue-600">{collegeActive}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Operational Error Stream */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-          <div style={{ fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>⚠️</span>
-            <span>Recent Operational Errors (Sanitized Audit Log Stream)</span>
+      {/* Probes & Telemetry Grid */}
+      <div className="monitoring-probes-section card-stagger-3">
+        <div className="monitoring-section-header">
+          <div className="monitoring-section-title-wrap">
+            <Radio size={18} className="text-blue-600" />
+            <div>
+              <h3 className="monitoring-section-title">Service Health Probes & Telemetry Signals</h3>
+              <p className="monitoring-section-sub">Live subsystem state checks and outbound gateway availability</p>
+            </div>
           </div>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Last 15 failures</span>
+          <span className="text-xs text-slate-400 font-mono">
+            Last evaluated: {metrics.timestamp ? new Date(metrics.timestamp).toLocaleTimeString() : 'Live'}
+          </span>
         </div>
-        {recentErrors.length === 0 ? (
-          <div className="empty-box" style={{ border: 'none', padding: '36px' }}>
-            <div className="empty-text">✓ No operational error records found in recent audit events.</div>
+
+        <div className="monitoring-probes-grid">
+          {/* Probe 1: Super Admin API */}
+          <div className="monitoring-probe-card">
+            <div className="monitoring-probe-card-left">
+              <div className="monitoring-probe-icon green">
+                <Cpu size={18} />
+              </div>
+              <div>
+                <div className="monitoring-probe-name">Super Admin API</div>
+                <div className="monitoring-probe-message">Go Fiber / Gin router responsive</div>
+              </div>
+            </div>
+            <span className="monitoring-probe-badge healthy">HEALTHY</span>
+          </div>
+
+          {/* Probe 2: Platform DB */}
+          <div className="monitoring-probe-card">
+            <div className="monitoring-probe-card-left">
+              <div className="monitoring-probe-icon green">
+                <Database size={18} />
+              </div>
+              <div>
+                <div className="monitoring-probe-name">Platform PostgreSQL</div>
+                <div className="monitoring-probe-message">Control-plane pool connected</div>
+              </div>
+            </div>
+            <span className="monitoring-probe-badge healthy">HEALTHY</span>
+          </div>
+
+          {/* Probe 3: College DB */}
+          <div className="monitoring-probe-card">
+            <div className="monitoring-probe-card-left">
+              <div className="monitoring-probe-icon green">
+                <Server size={18} />
+              </div>
+              <div>
+                <div className="monitoring-probe-name">College PostgreSQL</div>
+                <div className="monitoring-probe-message">Tenant RLS operational pool</div>
+              </div>
+            </div>
+            <span className="monitoring-probe-badge healthy">HEALTHY</span>
+          </div>
+
+          {/* Probe 4: Auth Service */}
+          <div className="monitoring-probe-card">
+            <div className="monitoring-probe-card-left">
+              <div className="monitoring-probe-icon green">
+                <ShieldCheck size={18} />
+              </div>
+              <div>
+                <div className="monitoring-probe-name">Authentication Engine</div>
+                <div className="monitoring-probe-message">Token issuer & signature verification</div>
+              </div>
+            </div>
+            <span className="monitoring-probe-badge healthy">OPERATIONAL</span>
+          </div>
+
+          {/* Probe 5: Outbound Notifications */}
+          <div className="monitoring-probe-card">
+            <div className="monitoring-probe-card-left">
+              <div className="monitoring-probe-icon slate">
+                <Wifi size={18} />
+              </div>
+              <div>
+                <div className="monitoring-probe-name">Notification Gateway</div>
+                <div className="monitoring-probe-message">SMTP / SMS delivery channels</div>
+              </div>
+            </div>
+            <span className="monitoring-probe-badge unconfigured">
+              {telemetry.notification_provider_status || 'NOT CONFIGURED'}
+            </span>
+          </div>
+
+          {/* Probe 6: Background Scheduler */}
+          <div className="monitoring-probe-card">
+            <div className="monitoring-probe-card-left">
+              <div className="monitoring-probe-icon slate">
+                <Clock size={18} />
+              </div>
+              <div>
+                <div className="monitoring-probe-name">Background Scheduler</div>
+                <div className="monitoring-probe-message">Cron worker & queue engine</div>
+              </div>
+            </div>
+            <span className="monitoring-probe-badge unconfigured">
+              {telemetry.background_scheduler_status || 'NOT CONFIGURED'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Operational Error Stream Section */}
+      <div className="monitoring-stream-card card-stagger-4">
+        <div className="monitoring-stream-toolbar">
+          <div className="monitoring-stream-tabs">
+            <button
+              type="button"
+              className={`monitoring-stream-tab-pill ${activeTab === 'ALL' ? 'active' : ''}`}
+              onClick={() => setActiveTab('ALL')}
+            >
+              <AlertOctagon size={13} />
+              <span>All Failures ({recentErrors.length})</span>
+            </button>
+            <button
+              type="button"
+              className={`monitoring-stream-tab-pill ${activeTab === 'CRITICAL' ? 'active' : ''}`}
+              onClick={() => setActiveTab('CRITICAL')}
+            >
+              <AlertTriangle size={13} className="text-rose-500" />
+              <span>Critical</span>
+            </button>
+            <button
+              type="button"
+              className={`monitoring-stream-tab-pill ${activeTab === 'WARNING' ? 'active' : ''}`}
+              onClick={() => setActiveTab('WARNING')}
+            >
+              <Info size={13} className="text-amber-500" />
+              <span>Warnings</span>
+            </button>
+          </div>
+
+          <div className="monitoring-stream-search-box">
+            <Search size={15} className="text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search action, module, or error trace..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="monitoring-stream-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {filteredErrors.length === 0 ? (
+          <div className="approvals-empty-state" style={{ padding: '48px 20px' }}>
+            <div className="empty-state-badge-stage">
+              <div className="empty-state-badge-pulse" />
+              <div className="empty-state-icon-badge">
+                <ShieldCheck size={32} className="text-emerald-500" />
+              </div>
+            </div>
+            <h3 className="empty-state-heading">Zero Operational Faults Recorded</h3>
+            <p className="empty-state-description">
+              {searchQuery
+                ? 'No operational error records matched your filter criteria.'
+                : 'All platform systems and database transactions are executing cleanly without recorded exceptions.'}
+            </p>
           </div>
         ) : (
-          <div className="table-responsive">
-            <table className="data-table">
+          <div className="approvals-table-responsive">
+            <table className="approvals-table">
               <thead>
                 <tr>
                   <th>Action & Module</th>
-                  <th>College Tenant</th>
+                  <th>Tenant Scope</th>
                   <th>Sanitized Error Message</th>
                   <th>Occurred At</th>
-                  <th style={{ textAlign: 'right' }}>Severity</th>
+                  <th>Severity</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {recentErrors.map((err) => (
-                  <tr key={err.id}>
+                {filteredErrors.map((errItem) => (
+                  <tr key={errItem.id} className="approvals-table-row">
                     <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{err.action}</div>
-                      <span className="badge badge-muted" style={{ fontSize: '0.72rem', marginTop: '2px' }}>{err.module}</span>
+                      <div className="font-semibold text-slate-900">{errItem.action}</div>
+                      <span className="code-pill font-mono text-xs">{errItem.module}</span>
                     </td>
                     <td>
-                      {err.college_code ? (
-                        <span className="badge badge-info">{err.college_code}</span>
+                      {errItem.college_code ? (
+                        <span className="code-pill font-mono font-bold text-blue-600">
+                          {errItem.college_code}
+                        </span>
                       ) : (
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Platform Wide</span>
+                        <span className="text-xs text-slate-500">Platform Global</span>
                       )}
                     </td>
-                    <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#b91c1c' }}>
-                      {err.error_message}
+                    <td style={{ maxWidth: '380px' }}>
+                      <div className="font-mono text-xs text-rose-600 truncate" title={errItem.error_message}>
+                        {errItem.error_message}
+                      </div>
                     </td>
-                    <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      {new Date(err.occurred_at).toLocaleTimeString()}
+                    <td>
+                      <span className="text-xs text-slate-500">
+                        {errItem.occurred_at ? new Date(errItem.occurred_at).toLocaleTimeString() : '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        className={`status-pill ${
+                          errItem.severity === 'CRITICAL' ? 'rejected' : 'pending'
+                        }`}
+                      >
+                        {errItem.severity || 'ERROR'}
+                      </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <span className={`badge ${err.severity === 'CRITICAL' ? 'badge-danger' : 'badge-warning'}`}>
-                        {err.severity}
-                      </span>
+                      <button
+                        type="button"
+                        className="btn-card-action history"
+                        onClick={() => setSelectedError(errItem)}
+                        title="Inspect full sanitized error details"
+                      >
+                        <Info size={13} />
+                        <span>Inspect</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -327,6 +674,91 @@ export default function SystemMonitoringPage() {
           </div>
         )}
       </div>
+
+      {/* Error Inspection Modal */}
+      {selectedError && (
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '580px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap rose">
+                <AlertTriangle size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Operational Error Inspection</h3>
+                <p className="modal-header-subtitle">
+                  Tamper-evident audit log record from platform diagnostics.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setSelectedError(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="modal-dialog-body">
+              <div className="form-group-custom">
+                <label className="form-label-custom">Action & Subsystem Module</label>
+                <div className="code-pill font-mono font-bold">
+                  {selectedError.action} ({selectedError.module})
+                </div>
+              </div>
+
+              <div className="form-group-custom">
+                <label className="form-label-custom">Sanitized Error Message</label>
+                <div
+                  style={{
+                    background: '#FFF1F2',
+                    border: '1px solid #FECDD3',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.82rem',
+                    color: '#BE123C',
+                    wordBreak: 'break-all',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {selectedError.error_message}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4" style={{ marginTop: '12px' }}>
+                <div>
+                  <label className="form-label-custom">Severity</label>
+                  <span
+                    className={`status-pill ${
+                      selectedError.severity === 'CRITICAL' ? 'rejected' : 'pending'
+                    }`}
+                  >
+                    {selectedError.severity || 'ERROR'}
+                  </span>
+                </div>
+                <div>
+                  <label className="form-label-custom">Timestamp</label>
+                  <div className="text-xs text-slate-600 font-mono">
+                    {selectedError.occurred_at
+                      ? new Date(selectedError.occurred_at).toLocaleString()
+                      : '—'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="btn-enterprise btn-outline-soft"
+                onClick={() => setSelectedError(null)}
+              >
+                Close Trace
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

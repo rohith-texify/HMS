@@ -136,9 +136,9 @@ func (s *SuperAdminReportService) GetCollegeUsageBreakdown(
 			GROUP BY college_id
 		) cm ON c.college_id = cm.college_id
 		LEFT JOIN (
-			SELECT college_id, COUNT(*) as admin_count 
-			FROM app.users 
-			WHERE role IN ('COLLEGE_ADMIN', 'SUPER_ADMIN') AND status = 'ACTIVE' 
+			SELECT college_id, COUNT(DISTINCT user_id) as admin_count 
+			FROM platform.user_roles 
+			WHERE status = 'ACTIVE' AND college_id IS NOT NULL 
 			GROUP BY college_id
 		) u ON c.college_id = u.college_id
 		LEFT JOIN (
@@ -222,8 +222,8 @@ func (s *SuperAdminReportService) GetModuleAdoptionMetrics(ctx context.Context) 
 	query := `
 		SELECT 
 			m.module_id,
-			m.code,
-			m.name,
+			m.module_code as code,
+			m.module_name as name,
 			m.is_active,
 			COALESCE(cm.assigned_count, 0) as assigned_colleges
 		FROM platform.modules m
@@ -234,7 +234,7 @@ func (s *SuperAdminReportService) GetModuleAdoptionMetrics(ctx context.Context) 
 			WHERE cm.status = 'ACTIVE' AND c.status = 'ACTIVE'
 			GROUP BY module_id
 		) cm ON m.module_id = cm.module_id
-		ORDER BY assigned_colleges DESC, m.name ASC
+		ORDER BY assigned_colleges DESC, m.module_name ASC
 	`
 
 	rows, err := pool.Query(ctx, query)

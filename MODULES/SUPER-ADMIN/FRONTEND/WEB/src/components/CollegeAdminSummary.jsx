@@ -1,29 +1,36 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Users, ArrowRight } from 'lucide-react';
 
 export default function CollegeAdminSummary({ summary }) {
   if (!summary) return null;
 
   return (
-    <div className="card">
+    <div className="card enterprise-card">
       <div className="card-header">
         <div className="card-title">
-          <span>👥 Active College Administrators</span>
-          <span className="badge badge-muted">Current Snapshot</span>
+          <Users size={18} className="text-indigo-600" />
+          <span>Active Administrators</span>
+        </div>
+        <span className="badge-enterprise badge-indigo">Platform Verified</span>
+      </div>
+
+      <div className="admin-summary-content">
+        <div className="admin-summary-stat">
+          <div className="stat-big-number text-indigo-600">
+            {summary.active_count}
+          </div>
+          <div className="stat-big-label">
+            Active College Administrator Accounts
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '10px 0' }}>
-        <div className="metric-value" style={{ fontSize: '2.5rem', color: 'var(--primary-color)' }}>
-          {summary.active_count}
-        </div>
-        <div>
-          <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
-            Active College Admin Accounts
-          </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '2px' }}>
-            Verified accounts with active COLLEGE_ADMIN role assignment and unexpired validity.
-          </div>
-        </div>
+      <div className="card-footer-action">
+        <Link to="/staff" className="card-footer-link">
+          <span>Manage Company Staff & Admins</span>
+          <ArrowRight size={13} />
+        </Link>
       </div>
     </div>
   );

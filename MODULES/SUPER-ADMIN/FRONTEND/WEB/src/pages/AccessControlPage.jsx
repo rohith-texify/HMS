@@ -1,10 +1,84 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  SlidersHorizontal,
+  ShieldCheck,
+  Building2,
+  Search,
+  X,
+  RotateCw,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  Layers,
+  Settings,
+  Activity,
+  Sparkles,
+  Lock,
+  Unlock,
+  Eye,
+  Check,
+  Zap,
+  Info,
+  Calendar,
+  Clock,
+  ArrowRight,
+  ShieldAlert,
+} from 'lucide-react';
 import { fetchCollegesList } from '../services/collegeService';
 import {
   fetchAccessMatrix,
   updateFeatureAccess,
   evaluateAccessOutcome,
 } from '../services/accessControlService';
+
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
 
 export default function AccessControlPage() {
   // Active top-level tab: 'matrix' | 'why-denied' | 'templates'
@@ -18,6 +92,7 @@ export default function AccessControlPage() {
   // Access Matrix State
   const [matrixData, setMatrixData] = useState(null);
   const [matrixLoading, setMatrixLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [matrixError, setMatrixError] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
   const [kindFilter, setKindFilter] = useState('ALL'); // ALL, APP, MODULE, FEATURE
@@ -50,7 +125,7 @@ export default function AccessControlPage() {
   const [evalLoading, setEvalLoading] = useState(false);
   const [evalError, setEvalError] = useState(null);
 
-  // Global Feedback Toast / Banner
+  // Global Feedback Toast
   const [feedback, setFeedback] = useState(null);
 
   const abortControllerRef = useRef(null);
@@ -94,6 +169,7 @@ export default function AccessControlPage() {
     abortControllerRef.current = new AbortController();
 
     setMatrixLoading(true);
+    setIsRefreshing(true);
     setMatrixError(null);
 
     try {
@@ -118,17 +194,17 @@ export default function AccessControlPage() {
       }
     } finally {
       setMatrixLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     if (selectedCollegeId) {
       loadMatrix(selectedCollegeId);
-      setEvalForm((prev) => ({ ...prev, college_id: selectedCollegeId }));
     }
   }, [selectedCollegeId, loadMatrix]);
 
-  // Expand / Collapse toggles
+  // Tree expand/collapse toggles
   const toggleNode = (nodeId) => {
     setExpandedNodes((prev) => ({
       ...prev,
@@ -138,15 +214,14 @@ export default function AccessControlPage() {
 
   const expandAll = () => {
     const all = {};
-    function collect(items) {
+    function mark(items) {
       if (!items) return;
       items.forEach((item) => {
         all[item.module_id] = true;
-        if (item.children) collect(item.children);
+        if (item.children) mark(item.children);
       });
     }
-    const roots = matrixData?.hierarchy || matrixData?.root_applications;
-    if (roots) collect(roots);
+    mark(matrixData?.hierarchy || matrixData?.root_applications);
     setExpandedNodes(all);
   };
 
@@ -155,29 +230,29 @@ export default function AccessControlPage() {
   };
 
   // Open Configuration Modal
-  const openConfigModal = (item) => {
-    setSelectedItemForConfig(item);
+  const openConfigModal = (node) => {
+    setSelectedItemForConfig(node);
     setConfigForm({
-      status: item.configured_status || 'ACTIVE',
-      mode: item.mode || 'FULL',
-      effective_from: item.effective_from ? item.effective_from.substring(0, 16) : '',
-      effective_to: item.effective_to ? item.effective_to.substring(0, 16) : '',
+      status: node.configured_status || node.effective_status || 'ACTIVE',
+      mode: node.configured_mode || node.mode || 'FULL',
+      effective_from: node.effective_from ? node.effective_from.substring(0, 16) : '',
+      effective_to: node.effective_to ? node.effective_to.substring(0, 16) : '',
       reason: '',
     });
     setConfigError(null);
   };
 
-  // Close Configuration Modal
   const closeConfigModal = () => {
     setSelectedItemForConfig(null);
     setConfigError(null);
   };
 
-  // Submit Configuration Changes
   const handleSaveConfig = async (e) => {
     e.preventDefault();
-    if (!configForm.reason || !configForm.reason.trim()) {
-      setConfigError('A clear business justification / reason is mandatory for access control changes.');
+    if (!selectedItemForConfig) return;
+
+    if (!configForm.reason || configForm.reason.trim().length < 5) {
+      setConfigError('A mandatory justification reason (min 5 characters) is required for audit logs.');
       return;
     }
 
@@ -186,6 +261,8 @@ export default function AccessControlPage() {
       setConfigError(null);
 
       const payload = {
+        college_id: selectedCollegeId,
+        module_id: selectedItemForConfig.module_id,
         status: configForm.status,
         mode: configForm.mode,
         effective_from: configForm.effective_from ? new Date(configForm.effective_from).toISOString() : null,
@@ -279,13 +356,13 @@ export default function AccessControlPage() {
     }
 
     function filterNode(node) {
-      const filteredChildren = node.children ? node.children.map(filterNode).filter(Boolean) : [];
-      const selfMatches = matchesFilter(node);
+      const childMatches = (node.children || []).map(filterNode).filter(Boolean);
+      const isSelfMatch = matchesFilter(node);
 
-      if (selfMatches || filteredChildren.length > 0) {
+      if (isSelfMatch || childMatches.length > 0) {
         return {
           ...node,
-          children: filteredChildren,
+          children: childMatches,
         };
       }
       return null;
@@ -294,7 +371,7 @@ export default function AccessControlPage() {
     return roots.map(filterNode).filter(Boolean);
   }, [matrixData, searchFilter, kindFilter, statusFilter, modeFilter]);
 
-  // Overall metrics
+  // Aggregate Metrics
   const matrixMetrics = useMemo(() => {
     let totalNodes = 0;
     let activeNodes = 0;
@@ -323,927 +400,644 @@ export default function AccessControlPage() {
     return { totalNodes, activeNodes, disabledNodes, readOnlyNodes, inheritedDisabledNodes };
   }, [matrixData]);
 
+  const selectedCollege = colleges.find((c) => c.college_id === selectedCollegeId);
+
   return (
-    <div className="access-control-page" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.75rem' }}>🛡️</span>
-            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc' }}>
-              Feature &amp; Module Access Control
-            </h1>
+    <div className="access-control-page-container animate-fade-in">
+      {/* Top Header & Breadcrumbs */}
+      <div className="access-hero-header">
+        <div className="access-hero-text">
+          <div className="access-breadcrumbs">
+            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">Governance Matrix</span>
           </div>
-          <p style={{ margin: '6px 0 0', color: '#94a3b8', fontSize: '0.95rem' }}>
-            Granular entitlement control, action restrictions, read-only policies, and inheritance diagnostics.
+          <h1 className="access-title">Feature &amp; Module Access Control</h1>
+          <p className="access-subtitle">
+            Granular entitlement enforcement, action-level restrictions, read-only policies, and inheritance diagnostics.
           </p>
         </div>
 
-        {/* Tenant Selector Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#1e293b', padding: '8px 16px', borderRadius: '8px', border: '1px solid #334155' }}>
-          <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#94a3b8' }}>Tenant College:</span>
-          {collegesLoading ? (
-            <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Loading colleges...</span>
-          ) : (
-            <select
-              value={selectedCollegeId}
-              onChange={(e) => setSelectedCollegeId(e.target.value)}
-              style={{
-                background: '#0f172a',
-                color: '#f8fafc',
-                border: '1px solid #475569',
-                borderRadius: '6px',
-                padding: '6px 12px',
-                fontSize: '0.9rem',
-                fontWeight: 500,
-                cursor: 'pointer',
-              }}
-            >
-              {colleges.map((c) => (
-                <option key={c.college_id} value={c.college_id}>
-                  {c.name} ({c.college_code || c.code}) — [{c.status}]
-                </option>
-              ))}
-            </select>
-          )}
+        {/* Tenant Selector Pill */}
+        <div className="tenant-selector-pill">
+          <Building2 size={16} className="text-blue-600 flex-shrink-0" />
+          <div className="tenant-selector-content">
+            <span className="selector-label">Target Tenant:</span>
+            {collegesLoading ? (
+              <span className="text-xs text-slate-500">Loading institutions...</span>
+            ) : (
+              <select
+                value={selectedCollegeId}
+                onChange={(e) => {
+                  setSelectedCollegeId(e.target.value);
+                  setEvalForm((prev) => ({ ...prev, college_id: e.target.value }));
+                }}
+                className="tenant-select-dropdown"
+              >
+                {colleges.map((c) => (
+                  <option key={c.college_id} value={c.college_id}>
+                    {c.name} ({c.college_code || c.code})
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Top 4 KPI Stat Cards */}
+      <div className="access-kpi-grid">
+        {/* Card 1: Total Nodes */}
+        <div className="access-stat-card card-stagger-1">
+          <div className="access-stat-header">
+            <span className="access-stat-label">Hierarchy Nodes</span>
+            <div className="access-stat-icon-wrap blue">
+              <Layers size={17} />
+            </div>
+          </div>
+          <div className="access-stat-value text-slate-900">
+            <CountUpNumber value={matrixMetrics.totalNodes} />
+          </div>
+          <div className="access-stat-subtext">Registered apps, modules &amp; features</div>
+          <div className="access-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 2: Active Effective */}
+        <div className="access-stat-card card-stagger-2">
+          <div className="access-stat-header">
+            <span className="access-stat-label">Active Effective</span>
+            <div className="access-stat-icon-wrap green">
+              <CheckCircle2 size={17} />
+            </div>
+          </div>
+          <div className="access-stat-value text-emerald-600">
+            <CountUpNumber value={matrixMetrics.activeNodes} />
+          </div>
+          <div className="access-stat-subtext">Fully operational for tenant</div>
+          <div className="access-stat-accent-bar green" />
+        </div>
+
+        {/* Card 3: Disabled Effective */}
+        <div className="access-stat-card card-stagger-3">
+          <div className="access-stat-header">
+            <span className="access-stat-label">Disabled Restrictions</span>
+            <div className="access-stat-icon-wrap rose">
+              <AlertTriangle size={17} />
+            </div>
+          </div>
+          <div className="access-stat-value text-rose-600">
+            <CountUpNumber value={matrixMetrics.disabledNodes} />
+          </div>
+          <div className="access-stat-subtext">Directly or inherited off</div>
+          <div className="access-stat-accent-bar rose" />
+        </div>
+
+        {/* Card 4: Read-Only Mode */}
+        <div className="access-stat-card card-stagger-4">
+          <div className="access-stat-header">
+            <span className="access-stat-label">Read-Only Mode</span>
+            <div className="access-stat-icon-wrap indigo">
+              <Eye size={17} />
+            </div>
+          </div>
+          <div className="access-stat-value text-indigo-600">
+            <CountUpNumber value={matrixMetrics.readOnlyNodes} />
+          </div>
+          <div className="access-stat-subtext">Mutations blocked by backend</div>
+          <div className="access-stat-accent-bar indigo" />
         </div>
       </div>
 
       {/* Global Feedback Banner */}
       {feedback && (
-        <div
-          style={{
-            padding: '12px 16px',
-            marginBottom: '20px',
-            borderRadius: '6px',
-            background: feedback.type === 'success' ? '#064e3b' : '#7f1d1d',
-            border: `1px solid ${feedback.type === 'success' ? '#10b981' : '#ef4444'}`,
-            color: '#f8fafc',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>{feedback.message}</span>
-          <button
-            onClick={() => setFeedback(null)}
-            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.1rem' }}
-          >
-            ×
+        <div className={`access-feedback-banner ${feedback.type === 'success' ? 'success' : 'danger'} animate-slide-up`}>
+          <div className="feedback-content">
+            {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+            <span>{feedback.message}</span>
+          </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setFeedback(null)}>
+            <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid #334155', marginBottom: '24px' }}>
-        <button
-          onClick={() => setActiveTab('matrix')}
-          style={{
-            padding: '10px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'matrix' ? '2px solid #38bdf8' : '2px solid transparent',
-            color: activeTab === 'matrix' ? '#38bdf8' : '#94a3b8',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <span>🌳</span>
-          <span>Access Hierarchy Matrix</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('why-denied')}
-          style={{
-            padding: '10px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'why-denied' ? '2px solid #38bdf8' : '2px solid transparent',
-            color: activeTab === 'why-denied' ? '#38bdf8' : '#94a3b8',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <span>🔍</span>
-          <span>&quot;Why Is This Denied?&quot; Inspector</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('templates')}
-          style={{
-            padding: '10px 18px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'templates' ? '2px solid #38bdf8' : '2px solid transparent',
-            color: activeTab === 'templates' ? '#38bdf8' : '#94a3b8',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <span>📋</span>
-          <span>Plan &amp; Template Advisory</span>
-        </button>
-      </div>
-
-      {/* TAB 1: ACCESS MATRIX */}
-      {activeTab === 'matrix' && (
-        <div>
-          {/* Summary Metric Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ color: '#94a3b8', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Total Nodes</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#f8fafc', marginTop: '4px' }}>{matrixMetrics.totalNodes}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>App / Module / Feature items</div>
-            </div>
-
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ color: '#34d399', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Active Effective</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#34d399', marginTop: '4px' }}>{matrixMetrics.activeNodes}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Fully operational for tenant</div>
-            </div>
-
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ color: '#f87171', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Disabled Effective</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#f87171', marginTop: '4px' }}>{matrixMetrics.disabledNodes}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Directly or inherited off</div>
-            </div>
-
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ color: '#38bdf8', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Read-Only Mode</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#38bdf8', marginTop: '4px' }}>{matrixMetrics.readOnlyNodes}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Mutations blocked by backend</div>
-            </div>
-
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ color: '#fbbf24', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 600 }}>Inherited Disabled</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#fbbf24', marginTop: '4px' }}>{matrixMetrics.inheritedDisabledNodes}</div>
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>Parent disabled cascade</div>
-            </div>
-          </div>
-
-          {/* Controls Bar: Filters & Search */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', background: '#1e293b', padding: '14px 18px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #334155' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
-              {/* Search */}
-              <input
-                type="text"
-                placeholder="Search feature, module, or code..."
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  color: '#f8fafc',
-                  border: '1px solid #475569',
-                  borderRadius: '6px',
-                  padding: '7px 12px',
-                  fontSize: '0.875rem',
-                  minWidth: '240px',
-                }}
-              />
-
-              {/* Kind Filter */}
-              <select
-                value={kindFilter}
-                onChange={(e) => setKindFilter(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  color: '#f8fafc',
-                  border: '1px solid #475569',
-                  borderRadius: '6px',
-                  padding: '7px 12px',
-                  fontSize: '0.875rem',
-                }}
-              >
-                <option value="ALL">All Levels</option>
-                <option value="APP">Applications Only</option>
-                <option value="MODULE">Modules Only</option>
-                <option value="FEATURE">Features Only</option>
-              </select>
-
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  color: '#f8fafc',
-                  border: '1px solid #475569',
-                  borderRadius: '6px',
-                  padding: '7px 12px',
-                  fontSize: '0.875rem',
-                }}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Effective ACTIVE</option>
-                <option value="DISABLED">Effective DISABLED</option>
-                <option value="SCHEDULED">Effective SCHEDULED</option>
-              </select>
-
-              {/* Mode Filter */}
-              <select
-                value={modeFilter}
-                onChange={(e) => setModeFilter(e.target.value)}
-                style={{
-                  background: '#0f172a',
-                  color: '#f8fafc',
-                  border: '1px solid #475569',
-                  borderRadius: '6px',
-                  padding: '7px 12px',
-                  fontSize: '0.875rem',
-                }}
-              >
-                <option value="ALL">All Modes</option>
-                <option value="FULL">FULL Access</option>
-                <option value="READ_ONLY">READ_ONLY Mode</option>
-              </select>
-            </div>
-
-            {/* Tree Controls */}
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={expandAll}
-                style={{
-                  background: '#334155',
-                  color: '#f8fafc',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                Expand All
-              </button>
-              <button
-                onClick={collapseAll}
-                style={{
-                  background: '#334155',
-                  color: '#f8fafc',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                Collapse All
-              </button>
-              <button
-                onClick={() => loadMatrix(selectedCollegeId)}
-                style={{
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 14px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-
-          {/* Matrix Content / Loading / Error */}
-          {matrixLoading && (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-              <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>⏳ Loading tenant access hierarchy...</div>
-              <div style={{ fontSize: '0.875rem' }}>Evaluating parent/child inheritance states</div>
-            </div>
-          )}
-
-          {matrixError && !matrixLoading && (
-            <div style={{ padding: '24px', background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: '8px', color: '#f8fafc', marginBottom: '20px' }}>
-              <strong>Error Loading Access Matrix:</strong> {matrixError}
-            </div>
-          )}
-
-          {!matrixLoading && !matrixError && filteredTree.length === 0 && (
-            <div style={{ padding: '40px', textAlign: 'center', background: '#1e293b', borderRadius: '8px', color: '#94a3b8' }}>
-              No applications, modules, or features match the current filters.
-            </div>
-          )}
-
-          {!matrixLoading && !matrixError && filteredTree.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {filteredTree.map((appNode) => (
-                <TreeNodeCard
-                  key={appNode.module_id}
-                  node={appNode}
-                  level={0}
-                  expandedNodes={expandedNodes}
-                  toggleNode={toggleNode}
-                  onConfigure={openConfigModal}
-                  onInspect={prefillDiagnostic}
-                />
-              ))}
-            </div>
-          )}
+      {/* Main Content Card */}
+      <div className="access-main-card card-stagger-4">
+        {/* Navigation Tabs Pillbox */}
+        <div className="access-nav-tabs">
+          <button
+            type="button"
+            className={`access-tab-pill ${activeTab === 'matrix' ? 'active' : ''}`}
+            onClick={() => setActiveTab('matrix')}
+          >
+            <SlidersHorizontal size={13} className="inline-icon" />
+            Access Hierarchy Matrix
+          </button>
+          <button
+            type="button"
+            className={`access-tab-pill ${activeTab === 'why-denied' ? 'active' : ''}`}
+            onClick={() => setActiveTab('why-denied')}
+          >
+            <Zap size={13} className="inline-icon" />
+            &quot;Why Is This Denied?&quot; Inspector
+          </button>
+          <button
+            type="button"
+            className={`access-tab-pill ${activeTab === 'templates' ? 'active' : ''}`}
+            onClick={() => setActiveTab('templates')}
+          >
+            <Layers size={13} className="inline-icon" />
+            Plan &amp; Blueprint Advisory
+          </button>
         </div>
-      )}
 
-      {/* TAB 2: "WHY IS THIS DENIED?" DIAGNOSTIC INSPECTOR */}
-      {activeTab === 'why-denied' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '24px' }}>
-          {/* Simulator Form */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '8px', border: '1px solid #334155' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#f8fafc', margin: '0 0 8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>🔍</span>
-              <span>Simulate Access Check</span>
-            </h2>
-            <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 18px' }}>
-              Test backend entitlement validation with live tenant state, catalogue status, parent hierarchy, read-only mode, and user permissions.
-            </p>
+        {/* TAB 1: ACCESS MATRIX */}
+        {activeTab === 'matrix' && (
+          <div>
+            {/* Filter Toolbar */}
+            <div className="access-toolbar">
+              <div className="access-search-box">
+                <Search size={15} className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Search feature, module, or code..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="access-search-input"
+                />
+                {searchFilter && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setSearchFilter('')}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
 
-            <form onSubmit={handleRunEvaluation} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
-                  Tenant College
-                </label>
+              <div className="access-filters-group">
                 <select
-                  value={evalForm.college_id}
-                  onChange={(e) => setEvalForm({ ...evalForm, college_id: e.target.value })}
-                  style={{
-                    width: '100%',
-                    background: '#0f172a',
-                    color: '#f8fafc',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.875rem',
-                  }}
-                  required
+                  value={kindFilter}
+                  onChange={(e) => setKindFilter(e.target.value)}
+                  className="access-select-input"
                 >
-                  {colleges.map((c) => (
-                    <option key={c.college_id} value={c.college_id}>
-                      {c.name} ({c.college_code || c.code})
-                    </option>
-                  ))}
+                  <option value="ALL">All Levels</option>
+                  <option value="APP">Applications Only</option>
+                  <option value="MODULE">Modules Only</option>
+                  <option value="FEATURE">Features Only</option>
+                </select>
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="access-select-input"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Effective ACTIVE</option>
+                  <option value="DISABLED">Effective DISABLED</option>
+                  <option value="SCHEDULED">Effective SCHEDULED</option>
+                </select>
+
+                <select
+                  value={modeFilter}
+                  onChange={(e) => setModeFilter(e.target.value)}
+                  className="access-select-input"
+                >
+                  <option value="ALL">All Modes</option>
+                  <option value="FULL">FULL Access</option>
+                  <option value="READ_ONLY">READ_ONLY Mode</option>
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
-                  Module or Feature Code (or ID)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. hostel, student_management, attendance, complaints"
-                  value={evalForm.module_code}
-                  onChange={(e) => setEvalForm({ ...evalForm, module_code: e.target.value })}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    background: '#0f172a',
-                    color: '#f8fafc',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.875rem',
-                  }}
-                  required
-                />
+              <div className="access-tree-buttons">
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  onClick={expandAll}
+                >
+                  Expand All
+                </button>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  onClick={collapseAll}
+                >
+                  Collapse All
+                </button>
+                <button
+                  type="button"
+                  className={`btn-enterprise btn-outline-soft btn-sm ${isRefreshing ? 'is-loading' : ''}`}
+                  onClick={() => loadMatrix(selectedCollegeId)}
+                  disabled={isRefreshing}
+                >
+                  <RotateCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
               </div>
+            </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
-                  Action / Permission Code
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. hostel.view, hostel.manage, visitor.edit, gatepass.create"
-                  value={evalForm.action}
-                  onChange={(e) => setEvalForm({ ...evalForm, action: e.target.value })}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    background: '#0f172a',
-                    color: '#f8fafc',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.875rem',
-                  }}
-                  required
-                />
+            {/* Error Banner */}
+            {matrixError && !matrixLoading && (
+              <div className="access-error-banner">
+                <AlertCircle size={16} className="text-rose-600 flex-shrink-0" />
+                <span>{matrixError}</span>
               </div>
+            )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            {/* Loading State */}
+            {matrixLoading ? (
+              <div className="access-loading-state">
+                <div className="loading-spinner-blue" />
+                <div className="loading-state-title">Loading Access Hierarchy Matrix...</div>
+                <div className="loading-state-sub">Evaluating parent/child inheritance states for tenant {selectedCollege?.name || 'institution'}.</div>
+              </div>
+            ) : filteredTree.length === 0 ? (
+              <div className="access-empty-state">
+                <div className="empty-state-badge-stage">
+                  <div className="empty-state-badge-pulse" />
+                  <div className="empty-state-icon-badge">
+                    <SlidersHorizontal size={32} className="text-blue-600" />
+                  </div>
+                </div>
+                <h3 className="empty-state-heading">No Features Match Filters</h3>
+                <p className="empty-state-description">Try adjusting your search criteria or resetting filters.</p>
+              </div>
+            ) : (
+              <div className="access-tree-container">
+                {filteredTree.map((appNode) => (
+                  <ModernTreeNodeCard
+                    key={appNode.module_id}
+                    node={appNode}
+                    level={0}
+                    expandedNodes={expandedNodes}
+                    toggleNode={toggleNode}
+                    onConfigure={openConfigModal}
+                    onInspect={prefillDiagnostic}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: "WHY IS THIS DENIED?" DIAGNOSTIC INSPECTOR */}
+        {activeTab === 'why-denied' && (
+          <div className="inspector-grid">
+            {/* Simulator Form */}
+            <div className="inspector-card">
+              <div className="inspector-card-header">
+                <div className="modal-header-icon-wrap blue">
+                  <Zap size={18} />
+                </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
-                    HTTP Method
-                  </label>
+                  <h3 className="text-sm font-bold text-slate-900">Simulate Access Check</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Test backend entitlement validation with live tenant state</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleRunEvaluation} className="inspector-form mt-4">
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Tenant College *</label>
                   <select
-                    value={evalForm.http_method}
-                    onChange={(e) => setEvalForm({ ...evalForm, http_method: e.target.value })}
-                    style={{
-                      width: '100%',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      border: '1px solid #475569',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      fontSize: '0.875rem',
-                    }}
+                    value={evalForm.college_id}
+                    onChange={(e) => setEvalForm({ ...evalForm, college_id: e.target.value })}
+                    className="form-input-custom"
+                    required
                   >
-                    <option value="GET">GET (Read)</option>
-                    <option value="POST">POST (Mutate / Create)</option>
-                    <option value="PUT">PUT (Mutate / Replace)</option>
-                    <option value="PATCH">PATCH (Mutate / Update)</option>
-                    <option value="DELETE">DELETE (Mutate / Remove)</option>
+                    {colleges.map((c) => (
+                      <option key={c.college_id} value={c.college_id}>
+                        {c.name} ({c.college_code || c.code})
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '4px' }}>
-                    User ID (Optional)
-                  </label>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Module / Feature Code *</label>
                   <input
                     type="text"
-                    placeholder="UUID of user"
-                    value={evalForm.user_id}
-                    onChange={(e) => setEvalForm({ ...evalForm, user_id: e.target.value })}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      border: '1px solid #475569',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      fontSize: '0.875rem',
-                    }}
+                    placeholder="e.g. VISITOR_LOGS or HOSTEL_SETUP"
+                    value={evalForm.module_code}
+                    onChange={(e) => setEvalForm({ ...evalForm, module_code: e.target.value })}
+                    className="form-input-custom font-mono"
+                    required
                   />
                 </div>
-              </div>
 
-              {evalError && (
-                <div style={{ padding: '10px 14px', background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem' }}>
-                  {evalError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={evalLoading}
-                style={{
-                  marginTop: '8px',
-                  background: '#2563eb',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 16px',
-                  fontSize: '0.9rem',
-                  fontWeight: 600,
-                  cursor: evalLoading ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                }}
-              >
-                {evalLoading ? 'Running Multi-Stage Evaluation...' : '⚡ Evaluate Access Outcome'}
-              </button>
-            </form>
-          </div>
-
-          {/* Diagnostic Trace Outcome */}
-          <div style={{ background: '#1e293b', padding: '20px', borderRadius: '8px', border: '1px solid #334155' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 600, color: '#f8fafc', margin: '0 0 14px' }}>
-              Diagnostic Outcome &amp; Pipeline Trace
-            </h2>
-
-            {!evalResult && !evalLoading && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#64748b' }}>
-                <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🩺</div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 500, color: '#94a3b8' }}>No evaluation executed yet</div>
-                <div style={{ fontSize: '0.8rem', marginTop: '4px' }}>
-                  Configure the parameters on the left and run the evaluation to trace why an action is allowed or denied.
-                </div>
-              </div>
-            )}
-
-            {evalLoading && (
-              <div style={{ padding: '40px 20px', textAlign: 'center', color: '#38bdf8' }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '8px' }}>Evaluating 6 diagnostic stages...</div>
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Checking tenant, catalog, parent hierarchy, entitlement, and permissions</div>
-              </div>
-            )}
-
-            {evalResult && !evalLoading && (
-              <div>
-                {/* Decision Header Banner */}
-                <div
-                  style={{
-                    padding: '16px 20px',
-                    borderRadius: '8px',
-                    background: evalResult.decision === 'ALLOWED' ? '#064e3b' : '#7f1d1d',
-                    border: `1px solid ${evalResult.decision === 'ALLOWED' ? '#10b981' : '#ef4444'}`,
-                    marginBottom: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', color: evalResult.decision === 'ALLOWED' ? '#a7f3d0' : '#fecaca' }}>
-                      Access Outcome
-                    </div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ffffff', marginTop: '2px' }}>
-                      {evalResult.decision === 'ALLOWED' ? '✅ ACCESS ALLOWED' : '🚫 ACCESS DENIED'}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: '#e2e8f0', marginTop: '4px' }}>
-                      Code: <code>{evalResult.reason_code}</code>
-                    </div>
-                  </div>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Action Capability *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. visitor.view, visitor.manage, hostel.delete"
+                    value={evalForm.action}
+                    onChange={(e) => setEvalForm({ ...evalForm, action: e.target.value })}
+                    className="form-input-custom font-mono"
+                    required
+                  />
                 </div>
 
-                {/* Remediation Advice Card */}
-                {evalResult.remediation && (
-                  <div style={{ padding: '14px 18px', background: '#0f172a', border: '1px solid #38bdf8', borderRadius: '8px', marginBottom: '18px' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', marginBottom: '4px' }}>
-                      💡 Remediation Advice
-                    </div>
-                    <div style={{ fontSize: '0.875rem', color: '#f1f5f9', lineHeight: 1.5 }}>
-                      {evalResult.remediation}
-                    </div>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">HTTP Method</label>
+                  <select
+                    value={evalForm.http_method}
+                    onChange={(e) => setEvalForm({ ...evalForm, http_method: e.target.value })}
+                    className="form-input-custom"
+                  >
+                    <option value="GET">GET (Read request)</option>
+                    <option value="POST">POST (Create / Trigger)</option>
+                    <option value="PUT">PUT (Replace record)</option>
+                    <option value="PATCH">PATCH (Update record)</option>
+                    <option value="DELETE">DELETE (Remove record)</option>
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">User ID (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="UUID of user to test user-level permissions"
+                    value={evalForm.user_id}
+                    onChange={(e) => setEvalForm({ ...evalForm, user_id: e.target.value })}
+                    className="form-input-custom font-mono text-xs"
+                  />
+                </div>
+
+                {evalError && (
+                  <div className="modal-error-notice">
+                    <AlertCircle size={15} />
+                    <span>{evalError}</span>
                   </div>
                 )}
 
-                {/* Step Trace Pipeline */}
+                <button
+                  type="submit"
+                  disabled={evalLoading}
+                  className="btn-enterprise btn-primary-blue w-full justify-center mt-2"
+                >
+                  <Zap size={14} className={evalLoading ? 'animate-spin' : ''} />
+                  <span>{evalLoading ? 'Evaluating Multi-Stage Gates...' : 'Evaluate Access Outcome'}</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Diagnostic Trace Outcome */}
+            <div className="inspector-card">
+              <div className="inspector-card-header">
+                <div className="modal-header-icon-wrap indigo">
+                  <Activity size={18} />
+                </div>
                 <div>
-                  <h3 style={{ fontSize: '0.9rem', textTransform: 'uppercase', fontWeight: 700, color: '#94a3b8', margin: '0 0 10px' }}>
-                    Evaluation Pipeline Steps
-                  </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {evalResult.steps &&
-                      evalResult.steps.map((st, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: '10px 14px',
-                            borderRadius: '6px',
-                            background: st.status === 'PASS' ? '#064e3b33' : st.status === 'FAIL' ? '#7f1d1d33' : '#33415533',
-                            borderLeft: `4px solid ${st.status === 'PASS' ? '#10b981' : st.status === 'FAIL' ? '#ef4444' : '#64748b'}`,
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#f8fafc' }}>
-                                {st.step}
-                              </span>
-                              <span
-                                style={{
-                                  fontSize: '0.7rem',
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  fontWeight: 700,
-                                  background: st.status === 'PASS' ? '#064e3b' : st.status === 'FAIL' ? '#7f1d1d' : '#334155',
-                                  color: st.status === 'PASS' ? '#6ee7b7' : st.status === 'FAIL' ? '#fca5a5' : '#94a3b8',
-                                }}
-                              >
-                                {st.status}
-                              </span>
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>
-                              {st.message}
-                            </div>
-                          </div>
-                          {st.detail && (
-                            <span style={{ fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic', maxWidth: '200px', textAlign: 'right' }}>
-                              {st.detail}
-                            </span>
-                          )}
-                        </div>
-                      ))}
+                  <h3 className="text-sm font-bold text-slate-900">Diagnostic Outcome &amp; Pipeline Trace</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Authoritative 6-stage policy decision pipeline</p>
+                </div>
+              </div>
+
+              {!evalResult && !evalLoading && (
+                <div className="inspector-empty-state">
+                  <ShieldCheck size={36} className="text-slate-300" />
+                  <div className="empty-title">No Evaluation Executed Yet</div>
+                  <div className="empty-sub">
+                    Configure parameters on the left or click &quot;Inspect&quot; on any tree item to test permission outcomes.
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: PLAN & TEMPLATE ADVISORY */}
-      {activeTab === 'templates' && (
-        <div style={{ background: '#1e293b', padding: '24px', borderRadius: '8px', border: '1px solid #334155' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-            <span style={{ fontSize: '1.5rem' }}>📋</span>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#f8fafc', margin: 0 }}>
-              Plan &amp; Entitlement Template Settings
-            </h2>
-          </div>
-
-          {/* Architecture Status Alert */}
-          <div style={{ padding: '16px', background: '#0284c722', border: '1px solid #0284c7', borderRadius: '8px', marginBottom: '20px' }}>
-            <div style={{ fontWeight: 700, color: '#38bdf8', marginBottom: '6px', fontSize: '0.95rem' }}>
-              ℹ️ Architecture &amp; Schema Status
-            </div>
-            <p style={{ margin: 0, color: '#cbd5e1', fontSize: '0.875rem', lineHeight: 1.6 }}>
-              The HMS architecture specifies plan-level entitlement profiles (e.g., standard vs premium feature bundles).
-              In the current database schema, templates are managed in <code>platform.entitlement_templates</code>, which can be applied to tenants via <code>POST /super-admin/colleges/:id/apply-template</code>.
-              Per-tenant active plan assignment will be integrated when the <code>platform.college_plans</code> junction table is introduced.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', marginBottom: '8px' }}>
-                Standard College Template
-              </div>
-              <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5, margin: '0 0 12px' }}>
-                Includes Core Student Management, Basic Attendance, Hostel Hierarchy, and Read-Only Complaints.
-              </p>
-              <button
-                disabled
-                style={{
-                  background: '#334155',
-                  color: '#94a3b8',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'not-allowed',
-                }}
-              >
-                Apply to Tenant (Pending Plan Schema)
-              </button>
-            </div>
-
-            <div style={{ background: '#0f172a', padding: '16px', borderRadius: '8px', border: '1px solid #334155' }}>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f8fafc', marginBottom: '8px' }}>
-                Premium Enterprise Template
-              </div>
-              <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5, margin: '0 0 12px' }}>
-                Includes Full Access to all Apps, Modules, Biometric Gate Pass features, Mess Management, and Analytics.
-              </p>
-              <button
-                disabled
-                style={{
-                  background: '#334155',
-                  color: '#94a3b8',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  cursor: 'not-allowed',
-                }}
-              >
-                Apply to Tenant (Pending Plan Schema)
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIGURATION MODAL DRAWER */}
-      {selectedItemForConfig && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              background: '#1e293b',
-              borderRadius: '10px',
-              border: '1px solid #334155',
-              width: '100%',
-              maxWidth: '560px',
-              padding: '24px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      background: selectedItemForConfig.kind === 'APP' ? '#7c3aed' : selectedItemForConfig.kind === 'MODULE' ? '#2563eb' : '#059669',
-                      color: '#ffffff',
-                    }}
-                  >
-                    {selectedItemForConfig.kind}
-                  </span>
-                  <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#f8fafc' }}>
-                    {selectedItemForConfig.name}
-                  </h3>
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '4px' }}>
-                  Code: <code>{selectedItemForConfig.module_code}</code> | Priority: {selectedItemForConfig.priority}
-                </div>
-              </div>
-              <button
-                onClick={closeConfigModal}
-                style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Inheritance Warning if Ancestor is Disabled */}
-            {selectedItemForConfig.inherited_disabled && (
-              <div style={{ padding: '12px', background: '#78350f33', border: '1px solid #d97706', borderRadius: '6px', marginBottom: '16px', fontSize: '0.85rem', color: '#fef3c7' }}>
-                ⚠️ <strong>Inherited Disabled Notice:</strong> This item is currently disabled because an ancestor ({selectedItemForConfig.inheritance_source}) is disabled. Re-enabling this item will only take effect once the parent application/module is also enabled.
-              </div>
-            )}
-
-            <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Status Selector */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                  Entitlement Status
-                </label>
-                <select
-                  value={configForm.status}
-                  onChange={(e) => setConfigForm({ ...configForm, status: e.target.value })}
-                  style={{
-                    width: '100%',
-                    background: '#0f172a',
-                    color: '#f8fafc',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  <option value="ACTIVE">ACTIVE (Feature enabled for tenant)</option>
-                  <option value="DISABLED">DISABLED (Feature disabled and denied)</option>
-                  <option value="SCHEDULED">SCHEDULED (Active during effective dates only)</option>
-                </select>
-              </div>
-
-              {/* Mode Selector (Full vs Read Only) */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                  Operating Mode (Granular Action Restriction)
-                </label>
-                <select
-                  value={configForm.mode}
-                  onChange={(e) => setConfigForm({ ...configForm, mode: e.target.value })}
-                  style={{
-                    width: '100%',
-                    background: '#0f172a',
-                    color: '#f8fafc',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.875rem',
-                  }}
-                >
-                  <option value="FULL">FULL ACCESS (All permitted actions allowed)</option>
-                  <option value="READ_ONLY">READ_ONLY (Mutations POST/PUT/PATCH/DELETE blocked by backend)</option>
-                </select>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>
-                  When set to READ_ONLY, users can view records (e.g. Visitor History) but edit/create operations are automatically blocked with HTTP 403.
-                </div>
-              </div>
-
-              {/* Effective Dates (For Scheduled changes) */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    Effective From
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={configForm.effective_from}
-                    onChange={(e) => setConfigForm({ ...configForm, effective_from: e.target.value })}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      border: '1px solid #475569',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      fontSize: '0.85rem',
-                    }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                    Effective To (Expiry)
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={configForm.effective_to}
-                    onChange={(e) => setConfigForm({ ...configForm, effective_to: e.target.value })}
-                    style={{
-                      width: '100%',
-                      boxSizing: 'border-box',
-                      background: '#0f172a',
-                      color: '#f8fafc',
-                      border: '1px solid #475569',
-                      borderRadius: '6px',
-                      padding: '8px 12px',
-                      fontSize: '0.85rem',
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Mandatory Reason */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                  Reason for Change <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <textarea
-                  rows="3"
-                  placeholder="Provide audit justification (e.g. Tenant requested visitor history read-only mode, or scheduled pilot launch)"
-                  value={configForm.reason}
-                  onChange={(e) => setConfigForm({ ...configForm, reason: e.target.value })}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    background: '#0f172a',
-                    color: '#f8fafc',
-                    border: '1px solid #475569',
-                    borderRadius: '6px',
-                    padding: '8px 12px',
-                    fontSize: '0.875rem',
-                    resize: 'vertical',
-                  }}
-                  required
-                />
-              </div>
-
-              {configError && (
-                <div style={{ padding: '10px 14px', background: '#7f1d1d', border: '1px solid #ef4444', borderRadius: '6px', color: '#f8fafc', fontSize: '0.85rem' }}>
-                  {configError}
                 </div>
               )}
 
-              {/* Modal Actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              {evalLoading && (
+                <div className="access-loading-state" style={{ padding: '40px' }}>
+                  <div className="loading-spinner-blue" />
+                  <div className="loading-state-title">Evaluating Multi-Stage Policy Gates...</div>
+                  <div className="loading-state-sub">Checking catalog, tenant entitlement, parent hierarchy &amp; permissions.</div>
+                </div>
+              )}
+
+              {evalResult && !evalLoading && (
+                <div className="eval-results-container mt-4 animate-slide-up">
+                  {/* Decision Banner */}
+                  <div className={`eval-decision-banner ${evalResult.decision === 'ALLOWED' ? 'allowed' : 'denied'}`}>
+                    <div className="decision-left">
+                      <div className="decision-tag">POLICY DECISION</div>
+                      <div className="decision-headline">
+                        {evalResult.decision === 'ALLOWED' ? 'ACCESS ALLOWED' : 'ACCESS DENIED'}
+                      </div>
+                      <div className="decision-code">
+                        Reason: <code>{evalResult.reason_code}</code>
+                      </div>
+                    </div>
+                    {evalResult.decision === 'ALLOWED' ? (
+                      <CheckCircle2 size={32} className="text-emerald-500" />
+                    ) : (
+                      <AlertCircle size={32} className="text-rose-500" />
+                    )}
+                  </div>
+
+                  {/* Remediation Advice */}
+                  {evalResult.remediation && (
+                    <div className="eval-remediation-box mt-3">
+                      <div className="remediation-title">
+                        <Sparkles size={14} className="text-blue-600" />
+                        <span>Remediation Advice</span>
+                      </div>
+                      <p className="remediation-text">{evalResult.remediation}</p>
+                    </div>
+                  )}
+
+                  {/* Step Trace Pipeline */}
+                  <div className="eval-steps-list mt-4">
+                    <h4 className="steps-heading">Evaluation Pipeline Steps</h4>
+                    <div className="steps-cards-wrap">
+                      {evalResult.steps &&
+                        evalResult.steps.map((st, idx) => (
+                          <div
+                            key={idx}
+                            className={`eval-step-row ${
+                              st.status === 'PASS' ? 'pass' : st.status === 'FAIL' ? 'fail' : 'neutral'
+                            }`}
+                          >
+                            <div className="step-main">
+                              <div className="step-title-wrap">
+                                <span className="step-name">{st.step}</span>
+                                <span className={`step-badge ${st.status.toLowerCase()}`}>
+                                  {st.status}
+                                </span>
+                              </div>
+                              <div className="step-message">{st.message}</div>
+                            </div>
+                            {st.detail && <div className="step-detail">{st.detail}</div>}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: PLAN & TEMPLATE ADVISORY */}
+        {activeTab === 'templates' && (
+          <div className="advisories-container">
+            <div className="advisories-card">
+              <div className="advisory-header">
+                <div className="modal-header-icon-wrap indigo">
+                  <Info size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Plan &amp; Blueprint Entitlement Architecture</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Authoritative template and feature bundle synchronization</p>
+                </div>
+              </div>
+
+              <div className="advisories-body">
+                <div className="advisory-item">
+                  <div className="advisory-title">Template Blueprints</div>
+                  <p className="advisory-text">
+                    Institutions inherit entitlement configurations from assigned subscription tier blueprints.
+                    Individual overrides configured in the Access Hierarchy Matrix supersede global template defaults.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                  <div className="blueprint-card">
+                    <div className="blueprint-title">Standard College Blueprint</div>
+                    <div className="blueprint-desc">
+                      Includes Core Student Management, Basic Attendance, Hostel Hierarchy, and Read-Only Complaints.
+                    </div>
+                    <span className="badge-type-pill system mt-2 inline-block">Active Fixture</span>
+                  </div>
+
+                  <div className="blueprint-card">
+                    <div className="blueprint-title">Premium Enterprise Blueprint</div>
+                    <div className="blueprint-desc">
+                      Includes Full Access to all Apps, Biometric Gate Pass workflows, Mess Management, and Deep Analytics.
+                    </div>
+                    <span className="badge-type-pill custom mt-2 inline-block">Enterprise Ready</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* CONFIGURATION MODAL */}
+      {selectedItemForConfig && (
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '600px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap blue">
+                <Settings size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">{selectedItemForConfig.name}</h3>
+                <div className="role-modal-badges">
+                  <span className="code-pill">{selectedItemForConfig.module_code}</span>
+                  <span className="badge-scope platform">{selectedItemForConfig.kind}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={closeConfigModal}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveConfig}>
+              <div className="modal-dialog-body">
+                {selectedItemForConfig.inherited_disabled && (
+                  <div className="modal-error-notice" style={{ backgroundColor: '#fffbeb', borderColor: '#fde68a', color: '#92400e' }}>
+                    <AlertTriangle size={16} className="text-amber-600" />
+                    <span>
+                      <strong>Inherited Disabled Notice:</strong> An ancestor ({selectedItemForConfig.inheritance_source}) is disabled. Enabling this node will take effect once the parent application/module is also enabled.
+                    </span>
+                  </div>
+                )}
+
+                {configError && (
+                  <div className="modal-error-notice">
+                    <AlertCircle size={15} />
+                    <span>{configError}</span>
+                  </div>
+                )}
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Entitlement Status *</label>
+                  <select
+                    value={configForm.status}
+                    onChange={(e) => setConfigForm({ ...configForm, status: e.target.value })}
+                    className="form-input-custom"
+                  >
+                    <option value="ACTIVE">ACTIVE (Feature enabled for tenant)</option>
+                    <option value="DISABLED">DISABLED (Feature denied for tenant)</option>
+                    <option value="SCHEDULED">SCHEDULED (Active during effective dates only)</option>
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Operating Mode *</label>
+                  <select
+                    value={configForm.mode}
+                    onChange={(e) => setConfigForm({ ...configForm, mode: e.target.value })}
+                    className="form-input-custom"
+                  >
+                    <option value="FULL">FULL ACCESS (All permitted actions allowed)</option>
+                    <option value="READ_ONLY">READ_ONLY (Mutations POST/PUT/PATCH/DELETE blocked by backend)</option>
+                  </select>
+                  <span className="text-xs text-slate-500 mt-1">
+                    When READ_ONLY is set, users can view records but edit/create operations are rejected with HTTP 403.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="form-group-custom">
+                    <label className="form-label-custom">Effective From</label>
+                    <input
+                      type="datetime-local"
+                      value={configForm.effective_from}
+                      onChange={(e) => setConfigForm({ ...configForm, effective_from: e.target.value })}
+                      className="form-input-custom text-xs"
+                    />
+                  </div>
+
+                  <div className="form-group-custom">
+                    <label className="form-label-custom">Effective To</label>
+                    <input
+                      type="datetime-local"
+                      value={configForm.effective_to}
+                      onChange={(e) => setConfigForm({ ...configForm, effective_to: e.target.value })}
+                      className="form-input-custom text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Reason for Change *</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Provide mandatory audit justification for change log..."
+                    value={configForm.reason}
+                    onChange={(e) => setConfigForm({ ...configForm, reason: e.target.value })}
+                    className="form-input-custom textarea"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="modal-dialog-footer">
                 <button
                   type="button"
+                  className="btn-enterprise btn-outline-soft"
                   onClick={closeConfigModal}
-                  style={{
-                    background: '#334155',
-                    color: '#f8fafc',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '8px 16px',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
+                  disabled={configSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  className="btn-enterprise btn-primary-blue"
                   disabled={configSubmitting}
-                  style={{
-                    background: '#2563eb',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '8px 18px',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    cursor: configSubmitting ? 'not-allowed' : 'pointer',
-                  }}
                 >
                   {configSubmitting ? 'Saving...' : 'Save Configuration'}
                 </button>
@@ -1257,232 +1051,116 @@ export default function AccessControlPage() {
 }
 
 /**
- * Recursive Tree Node Card Component
+ * Modern Recursive Tree Node Component
  */
-function TreeNodeCard({ node, level, expandedNodes, toggleNode, onConfigure, onInspect }) {
+function ModernTreeNodeCard({ node, level, expandedNodes, toggleNode, onConfigure, onInspect }) {
   const isExpanded = !!expandedNodes[node.module_id];
   const hasChildren = node.children && node.children.length > 0;
-
-  // Level-based indentation and styling
   const indentPadding = level * 20;
 
   return (
     <div
-      style={{
-        background: level === 0 ? '#1e293b' : level === 1 ? '#182234' : '#141d2e',
-        borderRadius: '8px',
-        border: '1px solid #334155',
-        overflow: 'hidden',
-        marginLeft: `${indentPadding}px`,
-        transition: 'all 0.2s ease',
-      }}
+      className={`access-node-card level-${level}`}
+      style={{ marginLeft: `${indentPadding}px` }}
     >
-      {/* Node Header Row */}
-      <div
-        style={{
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: isExpanded && hasChildren ? '1px solid #334155' : 'none',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
-          {/* Expand/Collapse Toggle */}
+      <div className="access-node-header">
+        <div className="access-node-left">
           {hasChildren ? (
             <button
+              type="button"
               onClick={() => toggleNode(node.module_id)}
-              style={{
-                background: '#334155',
-                border: 'none',
-                color: '#f8fafc',
-                borderRadius: '4px',
-                width: '24px',
-                height: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-              }}
+              className="toggle-expand-btn"
+              title={isExpanded ? 'Collapse node' : 'Expand node'}
             >
-              {isExpanded ? '▼' : '▶'}
+              {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
           ) : (
-            <span style={{ width: '24px', textAlign: 'center', color: '#475569' }}>•</span>
+            <span className="no-children-dot">•</span>
           )}
 
-          {/* Kind Badge */}
-          <span
-            style={{
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              padding: '2px 6px',
-              borderRadius: '4px',
-              background: node.kind === 'APP' ? '#7c3aed' : node.kind === 'MODULE' ? '#2563eb' : '#059669',
-              color: '#ffffff',
-            }}
-          >
+          <span className={`node-kind-tag ${node.kind.toLowerCase()}`}>
             {node.kind}
           </span>
 
-          {/* Name & Code */}
-          <div>
-            <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.95rem' }}>{node.module_name || node.name}</span>
-            <span style={{ marginLeft: '8px', color: '#94a3b8', fontSize: '0.8rem', fontFamily: 'monospace' }}>
-              [{node.module_code}]
-            </span>
+          <div className="node-title-group">
+            <span className="node-name">{node.module_name || node.name}</span>
+            <code className="node-code">[{node.module_code}]</code>
           </div>
 
-          {/* Inherited Disabled Warning Badge */}
           {node.inherited_disabled && (
-            <span
-              style={{
-                fontSize: '0.75rem',
-                padding: '2px 8px',
-                borderRadius: '4px',
-                background: '#78350f',
-                color: '#fef3c7',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-              title={`Disabled due to ancestor: ${node.inheritance_source}`}
-            >
-              ⚠️ Inherited Disabled ({node.inheritance_source})
+            <span className="inherited-disabled-pill" title={`Disabled due to ancestor: ${node.inheritance_source}`}>
+              <AlertTriangle size={11} />
+              <span>Inherited Disabled ({node.inheritance_source})</span>
             </span>
           )}
         </div>
 
-        {/* Right Badges & Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Configured Status */}
-          <span
-            style={{
-              fontSize: '0.75rem',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontWeight: 600,
-              background: node.configured_status === 'ACTIVE' ? '#064e3b' : node.configured_status === 'SCHEDULED' ? '#78350f' : '#7f1d1d',
-              color: node.configured_status === 'ACTIVE' ? '#6ee7b7' : node.configured_status === 'SCHEDULED' ? '#fde68a' : '#fca5a5',
-            }}
-          >
-            Config: {node.configured_status}
+        <div className="access-node-right">
+          <span className={`node-status-badge ${node.effective_status.toLowerCase()}`}>
+            {node.effective_status === 'ACTIVE' ? <CheckCircle2 size={11} /> : <AlertCircle size={11} />}
+            <span>{node.effective_status}</span>
           </span>
 
-          {/* Effective Status */}
-          <span
-            style={{
-              fontSize: '0.75rem',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontWeight: 700,
-              background: node.effective_status === 'ACTIVE' ? '#10b981' : '#ef4444',
-              color: '#ffffff',
-            }}
-          >
-            Effective: {node.effective_status}
+          <span className={`node-mode-badge ${(node.effective_mode || node.mode) === 'FULL' ? 'full' : 'readonly'}`}>
+            {(node.effective_mode || node.mode) === 'FULL' ? <Unlock size={11} /> : <Lock size={11} />}
+            <span>{node.effective_mode || node.mode || 'FULL'}</span>
           </span>
 
-          {/* Mode Badge */}
-          <span
-            style={{
-              fontSize: '0.75rem',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontWeight: 600,
-              background: (node.effective_mode || node.mode) === 'FULL' ? '#1e40af' : '#0284c7',
-              color: '#ffffff',
-            }}
-          >
-            Mode: {node.effective_mode || node.mode || 'FULL'}
-          </span>
-
-          {/* Configure Button */}
           <button
+            type="button"
             onClick={() => onConfigure(node)}
-            style={{
-              background: '#334155',
-              color: '#f8fafc',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '4px 10px',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
+            className="btn-table-action"
+            title="Configure entitlement & mode"
           >
-            ⚙️ Configure
+            <Settings size={12} />
+            <span>Configure</span>
           </button>
 
-          {/* Inspect Button */}
           <button
+            type="button"
             onClick={() => onInspect(node)}
-            style={{
-              background: '#0f172a',
-              color: '#38bdf8',
-              border: '1px solid #38bdf8',
-              borderRadius: '6px',
-              padding: '4px 10px',
-              fontSize: '0.8rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
+            className="btn-table-action"
+            title="Inspect in diagnostic simulator"
           >
-            🔍 Inspect
+            <Zap size={12} />
+            <span>Inspect</span>
           </button>
         </div>
       </div>
 
-      {/* Action Entitlements Breakdown & Child Nodes */}
+      {/* Expanded Actions & Subtree */}
       {isExpanded && (
-        <div style={{ padding: '12px 16px', background: '#0f172a55' }}>
-          {/* Actions Pill Strip */}
+        <div className="access-node-body">
           {node.actions && node.actions.length > 0 && (
-            <div style={{ marginBottom: hasChildren ? '14px' : '0' }}>
-              <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, color: '#64748b', marginBottom: '6px' }}>
-                Action Entitlement Matrix:
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+            <div className="node-actions-strip">
+              <span className="actions-strip-label">Action Entitlements:</span>
+              <div className="actions-chips-wrap">
                 {node.actions.map((act) => {
                   const actionCode = act.action_code || act.action;
                   const accessOutcome = act.effective_access || act.outcome || 'ALLOWED';
                   const isAllowed = accessOutcome === 'ALLOWED';
                   return (
-                    <span
+                    <button
+                      type="button"
                       key={actionCode}
                       onClick={() => onInspect(node, actionCode)}
-                      style={{
-                        fontSize: '0.75rem',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        background: isAllowed ? '#064e3b55' : '#7f1d1d55',
-                        border: `1px solid ${isAllowed ? '#10b981' : '#ef4444'}`,
-                        color: isAllowed ? '#6ee7b7' : '#fca5a5',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                      title={`Click to inspect action: ${actionCode}. Note: ${act.restriction_note || act.reason || accessOutcome}`}
+                      className={`action-chip ${isAllowed ? 'allowed' : 'denied'}`}
+                      title={`Click to test: ${actionCode}`}
                     >
                       <span>{isAllowed ? '✓' : '✗'}</span>
                       <strong>{actionCode}</strong>
-                      <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>({accessOutcome})</span>
-                    </span>
+                      <span className="action-outcome">({accessOutcome})</span>
+                    </button>
                   );
                 })}
               </div>
             </div>
           )}
 
-          {/* Child Subtree */}
           {hasChildren && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+            <div className="node-subtree">
               {node.children.map((childNode) => (
-                <TreeNodeCard
+                <ModernTreeNodeCard
                   key={childNode.module_id}
                   node={childNode}
                   level={level + 1}

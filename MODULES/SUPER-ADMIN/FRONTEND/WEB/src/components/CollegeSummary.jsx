@@ -1,19 +1,23 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Building2, ArrowRight } from 'lucide-react';
+
 export default function CollegeSummary({ summary }) {
   if (!summary) return null;
 
   return (
-    <div className="card">
+    <div className="card enterprise-card">
       <div className="card-header">
         <div className="card-title">
-          <span>🏫 College Lifecycle Summary</span>
-          <span className="badge badge-info" title="Current state snapshot, not affected by historical date filters">
+          <Building2 size={18} className="text-blue-600" />
+          <span>College Lifecycle Summary</span>
+          <span className="badge-enterprise badge-blue" title="Current state snapshot">
             Current Snapshot
           </span>
         </div>
-        <Link to="/colleges" className="btn btn-outline btn-sm">
-          View All Colleges →
+        <Link to="/colleges" className="card-header-link">
+          <span>View All Colleges</span>
+          <ArrowRight size={13} />
         </Link>
       </div>
 
@@ -24,30 +28,28 @@ export default function CollegeSummary({ summary }) {
         </div>
 
         <div className="metric-item">
-          <div className="metric-value" style={{ color: 'var(--success-text)' }}>
+          <div className="metric-value text-emerald-600">
             {summary.active_colleges}
           </div>
           <div className="metric-label">Active</div>
         </div>
 
         <div className="metric-item">
-          <div className="metric-value" style={{ color: 'var(--text-secondary)' }}>
+          <div className="metric-value text-slate-500">
             {summary.inactive_colleges}
           </div>
-          <div className="metric-label" title="Mapped to schema status DEACTIVATED">
-            Inactive (Deactivated)
-          </div>
+          <div className="metric-label">Inactive</div>
         </div>
 
         <div className="metric-item">
-          <div className="metric-value" style={{ color: 'var(--danger-text)' }}>
+          <div className="metric-value text-rose-600">
             {summary.suspended_colleges}
           </div>
           <div className="metric-label">Suspended</div>
         </div>
 
         <div className="metric-item">
-          <div className="metric-value" style={{ color: 'var(--warning-text)' }}>
+          <div className="metric-value text-amber-600">
             {summary.onboarding_colleges}
           </div>
           <div className="metric-label">Onboarding</div>

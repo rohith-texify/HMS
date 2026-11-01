@@ -9,11 +9,64 @@ import ServiceHealthPanel from '../components/ServiceHealthPanel';
 import CriticalAlertsList from '../components/CriticalAlertsList';
 import PendingApprovalsSummary from '../components/PendingApprovalsSummary';
 import RecentActivityTable from '../components/RecentActivityTable';
-import UnsupportedMetricsPanel from '../components/UnsupportedMetricsPanel';
 import { fetchDashboard, fetchColleges, DEFAULT_DASHBOARD_DATA } from '../services/dashboardService';
+import {
+  Building2,
+  CheckCircle2,
+  FileCheck,
+  Users,
+  Bell,
+  Activity,
+  BarChart3,
+  HelpCircle,
+  ArrowRight,
+  ShieldAlert,
+  Sparkles,
+} from 'lucide-react';
+
+/**
+ * Lightweight, accessible count-up effect that only runs on initial mount.
+ * Prevents repeated animations on background refreshes or ordinary re-renders.
+ */
+function CountUpNumber({ value, duration = 350 }) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const animatedRef = useRef(false);
+
+  useEffect(() => {
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (prefersReducedMotion || animatedRef.current || typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    animatedRef.current = true;
+    let startTimestamp = null;
+    const target = Number(value) || 0;
+
+    const step = (timestamp) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      // Ease out cubic
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(easeProgress * target));
+
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      } else {
+        setDisplayValue(target);
+      }
+    };
+
+    window.requestAnimationFrame(step);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
 
 export default function DashboardPage() {
-  // Initialize with verified baseline snapshot so the dashboard is immediately interactive with zero loading delay
   const [data, setData] = useState(DEFAULT_DASHBOARD_DATA);
   const [colleges, setColleges] = useState([]);
   const [filters, setFilters] = useState({});
@@ -21,14 +74,12 @@ export default function DashboardPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Use request counter to avoid race conditions with fast filter changes
   const requestCounter = useRef(0);
 
   const handleGoToLogin = () => {
     window.location.href = '/login';
   };
 
-  // Load colleges list once on mount
   useEffect(() => {
     let isMounted = true;
     fetchColleges()
@@ -50,7 +101,6 @@ export default function DashboardPage() {
 
     try {
       const responseData = await fetchDashboard(currentFilters);
-      // Only commit if this was the latest request
       if (currentRequestId === requestCounter.current) {
         if (responseData) {
           setData(responseData);
@@ -60,7 +110,6 @@ export default function DashboardPage() {
       }
     } catch (err) {
       if (currentRequestId === requestCounter.current) {
-        // Retain baseline data and only log warning
         console.warn('Dashboard data refresh notice:', err.message);
         setLoading(false);
         setIsRefreshing(false);
@@ -84,14 +133,24 @@ export default function DashboardPage() {
     loadDashboardData(filters, true);
   };
 
+  const totalColleges = data?.college_summary?.total_colleges ?? 0;
+  const activeColleges = data?.college_summary?.active_colleges ?? 0;
+  const inactiveColleges = data?.college_summary?.inactive_colleges ?? 0;
+  const onboardingColleges = data?.college_summary?.onboarding_colleges ?? 0;
+  const pendingApprovals = data?.approval_summary?.pending_count ?? 0;
+  const pendingConfigChanges = data?.approval_summary?.pending_configuration_count ?? 0;
+  const activeAdmins = data?.college_admin_summary?.active_count ?? 0;
+
   return (
-    <div>
+    <div className="dashboard-content-wrapper fade-in-up">
+      {/* SECTION 3: Dashboard Header */}
       <Header
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
         generatedAt={data?.generated_at}
       />
 
+      {/* SECTION 4: Compact Filter Toolbar */}
       <FilterBar
         colleges={colleges}
         filters={filters}
@@ -100,82 +159,142 @@ export default function DashboardPage() {
       />
 
       {loading && !isRefreshing && (
-        <div className="loading-box">
-          <div style={{ fontSize: '1.2rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
-            Loading Super Admin Dashboard...
-          </div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Fetching verified system snapshot and platform telemetry.
-          </div>
+        <div className="enterprise-loading-box">
+          <div className="loading-spinner-blue" />
+          <div className="loading-title">Loading Super Admin Dashboard...</div>
+          <div className="loading-sub">Fetching verified platform telemetry and system snapshot.</div>
         </div>
       )}
 
       {error && !loading && (
-        <>
-          <div className="error-box" style={{ marginBottom: '24px' }}>
-            <div style={{ fontWeight: '600', marginBottom: '8px' }}>
-              ⚠️ Error Loading Live Dashboard Data
-            </div>
-            <div>{error}</div>
-            <div style={{ marginTop: '16px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button className="btn btn-outline" onClick={() => loadDashboardData(filters, true)}>
-                Retry Connection
-              </button>
-              <button className="btn btn-primary" id="btn-connect-session" onClick={handleGoToLogin}>
-                Sign In to Super Admin
-              </button>
-            </div>
+        <div className="enterprise-alert-card error">
+          <div className="alert-card-header">
+            <ShieldAlert size={18} className="text-rose-600" />
+            <span className="alert-card-title">Error Loading Live Dashboard Data</span>
           </div>
-          <PlatformModulesHub />
-        </>
+          <p className="alert-card-body">{error}</p>
+          <div className="alert-card-actions">
+            <button className="btn-enterprise btn-outline-soft" onClick={() => loadDashboardData(filters, true)}>
+              Retry Connection
+            </button>
+            <button className="btn-enterprise btn-primary-blue" id="btn-connect-session" onClick={handleGoToLogin}>
+              Sign In to Super Admin
+            </button>
+          </div>
+        </div>
       )}
 
       {data && !loading && (
         <>
-          {/* Operations & Platform Modules Quick Access Hub */}
-          <PlatformModulesHub />
+          {/* SECTION 5: Premium Statistics Cards (Subtle Entrance + Count-up) */}
+          <div className="stats-kpi-grid stagger-1">
+            {/* Card 1: Total Colleges */}
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Total Colleges</span>
+                <div className="stat-kpi-icon-wrap blue">
+                  <Building2 size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value">
+                <CountUpNumber value={totalColleges} />
+              </div>
+              <div className="stat-kpi-footnote">
+                <span className="stat-footnote-highlight">{activeColleges} active</span>
+                <span>• {inactiveColleges} inactive</span>
+              </div>
+            </div>
 
-          {/* Top Summary Row: College Lifecycle & Entitlements */}
-          <div className="dashboard-grid">
-            <div className="col-6">
+            {/* Card 2: Active Colleges */}
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Active Colleges</span>
+                <div className="stat-kpi-icon-wrap green">
+                  <CheckCircle2 size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-emerald-600">
+                <CountUpNumber value={activeColleges} />
+              </div>
+              <div className="stat-kpi-footnote">
+                <span className="stat-footnote-highlight">{onboardingColleges}</span>
+                <span>in onboarding pipeline</span>
+              </div>
+            </div>
+
+            {/* Card 3: Pending Approvals */}
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Pending Approvals</span>
+                <div className="stat-kpi-icon-wrap amber">
+                  <FileCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-amber-600">
+                <CountUpNumber value={pendingApprovals} />
+              </div>
+              <div className="stat-kpi-footnote">
+                <span className="stat-footnote-highlight">{pendingConfigChanges}</span>
+                <span>config change requests</span>
+              </div>
+            </div>
+
+            {/* Card 4: Total Admins */}
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Total Admins</span>
+                <div className="stat-kpi-icon-wrap indigo">
+                  <Users size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-indigo-600">
+                <CountUpNumber value={activeAdmins} />
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Verified active college administrators</span>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 6: Quick-Launch Module Cards */}
+          <div className="stagger-2">
+            <PlatformOperationsHub />
+          </div>
+
+          {/* SECTION 7: Summary Sections (2-Column Aligned Grid) */}
+          <div className="enterprise-layout-grid two-column stagger-3">
+            <div className="grid-cell">
               <CollegeSummary summary={data.college_summary} />
             </div>
-            <div className="col-6">
+            <div className="grid-cell">
               <EntitlementSummary summary={data.entitlement_summary} />
             </div>
           </div>
 
-          {/* Secondary Row: Active Admins, Service Health, Critical Alerts */}
-          <div className="dashboard-grid">
-            <div className="col-4">
+          {/* SECTION 8: Operational Overview (3-Column Balanced Grid) */}
+          <div className="enterprise-layout-grid three-column stagger-4">
+            <div className="grid-cell">
               <CollegeAdminSummary summary={data.college_admin_summary} />
             </div>
-            <div className="col-4">
+            <div className="grid-cell">
               <ServiceHealthPanel health={data.service_health} />
             </div>
-            <div className="col-4">
+            <div className="grid-cell">
               <CriticalAlertsList alerts={data.critical_alerts} />
             </div>
           </div>
 
-          {/* Third Row: Pending Approvals & Configuration Requests */}
-          <div className="dashboard-grid">
-            <div className="col-12">
+          {/* SECTION 9: Pending Approvals & Configuration Requests */}
+          <div className="enterprise-layout-grid single-column stagger-5">
+            <div className="grid-cell">
               <PendingApprovalsSummary summary={data.approval_summary} />
             </div>
           </div>
 
-          {/* Fourth Row: Recent Administrative Activity Table */}
-          <div className="dashboard-grid">
-            <div className="col-12">
+          {/* SECTION 10: Recent Administrative Activity Table */}
+          <div className="enterprise-layout-grid single-column stagger-6">
+            <div className="grid-cell">
               <RecentActivityTable activities={data.recent_activity} />
-            </div>
-          </div>
-
-          {/* Bottom Notice: Unsupported Metrics & Design Boundaries */}
-          <div className="dashboard-grid">
-            <div className="col-12">
-              <UnsupportedMetricsPanel unsupportedMetrics={data.unsupported_metrics} />
             </div>
           </div>
         </>
@@ -184,115 +303,84 @@ export default function DashboardPage() {
   );
 }
 
-function PlatformModulesHub() {
+function PlatformOperationsHub() {
   const modules = [
     {
       title: 'Notifications Hub',
       code: 'Module 17',
-      icon: '📢',
+      icon: Bell,
       to: '/notifications',
       badge: 'Active & Verified',
-      badgeClass: 'badge-info',
+      badgeClass: 'badge-blue',
       desc: 'Platform announcements, emergency broadcast banners, and college tenant notifications.',
     },
     {
       title: 'Telemetry & Monitoring',
       code: 'Module 18',
-      icon: '📈',
+      icon: Activity,
       to: '/monitoring',
       badge: 'Operational',
-      badgeClass: 'badge-success',
+      badgeClass: 'badge-green',
       desc: 'Real-time telemetry, node response latencies, database connections, and memory status.',
     },
     {
       title: 'Reports & Analytics',
       code: 'Module 20',
-      icon: '📊',
+      icon: BarChart3,
       to: '/reports',
       badge: 'Audited Export',
-      badgeClass: 'badge-primary',
+      badgeClass: 'badge-purple',
       desc: 'Tenant entitlement audits, system security events, and tamper-resistant CSV exports.',
     },
     {
       title: 'Support Console',
       code: 'Module 19',
-      icon: '🛠️',
+      icon: HelpCircle,
       to: '/support',
       badge: 'Diagnostics Ready',
-      badgeClass: 'badge-warning',
+      badgeClass: 'badge-amber',
       desc: 'College troubleshooting, tenant diagnostic logs, and escalated support ticket triage.',
     },
   ];
 
   return (
-    <div className="card" style={{ marginBottom: '24px' }}>
-      <div className="card-header" style={{ marginBottom: '16px' }}>
-        <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🚀</span>
-          <span>Platform Operations & Quick Launch Modules</span>
+    <div className="platform-operations-card enterprise-card">
+      <div className="operations-card-topbar">
+        <div className="operations-card-title-group">
+          <span className="operations-title-icon-wrap">
+            <Sparkles size={16} className="text-blue-600" />
+          </span>
+          <h2 className="operations-title-text">Platform Operations & Quick Launch Modules</h2>
         </div>
-        <span className="badge badge-success">All Modules Active</span>
+        <span className="badge-enterprise badge-green">All Modules Active</span>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-          gap: '16px',
-        }}
-      >
-        {modules.map((m) => (
-          <Link
-            key={m.code}
-            to={m.to}
-            className="card"
-            style={{
-              textDecoration: 'none',
-              color: 'inherit',
-              padding: '16px',
-              backgroundColor: 'var(--bg-primary)',
-              border: '1px solid var(--border-color)',
-              transition: 'transform 0.15s ease, border-color 0.15s ease',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#38bdf8';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = 'var(--border-color)';
-              e.currentTarget.style.transform = 'none';
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '1.4rem' }}>{m.icon}</span>
-              <span className={`badge ${m.badgeClass}`} style={{ fontSize: '0.7rem' }}>
-                {m.code}
-              </span>
-            </div>
-            <div style={{ fontWeight: 600, fontSize: '0.98rem', color: 'var(--text-primary)' }}>
-              {m.title}
-            </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', flex: 1, lineHeight: '1.4' }}>
-              {m.desc}
-            </div>
-            <div
-              style={{
-                fontSize: '0.8rem',
-                color: '#38bdf8',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginTop: '6px',
-              }}
+      <div className="operations-grid">
+        {modules.map((m) => {
+          const IconComponent = m.icon;
+          return (
+            <Link
+              key={m.code}
+              to={m.to}
+              className="operation-module-item"
             >
-              Open Module <span>→</span>
-            </div>
-          </Link>
-        ))}
+              <div className="module-item-header">
+                <div className="module-icon-box">
+                  <IconComponent size={18} />
+                </div>
+                <span className={`badge-enterprise ${m.badgeClass}`}>
+                  {m.code}
+                </span>
+              </div>
+              <div className="module-item-title">{m.title}</div>
+              <p className="module-item-desc">{m.desc}</p>
+              <div className="module-item-action">
+                <span>Open Module</span>
+                <ArrowRight size={13} className="action-arrow" />
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

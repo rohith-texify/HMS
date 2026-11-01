@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Wrench,
   Shield,
@@ -6,13 +7,22 @@ import {
   Key,
   Unlock,
   AlertTriangle,
-  CheckCircle,
+  CheckCircle2,
   FileText,
   UserCheck,
-  Building,
+  Building2,
   RefreshCw,
   Clock,
   Eye,
+  ShieldAlert,
+  X,
+  Info,
+  Lock,
+  ShieldCheck,
+  ArrowRight,
+  RotateCw,
+  Ban,
+  Check,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -24,6 +34,63 @@ import {
 } from '../services/operationsService';
 import { fetchCollegesList } from '../services/collegeService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
+const COMMON_MODULES = [
+  'ACADEMIC',
+  'HOSTEL',
+  'MEALS',
+  'PEOPLE',
+  'SECURITY',
+  'COMMUNICATION',
+  'MOVEMENT',
+  'RESOURCES',
+];
+
 export default function SupportTroubleshootingPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('GRANTS'); // 'GRANTS' | 'ENTITLEMENTS' | 'STUDENT_LOOKUP'
@@ -33,9 +100,13 @@ export default function SupportTroubleshootingPage() {
   const [grants, setGrants] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
-  // New Grant Form
+  // Search & Filter for Grants
+  const [grantSearch, setGrantSearch] = useState('');
+  const [grantStatusFilter, setGrantStatusFilter] = useState('ALL');
+
+  // New Grant Modal State
   const [showGrantModal, setShowGrantModal] = useState(false);
   const [grantForm, setGrantForm] = useState({
     college_id: '',
@@ -44,12 +115,22 @@ export default function SupportTroubleshootingPage() {
     ticket_ref: '',
   });
 
+  // Revoke Modal State
+  const [revokeModal, setRevokeModal] = useState({
+    isOpen: false,
+    grant: null,
+    reason: '',
+    submitting: false,
+    error: null,
+  });
+
   // Entitlement Diagnosis Form
   const [entitlementForm, setEntitlementForm] = useState({
     college_id: '',
-    module_code: '',
+    module_code: 'HOSTEL',
   });
   const [diagnosticReport, setDiagnosticReport] = useState(null);
+  const [diagnosing, setDiagnosing] = useState(false);
 
   // Student Lookup Form
   const [studentForm, setStudentForm] = useState({
@@ -58,6 +139,7 @@ export default function SupportTroubleshootingPage() {
     reason: '',
   });
   const [studentResult, setStudentResult] = useState(null);
+  const [lookingUp, setLookingUp] = useState(false);
 
   useEffect(() => {
     fetchCollegesList({ limit: 100 })
@@ -97,9 +179,11 @@ export default function SupportTroubleshootingPage() {
         grantee_id: user?.user_id,
         duration_minutes: Number(grantForm.duration_minutes),
       });
-      setSuccess('Scoped support access grant created and audited successfully.');
+      setFeedback('Scoped support access grant created and audited successfully.');
       setShowGrantModal(false);
+      setGrantForm((f) => ({ ...f, reason: '', ticket_ref: '' }));
       loadGrants();
+      setTimeout(() => setFeedback(null), 5000);
     } catch (err) {
       setError(err?.response?.data?.error || err.message || 'Failed to issue support grant');
     } finally {
@@ -107,22 +191,39 @@ export default function SupportTroubleshootingPage() {
     }
   };
 
-  const handleRevokeGrant = async (grantId) => {
-    const reason = window.prompt('Enter reason for revoking support grant:');
-    if (!reason) return;
+  const openRevokeModal = (grant) => {
+    setRevokeModal({
+      isOpen: true,
+      grant,
+      reason: '',
+      submitting: false,
+      error: null,
+    });
+  };
+
+  const handleConfirmRevoke = async (e) => {
+    e.preventDefault();
+    if (!revokeModal.grant || !revokeModal.reason.trim()) return;
     try {
-      await revokeSupportGrant(grantId, reason);
-      setSuccess('Support grant revoked successfully.');
+      setRevokeModal((m) => ({ ...m, submitting: true, error: null }));
+      await revokeSupportGrant(revokeModal.grant.grant_id, revokeModal.reason);
+      setRevokeModal({ isOpen: false, grant: null, reason: '', submitting: false, error: null });
+      setFeedback('Support grant revoked immediately and recorded to platform audit log.');
       loadGrants();
+      setTimeout(() => setFeedback(null), 5000);
     } catch (err) {
-      setError(err?.response?.data?.error || err.message || 'Failed to revoke grant');
+      setRevokeModal((m) => ({
+        ...m,
+        submitting: false,
+        error: err?.response?.data?.error || err.message || 'Failed to revoke grant',
+      }));
     }
   };
 
   const handleDiagnoseEntitlement = async (e) => {
     e.preventDefault();
     try {
-      setLoading(true);
+      setDiagnosing(true);
       setError(null);
       setDiagnosticReport(null);
       const res = await diagnoseEntitlement(entitlementForm.college_id, entitlementForm.module_code);
@@ -130,14 +231,14 @@ export default function SupportTroubleshootingPage() {
     } catch (err) {
       setError(err?.response?.data?.error || err.message || 'Entitlement diagnosis failed');
     } finally {
-      setLoading(false);
+      setDiagnosing(false);
     }
   };
 
   const handleStudentLookup = async (e) => {
     e.preventDefault();
     try {
-      setLoading(true);
+      setLookingUp(true);
       setError(null);
       setStudentResult(null);
       const res = await performMaskedStudentLookup(
@@ -146,40 +247,76 @@ export default function SupportTroubleshootingPage() {
         studentForm.reason
       );
       setStudentResult(res?.data || null);
-      setSuccess('Student record retrieved with privacy redactions; access audited.');
+      setFeedback('Student record retrieved with privacy redactions; access audited.');
+      setTimeout(() => setFeedback(null), 5000);
     } catch (err) {
       setError(err?.response?.data?.error || err.message || 'Student lookup failed');
     } finally {
-      setLoading(false);
+      setLookingUp(false);
     }
   };
 
+  // KPI Calculations
+  const activeGrantsCount = useMemo(() => grants.filter((g) => g.is_active).length, [grants]);
+  const revokedGrantsCount = useMemo(() => grants.filter((g) => g.revoked_at).length, [grants]);
+
+  // Filtered Grants List
+  const filteredGrants = useMemo(() => {
+    return grants.filter((g) => {
+      // Status filter
+      if (grantStatusFilter === 'ACTIVE' && !g.is_active) return false;
+      if (grantStatusFilter === 'REVOKED' && !g.revoked_at) return false;
+      if (grantStatusFilter === 'EXPIRED' && (g.is_active || g.revoked_at)) return false;
+
+      // Text search
+      if (grantSearch.trim()) {
+        const q = grantSearch.toLowerCase();
+        return (
+          (g.college_name && g.college_name.toLowerCase().includes(q)) ||
+          (g.college_code && g.college_code.toLowerCase().includes(q)) ||
+          (g.ticket_ref && g.ticket_ref.toLowerCase().includes(q)) ||
+          (g.grantee_email && g.grantee_email.toLowerCase().includes(q)) ||
+          (g.reason && g.reason.toLowerCase().includes(q))
+        );
+      }
+      return true;
+    });
+  }, [grants, grantStatusFilter, grantSearch]);
+
   return (
-    <div className="page-container">
+    <div className="support-page-container">
       {/* Header */}
-      <div className="header-container">
-        <div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span>🛠️</span>
+      <div className="support-header-section">
+        <div className="support-header-left">
+          <div className="support-breadcrumb-nav">
+            <Link to="/dashboard" className="support-breadcrumb-link">Dashboard</Link>
+            <span className="support-breadcrumb-sep">/</span>
+            <span className="support-breadcrumb-current">Support Console</span>
+          </div>
+          <h1 className="support-title">
+            <Wrench size={24} className="text-blue-600" />
             <span>Support & Diagnostic Troubleshooting Console</span>
           </h1>
-          <p className="page-subtitle">
+          <p className="support-subtitle">
             Time-boxed support grants, entitlement diagnosis, and audited privacy-masked student verification.
           </p>
         </div>
-        <div className="quick-actions">
+
+        <div className="support-header-actions">
           <button
-            onClick={() => loadGrants()}
-            className="btn btn-outline"
+            type="button"
+            onClick={loadGrants}
+            className={`btn-enterprise btn-outline-soft ${loading ? 'is-loading' : ''}`}
             title="Refresh grants list"
             disabled={loading}
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <span>{loading ? 'Refreshing...' : 'Refresh Telemetry'}</span>
           </button>
           <button
+            type="button"
             onClick={() => setShowGrantModal(true)}
-            className="btn btn-primary"
+            className="btn-enterprise btn-primary"
             id="btn-request-support-grant"
           >
             <Shield size={14} />
@@ -188,401 +325,289 @@ export default function SupportTroubleshootingPage() {
         </div>
       </div>
 
-      {success && (
-        <div className="alert-banner success">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle size={18} />
-            <span>{success}</span>
+      {/* Global Feedback Banner */}
+      {feedback && (
+        <div className="approvals-feedback-banner success animate-slide-up" style={{ marginBottom: '20px' }}>
+          <div className="feedback-content">
+            <CheckCircle2 size={16} />
+            <span>{feedback}</span>
           </div>
-          <button
-            onClick={() => setSuccess(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: 'inherit' }}
-          >
-            ✕
+          <button type="button" className="feedback-close-btn" onClick={() => setFeedback(null)}>
+            <X size={14} />
           </button>
         </div>
       )}
 
+      {/* Global Error Banner */}
       {error && (
-        <div className="alert-banner error">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertTriangle size={18} />
+        <div className="approvals-feedback-banner danger animate-slide-up" style={{ marginBottom: '20px' }}>
+          <div className="feedback-content">
+            <AlertTriangle size={16} />
             <span>{error}</span>
           </div>
-          <button
-            onClick={() => setError(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', color: 'inherit' }}
-          >
-            ✕
+          <button type="button" className="feedback-close-btn" onClick={() => setError(null)}>
+            <X size={14} />
           </button>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="tab-group">
-        <button
-          onClick={() => setActiveTab('GRANTS')}
-          className={`tab-pill ${activeTab === 'GRANTS' ? 'active' : ''}`}
-        >
-          <span>🛡️</span>
-          <span>Time-Boxed Support Grants ({grants.length})</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('ENTITLEMENTS')}
-          className={`tab-pill ${activeTab === 'ENTITLEMENTS' ? 'active' : ''}`}
-        >
-          <span>🔍</span>
-          <span>Entitlement Diagnosis</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('STUDENT_LOOKUP')}
-          className={`tab-pill ${activeTab === 'STUDENT_LOOKUP' ? 'active' : ''}`}
-        >
-          <span>👁️</span>
-          <span>Masked Student Lookup</span>
-        </button>
+      {/* Top 4 Shopeers KPI Cards */}
+      <div className="support-kpi-grid">
+        {/* Card 1: Active Support Grants */}
+        <div className="support-stat-card card-stagger-1">
+          <div className="support-stat-header">
+            <span className="support-stat-label">Active Support Grants</span>
+            <div className="support-stat-icon-wrap emerald">
+              <Shield size={18} />
+            </div>
+          </div>
+          <div className="support-stat-value text-emerald-600">
+            <CountUpNumber value={activeGrantsCount} />
+          </div>
+          <div className="support-stat-subtext">Time-boxed tenant diagnostic access</div>
+          <div className="support-stat-accent-bar emerald" />
+        </div>
+
+        {/* Card 2: Historical Grants */}
+        <div className="support-stat-card card-stagger-2">
+          <div className="support-stat-header">
+            <span className="support-stat-label">Historical Grants</span>
+            <div className="support-stat-icon-wrap blue">
+              <FileText size={18} />
+            </div>
+          </div>
+          <div className="support-stat-value text-blue-600">
+            <CountUpNumber value={grants.length} />
+          </div>
+          <div className="support-stat-subtext">
+            {revokedGrantsCount} revoked by supervisor | audited
+          </div>
+          <div className="support-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 3: Entitlement Resolver */}
+        <div className="support-stat-card card-stagger-3">
+          <div className="support-stat-header">
+            <span className="support-stat-label">Entitlement Resolver</span>
+            <div className="support-stat-icon-wrap purple">
+              <Key size={18} />
+            </div>
+          </div>
+          <div className="support-stat-value text-purple-600" style={{ fontSize: '1.45rem', paddingTop: '4px' }}>
+            READY
+          </div>
+          <div className="support-stat-subtext">Multi-stage policy & catalog gates</div>
+          <div className="support-stat-accent-bar purple" />
+        </div>
+
+        {/* Card 4: Student Privacy Gate */}
+        <div className="support-stat-card card-stagger-4">
+          <div className="support-stat-header">
+            <span className="support-stat-label">Student Privacy Gate</span>
+            <div className="support-stat-icon-wrap amber">
+              <Eye size={18} />
+            </div>
+          </div>
+          <div className="support-stat-value text-amber-600" style={{ fontSize: '1.45rem', paddingTop: '4px' }}>
+            ENFORCED
+          </div>
+          <div className="support-stat-subtext">Zero raw PII / FERPA privacy mask</div>
+          <div className="support-stat-accent-bar amber" />
+        </div>
       </div>
 
-      {/* Tab 1: Support Grants */}
-      {activeTab === 'GRANTS' && (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Active & Historical Support Access Grants</div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                Regulated platform grants authorizing restricted diagnostic access into tenant data without account takeover.
-              </div>
-            </div>
+      {/* Main Card with Navigation Tabs */}
+      <div className="support-main-card card-stagger-3">
+        {/* Navigation Toolbar */}
+        <div className="support-toolbar">
+          <div className="support-nav-tabs">
             <button
-              onClick={() => loadGrants()}
-              className="btn btn-outline btn-sm"
-              title="Refresh"
+              type="button"
+              onClick={() => setActiveTab('GRANTS')}
+              className={`support-tab-pill ${activeTab === 'GRANTS' ? 'active' : ''}`}
             >
-              <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+              <Shield size={13} />
+              <span>Time-Boxed Support Grants ({grants.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('ENTITLEMENTS')}
+              className={`support-tab-pill ${activeTab === 'ENTITLEMENTS' ? 'active' : ''}`}
+            >
+              <Search size={13} />
+              <span>Entitlement Diagnosis</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('STUDENT_LOOKUP')}
+              className={`support-tab-pill ${activeTab === 'STUDENT_LOOKUP' ? 'active' : ''}`}
+            >
+              <Eye size={13} />
+              <span>Masked Student Lookup</span>
             </button>
           </div>
 
-          {loading ? (
-            <div className="loading-box" style={{ border: 'none' }}>
-              <div style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Loading grants...</div>
-            </div>
-          ) : grants.length === 0 ? (
-            <div className="empty-box" style={{ border: 'none', padding: '56px 20px' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '12px' }}>🛡️</div>
-              <div style={{ fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '6px' }}>
-                No support grants issued
+          {activeTab === 'GRANTS' && (
+            <div className="support-controls-cluster">
+              <div className="filter-select-item">
+                <span className="filter-item-label">Status:</span>
+                <select
+                  value={grantStatusFilter}
+                  onChange={(e) => setGrantStatusFilter(e.target.value)}
+                  className="permissions-select-input"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active Grants</option>
+                  <option value="REVOKED">Revoked Grants</option>
+                  <option value="EXPIRED">Expired Grants</option>
+                </select>
               </div>
-              <div className="empty-text" style={{ marginBottom: '20px' }}>
-                Create a time-boxed grant to perform tenant-scoped support operations.
+
+              <div className="support-search-box">
+                <Search size={15} className="text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search college, ticket, or grantee..."
+                  value={grantSearch}
+                  onChange={(e) => setGrantSearch(e.target.value)}
+                  className="support-search-input"
+                />
+                {grantSearch && (
+                  <button
+                    type="button"
+                    className="search-clear-btn"
+                    onClick={() => setGrantSearch('')}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
-              <button onClick={() => setShowGrantModal(true)} className="btn btn-primary">
-                + Request Support Grant
-              </button>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>College Tenant</th>
-                    <th>Ticket Ref</th>
-                    <th>Grantee</th>
-                    <th>Reason</th>
-                    <th>Validity Window</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grants.map((g) => (
-                    <tr key={g.grant_id}>
-                      <td style={{ fontWeight: 600 }}>
-                        {g.college_name} ({g.college_code})
-                      </td>
-                      <td style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--primary-color)' }}>
-                        {g.ticket_ref}
-                      </td>
-                      <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{g.grantee_email}</td>
-                      <td style={{ fontSize: '0.82rem', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {g.reason}
-                      </td>
-                      <td style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                        <div>Starts: {new Date(g.starts_at).toLocaleTimeString()}</div>
-                        <div>Expires: {new Date(g.expires_at).toLocaleTimeString()}</div>
-                      </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            g.is_active
-                              ? 'badge-success'
-                              : g.revoked_at
-                              ? 'badge-danger'
-                              : 'badge-muted'
-                          }`}
-                        >
-                          {g.is_active ? 'ACTIVE' : g.revoked_at ? 'REVOKED' : 'EXPIRED'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        {g.is_active && (
-                          <button
-                            onClick={() => handleRevokeGrant(g.grant_id)}
-                            className="btn btn-outline btn-sm"
-                            style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                          >
-                            Revoke
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           )}
         </div>
-      )}
 
-      {/* Tab 2: Entitlement Diagnosis */}
-      {activeTab === 'ENTITLEMENTS' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title">
-                <span>🔍</span>
-                <span>Diagnose Module Access</span>
+        {/* Tab 1: Support Grants Table */}
+        {activeTab === 'GRANTS' && (
+          <div>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <div className="loading-spinner-blue" style={{ margin: '0 auto 8px auto' }} />
+                <div className="text-xs text-slate-500">Loading support access grants...</div>
               </div>
-            </div>
-            <form onSubmit={handleDiagnoseEntitlement}>
-              <div className="form-group">
-                <label className="form-label">Target College</label>
-                <select
-                  value={entitlementForm.college_id}
-                  onChange={(e) => setEntitlementForm({ ...entitlementForm, college_id: e.target.value })}
-                  className="form-select"
-                  style={{ width: '100%' }}
-                >
-                  {colleges.map((col) => (
-                    <option key={col.college_id} value={col.college_id}>
-                      {col.name} ({col.college_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Module Code</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. MESS_MANAGEMENT, SECURITY"
-                  value={entitlementForm.module_code}
-                  onChange={(e) => setEntitlementForm({ ...entitlementForm, module_code: e.target.value })}
-                  className="form-input"
-                  style={{ width: '100%', fontFamily: 'monospace', textTransform: 'uppercase' }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn btn-primary"
-                style={{ width: '100%', marginTop: '8px' }}
-              >
-                {loading ? 'Evaluating...' : 'Run Access Diagnosis'}
-              </button>
-            </form>
-          </div>
-
-          <div className="card" style={{ gridColumn: 'span 2' }}>
-            <div className="card-header">
-              <div className="card-title">Diagnostic Evaluation Verdict</div>
-            </div>
-            {!diagnosticReport ? (
-              <div className="empty-box" style={{ border: 'none', padding: '36px' }}>
-                <div className="empty-text">Select a college and enter a module code to evaluate access decision trees.</div>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div
-                  className={`alert-banner ${diagnosticReport.is_access_permitted ? 'success' : 'error'}`}
-                  style={{ marginBottom: 0 }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.98rem' }}>{diagnosticReport.evaluation_verdict}</div>
-                    <div style={{ fontSize: '0.75rem', opacity: 0.85, marginTop: '2px' }}>
-                      Evaluated at: {new Date(diagnosticReport.evaluated_at).toLocaleString()}
-                    </div>
+            ) : filteredGrants.length === 0 ? (
+              <div className="approvals-empty-state" style={{ padding: '48px 20px' }}>
+                <div className="empty-state-badge-stage">
+                  <div className="empty-state-badge-pulse" />
+                  <div className="empty-state-icon-badge">
+                    <Shield size={32} className="text-blue-600" />
                   </div>
                 </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Module in Catalog:</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.module_found ? 'YES' : 'NO'}</div>
-                  </div>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Catalog Status:</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.module_active_in_catalog ? 'ACTIVE' : 'INACTIVE'}</div>
-                  </div>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>College Lifecycle:</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.college_status}</div>
-                  </div>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tenant Entitlement:</div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', marginTop: '2px' }}>{diagnosticReport.entitlement_status}</div>
-                  </div>
-                </div>
-
-                {diagnosticReport.blockers?.length > 0 && (
-                  <div style={{ backgroundColor: 'var(--danger-bg)', border: '1px solid var(--danger-border)', borderRadius: '8px', padding: '14px' }}>
-                    <div style={{ fontWeight: 700, color: 'var(--danger-text)', fontSize: '0.88rem', marginBottom: '6px' }}>
-                      Identified Access Blockers:
-                    </div>
-                    <ul style={{ paddingLeft: '20px', fontSize: '0.82rem', color: 'var(--danger-text)' }}>
-                      {diagnosticReport.blockers.map((b, idx) => (
-                        <li key={idx} style={{ marginTop: '2px' }}>{b}</li>
-                      ))}
-                    </ul>
-                  </div>
+                <h3 className="empty-state-heading">Zero Support Grants Active</h3>
+                <p className="empty-state-description">
+                  {grantSearch
+                    ? 'No support grants match your search criteria.'
+                    : 'Issue a time-boxed grant to perform regulated diagnostic operations for tenant institutions.'}
+                </p>
+                {!grantSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setShowGrantModal(true)}
+                    className="btn-enterprise btn-primary"
+                    style={{ marginTop: '16px' }}
+                  >
+                    + Request Support Grant
+                  </button>
                 )}
               </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Tab 3: Masked Student Lookup */}
-      {activeTab === 'STUDENT_LOOKUP' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
-          <div className="card">
-            <div className="card-header">
-              <div className="card-title">
-                <span>👁️</span>
-                <span>Audited Student Status Verification</span>
-              </div>
-            </div>
-            <form onSubmit={handleStudentLookup}>
-              <div className="form-group">
-                <label className="form-label">Target College</label>
-                <select
-                  value={studentForm.college_id}
-                  onChange={(e) => setStudentForm({ ...studentForm, college_id: e.target.value })}
-                  className="form-select"
-                  style={{ width: '100%' }}
-                >
-                  {colleges.map((col) => (
-                    <option key={col.college_id} value={col.college_id}>
-                      {col.name} ({col.college_code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Admission Number</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Exact admission / roll no."
-                  value={studentForm.admission_number}
-                  onChange={(e) => setStudentForm({ ...studentForm, admission_number: e.target.value })}
-                  className="form-input"
-                  style={{ width: '100%', fontFamily: 'monospace' }}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Troubleshooting Reason (Mandatory)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ticket ref or support justification"
-                  value={studentForm.reason}
-                  onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
-                  className="form-input"
-                  style={{ width: '100%' }}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn btn-primary"
-                style={{ width: '100%', marginTop: '8px' }}
-              >
-                {loading ? 'Searching...' : 'Search Masked Record'}
-              </button>
-            </form>
-          </div>
-
-          <div className="card" style={{ gridColumn: 'span 2' }}>
-            <div className="card-header">
-              <div className="card-title">Privacy-Preserving Verification Record</div>
-            </div>
-            {!studentResult ? (
-              <div className="empty-box" style={{ border: 'none', padding: '36px' }}>
-                <div className="empty-text">Enter an exact admission number and support justification to perform a privacy-redacted status lookup.</div>
-              </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div className="alert-banner info" style={{ marginBottom: 0 }}>
-                  <div style={{ fontWeight: 600 }}>Student Found ({studentResult.college_code})</div>
-                  <span className="badge badge-info">Audited Access</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px' }}>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Admission Number</div>
-                    <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem', marginTop: '2px' }}>{studentResult.admission_number}</div>
-                  </div>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Masked Name</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '2px' }}>{studentResult.masked_name}</div>
-                  </div>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Academic Status</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '2px' }}>{studentResult.student_status}</div>
-                  </div>
-                  <div style={{ padding: '12px', backgroundColor: 'var(--bg-primary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Hostel Bed Status</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginTop: '2px' }}>{studentResult.hostel_status}</div>
-                  </div>
-                </div>
+              <div className="approvals-table-responsive">
+                <table className="approvals-table">
+                  <thead>
+                    <tr>
+                      <th>College Tenant</th>
+                      <th>Ticket Reference</th>
+                      <th>Authorized Grantee</th>
+                      <th>Diagnostic Reason</th>
+                      <th>Validity Window</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredGrants.map((g) => (
+                      <tr key={g.grant_id} className="approvals-table-row">
+                        <td>
+                          <div className="font-semibold text-slate-900">{g.college_name}</div>
+                          <span className="code-pill font-mono text-xs">{g.college_code}</span>
+                        </td>
+                        <td>
+                          <span className="code-pill font-mono font-bold text-blue-600">
+                            {g.ticket_ref}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="text-xs text-slate-600">{g.grantee_email}</span>
+                        </td>
+                        <td style={{ maxWidth: '260px' }}>
+                          <div className="text-xs text-slate-700 truncate" title={g.reason}>
+                            {g.reason}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="text-xs text-slate-600 font-mono">
+                            <div>Start: {new Date(g.starts_at).toLocaleTimeString()}</div>
+                            <div>Exp: {new Date(g.expires_at).toLocaleTimeString()}</div>
+                          </div>
+                        </td>
+                        <td>
+                          <span
+                            className={`status-pill ${
+                              g.is_active ? 'approved' : g.revoked_at ? 'rejected' : 'cancelled'
+                            }`}
+                          >
+                            {g.is_active ? 'ACTIVE' : g.revoked_at ? 'REVOKED' : 'EXPIRED'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {g.is_active ? (
+                            <button
+                              type="button"
+                              onClick={() => openRevokeModal(g)}
+                              className="btn-card-action suspend"
+                              title="Revoke access immediately"
+                            >
+                              <Ban size={13} />
+                              <span>Revoke</span>
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-mono">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Grant Creation Modal */}
-      {showGrantModal && (
-        <div className="modal-overlay">
-          <div className="modal-dialog" style={{ maxWidth: '520px' }}>
-            <div className="modal-header">
-              <div className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Shield size={18} color="var(--primary-color)" />
-                <span>Issue Scoped Support Grant</span>
+        {/* Tab 2: Entitlement Diagnosis */}
+        {activeTab === 'ENTITLEMENTS' && (
+          <div className="support-dual-grid">
+            {/* Left: Diagnosis Form */}
+            <div className="support-side-panel">
+              <div className="support-panel-title-wrap">
+                <Search size={18} className="text-blue-600" />
+                <h3 className="support-panel-title">Diagnose Module Access</h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowGrantModal(false)}
-                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--text-secondary)' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateGrant}>
-              <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Target College</label>
+              <form onSubmit={handleDiagnoseEntitlement}>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Target College Institution</label>
                   <select
-                    value={grantForm.college_id}
-                    onChange={(e) => setGrantForm({ ...grantForm, college_id: e.target.value })}
-                    className="form-select"
-                    style={{ width: '100%' }}
+                    value={entitlementForm.college_id}
+                    onChange={(e) => setEntitlementForm({ ...entitlementForm, college_id: e.target.value })}
+                    className="form-input-custom select"
                   >
                     {colleges.map((col) => (
                       <option key={col.college_id} value={col.college_id}>
@@ -592,61 +617,430 @@ export default function SupportTroubleshootingPage() {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Duration (Minutes, Max 480)</label>
-                  <select
-                    value={grantForm.duration_minutes}
-                    onChange={(e) => setGrantForm({ ...grantForm, duration_minutes: Number(e.target.value) })}
-                    className="form-select"
-                    style={{ width: '100%' }}
-                  >
-                    <option value={30}>30 Minutes</option>
-                    <option value={60}>1 Hour</option>
-                    <option value={120}>2 Hours</option>
-                    <option value={240}>4 Hours</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Ticket Reference</label>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Catalog Module Code</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. TICKET-9821"
-                    value={grantForm.ticket_ref}
-                    onChange={(e) => setGrantForm({ ...grantForm, ticket_ref: e.target.value })}
-                    className="form-input"
-                    style={{ width: '100%', fontFamily: 'monospace' }}
+                    placeholder="e.g. HOSTEL, MESS, SECURITY"
+                    value={entitlementForm.module_code}
+                    onChange={(e) => setEntitlementForm({ ...entitlementForm, module_code: e.target.value.toUpperCase() })}
+                    className="form-input-custom font-mono"
+                  />
+                  <div className="support-quick-tags">
+                    {COMMON_MODULES.map((code) => (
+                      <button
+                        key={code}
+                        type="button"
+                        className="support-quick-tag"
+                        onClick={() => setEntitlementForm((f) => ({ ...f, module_code: code }))}
+                      >
+                        {code}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={diagnosing}
+                  className="btn-enterprise btn-primary"
+                  style={{ width: '100%', marginTop: '16px' }}
+                >
+                  <Key size={14} className={diagnosing ? 'animate-spin' : ''} />
+                  <span>{diagnosing ? 'Evaluating Decision Trees...' : 'Run Access Diagnosis'}</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Right: Diagnosis Result */}
+            <div className="support-verdict-card">
+              {!diagnosticReport ? (
+                <div className="approvals-empty-state" style={{ padding: '40px 20px' }}>
+                  <div className="empty-state-badge-stage" style={{ width: '56px', height: '56px', margin: '0 auto 14px auto' }}>
+                    <div className="empty-state-icon-badge" style={{ width: '48px', height: '48px' }}>
+                      <Search size={22} className="text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="empty-state-heading" style={{ fontSize: '1.05rem' }}>Awaiting Diagnostic Request</h3>
+                  <p className="empty-state-description" style={{ fontSize: '0.82rem' }}>
+                    Select a college institution and enter a module code to evaluate multi-stage gate decisions.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div
+                    className={`support-verdict-banner ${
+                      diagnosticReport.is_access_permitted ? 'permitted' : 'denied'
+                    }`}
+                  >
+                    <div>
+                      <h4 className="support-verdict-title">{diagnosticReport.evaluation_verdict}</h4>
+                      <div className="support-verdict-time font-mono">
+                        Evaluated at: {new Date(diagnosticReport.evaluated_at).toLocaleString()}
+                      </div>
+                    </div>
+                    {diagnosticReport.is_access_permitted ? (
+                      <CheckCircle2 size={24} className="text-emerald-600" />
+                    ) : (
+                      <AlertTriangle size={24} className="text-rose-600" />
+                    )}
+                  </div>
+
+                  <div className="support-checks-grid">
+                    <div className="support-check-item">
+                      <span className="support-check-item-label">Module in Catalog</span>
+                      <div className="support-check-item-val">
+                        {diagnosticReport.module_found ? (
+                          <span className="text-emerald-600">✓ PRESENT</span>
+                        ) : (
+                          <span className="text-rose-600">✕ NOT FOUND</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="support-check-item">
+                      <span className="support-check-item-label">Catalog Status</span>
+                      <div className="support-check-item-val">
+                        {diagnosticReport.module_active_in_catalog ? (
+                          <span className="text-emerald-600">ACTIVE</span>
+                        ) : (
+                          <span className="text-slate-400">INACTIVE</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="support-check-item">
+                      <span className="support-check-item-label">College Lifecycle</span>
+                      <div className="support-check-item-val font-mono">
+                        {diagnosticReport.college_status}
+                      </div>
+                    </div>
+
+                    <div className="support-check-item">
+                      <span className="support-check-item-label">Tenant Entitlement</span>
+                      <div className="support-check-item-val font-mono">
+                        {diagnosticReport.entitlement_status}
+                      </div>
+                    </div>
+                  </div>
+
+                  {diagnosticReport.blockers?.length > 0 && (
+                    <div className="support-blockers-box">
+                      <div className="support-blockers-title">
+                        <AlertTriangle size={15} />
+                        <span>Identified Access Blockers:</span>
+                      </div>
+                      <ul className="support-blockers-list">
+                        {diagnosticReport.blockers.map((b, idx) => (
+                          <li key={idx}>{b}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 3: Masked Student Lookup */}
+        {activeTab === 'STUDENT_LOOKUP' && (
+          <div className="support-dual-grid">
+            {/* Left: Lookup Form */}
+            <div className="support-side-panel">
+              <div className="support-panel-title-wrap">
+                <Eye size={18} className="text-blue-600" />
+                <h3 className="support-panel-title">Audited Student Status Verification</h3>
+              </div>
+              <form onSubmit={handleStudentLookup}>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Target College Institution</label>
+                  <select
+                    value={studentForm.college_id}
+                    onChange={(e) => setStudentForm({ ...studentForm, college_id: e.target.value })}
+                    className="form-input-custom select"
+                  >
+                    {colleges.map((col) => (
+                      <option key={col.college_id} value={col.college_id}>
+                        {col.name} ({col.college_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Admission / Roll Number</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Exact admission / roll no."
+                    value={studentForm.admission_number}
+                    onChange={(e) => setStudentForm({ ...studentForm, admission_number: e.target.value })}
+                    className="form-input-custom font-mono"
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Support Justification</label>
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Troubleshooting Justification (Mandatory)</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Support ticket reference or justification..."
+                    value={studentForm.reason}
+                    onChange={(e) => setStudentForm({ ...studentForm, reason: e.target.value })}
+                    className="form-input-custom"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={lookingUp}
+                  className="btn-enterprise btn-primary"
+                  style={{ width: '100%', marginTop: '16px' }}
+                >
+                  <Search size={14} className={lookingUp ? 'animate-spin' : ''} />
+                  <span>{lookingUp ? 'Querying Privacy Layer...' : 'Search Masked Record'}</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Right: Masked Result */}
+            <div className="support-verdict-card">
+              {!studentResult ? (
+                <div className="approvals-empty-state" style={{ padding: '40px 20px' }}>
+                  <div className="empty-state-badge-stage" style={{ width: '56px', height: '56px', margin: '0 auto 14px auto' }}>
+                    <div className="empty-state-icon-badge" style={{ width: '48px', height: '48px' }}>
+                      <Eye size={22} className="text-blue-600" />
+                    </div>
+                  </div>
+                  <h3 className="empty-state-heading" style={{ fontSize: '1.05rem' }}>No Search Executed</h3>
+                  <p className="empty-state-description" style={{ fontSize: '0.82rem' }}>
+                    Enter an exact admission number and valid support justification to perform a privacy-redacted status lookup.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="support-verdict-banner permitted">
+                    <div>
+                      <h4 className="support-verdict-title">Student Found: {studentResult.college_code}</h4>
+                      <div className="support-verdict-time font-mono">
+                        Audited privacy query executed
+                      </div>
+                    </div>
+                    <span className="status-pill approved">AUDITED ACCESS</span>
+                  </div>
+
+                  <div className="support-lookup-result-card">
+                    <div className="support-lookup-field">
+                      <span className="support-lookup-field-label">Admission Number</span>
+                      <div className="support-lookup-field-val font-mono">
+                        {studentResult.admission_number}
+                      </div>
+                    </div>
+
+                    <div className="support-lookup-field">
+                      <span className="support-lookup-field-label">Masked Student Name</span>
+                      <div className="support-lookup-field-val">
+                        {studentResult.masked_name}
+                      </div>
+                    </div>
+
+                    <div className="support-lookup-field">
+                      <span className="support-lookup-field-label">Academic Status</span>
+                      <div className="support-lookup-field-val font-semibold text-emerald-600">
+                        {studentResult.student_status}
+                      </div>
+                    </div>
+
+                    <div className="support-lookup-field">
+                      <span className="support-lookup-field-label">Hostel Bed Status</span>
+                      <div className="support-lookup-field-val font-semibold text-blue-600">
+                        {studentResult.hostel_status}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="reports-architecture-notice" style={{ marginTop: '4px' }}>
+                    <div className="reports-privacy-icon-wrap" style={{ width: '28px', height: '28px', background: '#ECFDF5', color: '#059669' }}>
+                      <ShieldCheck size={16} />
+                    </div>
+                    <div className="reports-notice-text">
+                      <strong>Privacy Assurance:</strong> Direct PII is permanently masked at the data-access layer. This query was logged to the tamper-evident audit stream with operator signature.
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL 1: Request Support Grant Dialog */}
+      {showGrantModal && (
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '520px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap blue">
+                <Shield size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Issue Scoped Support Grant</h3>
+                <p className="modal-header-subtitle">Time-boxed access for tenant troubleshooting.</p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setShowGrantModal(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateGrant}>
+              <div className="modal-dialog-body">
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Target College Institution</label>
+                  <select
+                    value={grantForm.college_id}
+                    onChange={(e) => setGrantForm({ ...grantForm, college_id: e.target.value })}
+                    className="form-input-custom select"
+                  >
+                    {colleges.map((col) => (
+                      <option key={col.college_id} value={col.college_id}>
+                        {col.name} ({col.college_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Validity Duration (Minutes, Max 480)</label>
+                  <select
+                    value={grantForm.duration_minutes}
+                    onChange={(e) => setGrantForm({ ...grantForm, duration_minutes: Number(e.target.value) })}
+                    className="form-input-custom select"
+                  >
+                    <option value={30}>30 Minutes (Quick Diagnosis)</option>
+                    <option value={60}>1 Hour (Standard Resolution)</option>
+                    <option value={120}>2 Hours (Complex Issue)</option>
+                    <option value={240}>4 Hours (Deep Investigation)</option>
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Support Ticket Reference *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. TICKET-9821 or ISSUE-404"
+                    value={grantForm.ticket_ref}
+                    onChange={(e) => setGrantForm({ ...grantForm, ticket_ref: e.target.value })}
+                    className="form-input-custom font-mono"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Support Justification Reason *</label>
                   <textarea
                     required
                     rows={3}
                     placeholder="Explain why tenant diagnosis access is required..."
                     value={grantForm.reason}
                     onChange={(e) => setGrantForm({ ...grantForm, reason: e.target.value })}
-                    className="form-textarea"
+                    className="form-input-custom textarea"
                   />
                 </div>
               </div>
 
-              <div className="modal-footer">
+              <div className="modal-dialog-footer">
                 <button
                   type="button"
                   onClick={() => setShowGrantModal(false)}
-                  className="btn btn-outline"
+                  className="btn-enterprise btn-outline-soft"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn btn-primary"
+                  className="btn-enterprise btn-primary"
                 >
-                  {loading ? 'Issuing...' : 'Issue Grant'}
+                  {loading ? 'Issuing Grant...' : 'Issue Scoped Grant'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: Revoke Grant Dialog */}
+      {revokeModal.isOpen && revokeModal.grant && (
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '480px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap rose">
+                <Ban size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Revoke Support Grant</h3>
+                <p className="modal-header-subtitle">Immediately terminate diagnostic session.</p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setRevokeModal((m) => ({ ...m, isOpen: false }))}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmRevoke}>
+              <div className="modal-dialog-body">
+                {revokeModal.error && (
+                  <div className="approvals-feedback-banner danger animate-slide-up" style={{ marginBottom: '16px' }}>
+                    <div className="feedback-content">
+                      <AlertTriangle size={15} />
+                      <span>{revokeModal.error}</span>
+                    </div>
+                  </div>
+                )}
+
+                <p className="modal-instruction-text">
+                  Are you sure you want to revoke support grant for{' '}
+                  <strong>{revokeModal.grant.college_name}</strong> (Ticket:{' '}
+                  <span className="code-pill font-mono">{revokeModal.grant.ticket_ref}</span>)?
+                  This operation is immediately recorded to the audit trail.
+                </p>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Revocation Reason *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Investigation completed or ticket closed..."
+                    value={revokeModal.reason}
+                    onChange={(e) => setRevokeModal((m) => ({ ...m, reason: e.target.value }))}
+                    className="form-input-custom"
+                  />
+                </div>
+              </div>
+
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setRevokeModal((m) => ({ ...m, isOpen: false }))}
+                  disabled={revokeModal.submitting}
+                >
+                  Keep Grant
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-danger"
+                  disabled={revokeModal.submitting || !revokeModal.reason.trim()}
+                >
+                  {revokeModal.submitting ? 'Revoking...' : 'Confirm Revocation'}
                 </button>
               </div>
             </form>

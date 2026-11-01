@@ -1,5 +1,31 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import {
+  GitCommit,
+  RotateCcw,
+  Plus,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  RotateCw,
+  Search,
+  X,
+  FileCode2,
+  Building2,
+  SlidersHorizontal,
+  ChevronRight,
+  ArrowRight,
+  ShieldAlert,
+  GitCompare,
+  Layers,
+  Sparkles,
+  Calendar,
+  User,
+  Ban,
+  Check,
+} from 'lucide-react';
 import {
   fetchChangeSets,
   fetchChangeSet,
@@ -9,10 +35,57 @@ import {
 } from '../services/changeManagementService';
 import { fetchCollegesList as fetchColleges } from '../services/collegeService';
 
+/**
+ * Animated number count-up effect
+ */
+function CountUpNumber({ value, duration = 800 }) {
+  const [displayValue, setDisplayValue] = useState(value);
+  const prevValueRef = useRef(value);
+
+  useEffect(() => {
+    if (typeof value !== 'number') {
+      setDisplayValue(value);
+      return;
+    }
+
+    const start = prevValueRef.current || 0;
+    const end = value;
+    const range = end - start;
+    if (range === 0) {
+      setDisplayValue(end);
+      return;
+    }
+
+    const startTime = performance.now();
+    let frameId;
+
+    const updateCount = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      const current = Math.round(start + range * easeProgress);
+
+      setDisplayValue(current);
+
+      if (progress < 1) {
+        frameId = requestAnimationFrame(updateCount);
+      } else {
+        prevValueRef.current = end;
+      }
+    };
+
+    frameId = requestAnimationFrame(updateCount);
+    return () => cancelAnimationFrame(frameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+}
+
 export default function ChangeManagementPage() {
   const { user } = useAuth();
   const [changeSets, setChangeSets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [feedback, setFeedback] = useState(null);
 
@@ -20,6 +93,7 @@ export default function ChangeManagementPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [collegeFilter, setCollegeFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [colleges, setColleges] = useState([]);
 
   // Detail & Diff Modal
@@ -35,6 +109,7 @@ export default function ChangeManagementPage() {
   const [propJsonValue, setPropJsonValue] = useState('{\n  "setting_value": "example"\n}');
   const [propReason, setPropReason] = useState('');
   const [submittingProposal, setSubmittingProposal] = useState(false);
+  const [jsonError, setJsonError] = useState(null);
 
   // Rollback Modal
   const [showRollbackModal, setShowRollbackModal] = useState(false);
@@ -56,6 +131,7 @@ export default function ChangeManagementPage() {
   const loadChangeSets = useCallback(async () => {
     try {
       setLoading(true);
+      setIsRefreshing(true);
       setError(null);
       const params = { limit: 50, offset: 0 };
       if (statusFilter) params.status = statusFilter;
@@ -68,6 +144,7 @@ export default function ChangeManagementPage() {
       setError(err.response?.data?.error?.message || err.message || 'Failed to load change sets');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [statusFilter, categoryFilter, collegeFilter]);
 
@@ -93,16 +170,18 @@ export default function ChangeManagementPage() {
   // Submit Proposal
   const handleCreateProposal = async (e) => {
     e.preventDefault();
+    setJsonError(null);
+    let parsedVal;
+    try {
+      parsedVal = JSON.parse(propJsonValue);
+    } catch (pErr) {
+      setJsonError('Invalid JSON format in proposed value.');
+      return;
+    }
+
     try {
       setSubmittingProposal(true);
       setError(null);
-
-      let parsedVal;
-      try {
-        parsedVal = JSON.parse(propJsonValue);
-      } catch (pErr) {
-        throw new Error('Invalid JSON format in proposed value');
-      }
 
       const payload = {
         category: propCategory,
@@ -121,7 +200,7 @@ export default function ChangeManagementPage() {
       setPropReason('');
       loadChangeSets();
     } catch (err) {
-      setError(err.response?.data?.error?.message || err.message || 'Failed to submit change proposal');
+      setError(err.response?.data?.error?.message || err.message || 'Failed to submit proposal');
     } finally {
       setSubmittingProposal(false);
     }
@@ -164,235 +243,483 @@ export default function ChangeManagementPage() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'PENDING':
-        return <span className="badge badge-warning">⏳ Pending Approval</span>;
-      case 'APPROVED':
-        return <span className="badge badge-success">✅ Approved</span>;
-      case 'APPLIED':
-        return <span className="badge badge-info">🚀 Applied / Executed</span>;
-      case 'REJECTED':
-        return <span className="badge badge-danger">❌ Rejected</span>;
-      case 'CANCELLED':
-        return <span className="badge badge-secondary">🚫 Cancelled</span>;
-      default:
-        return <span className="badge">{status}</span>;
-    }
-  };
+  // KPI Metrics
+  const totalChangeSets = changeSets.length;
+  const pendingCount = useMemo(
+    () => changeSets.filter((cs) => cs.status === 'PENDING').length,
+    [changeSets]
+  );
+  const appliedCount = useMemo(
+    () => changeSets.filter((cs) => cs.status === 'APPLIED').length,
+    [changeSets]
+  );
+  const rollbackCount = useMemo(
+    () => changeSets.filter((cs) => cs.category?.includes('ROLLBACK') || cs.operation_type?.includes('ROLLBACK')).length,
+    [changeSets]
+  );
+
+  // Filtered change sets with search
+  const filteredChangeSets = useMemo(() => {
+    if (!searchQuery.trim()) return changeSets;
+    const q = searchQuery.toLowerCase();
+    return changeSets.filter(
+      (cs) =>
+        cs.change_set_id?.toLowerCase().includes(q) ||
+        cs.target_key?.toLowerCase().includes(q) ||
+        cs.category?.toLowerCase().includes(q) ||
+        cs.reason?.toLowerCase().includes(q)
+    );
+  }, [changeSets, searchQuery]);
 
   return (
-    <div className="change-management-page" style={{ padding: '24px' }}>
-      {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '700', margin: '0 0 6px 0', color: '#0f172a' }}>
-            🔄 Configuration Change Management
-          </h1>
-          <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+    <div className="change-page-container animate-fade-in">
+      {/* Top Header & Breadcrumbs */}
+      <div className="change-hero-header">
+        <div className="change-hero-text">
+          <div className="change-breadcrumbs">
+            <Link to="/dashboard" className="breadcrumb-link">Dashboard</Link>
+            <span className="breadcrumb-sep">/</span>
+            <span className="breadcrumb-current">Configuration Governance</span>
+          </div>
+          <h1 className="change-title">Configuration Change Management</h1>
+          <p className="change-subtitle">
             Version, compare, propose, and safely roll back configuration and entitlement change sets with before/after diffs.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => setShowRollbackModal(true)} className="btn btn-outline btn-sm" style={{ borderColor: '#f59e0b', color: '#b45309' }}>
-            ⏪ Propose Rollback
+
+        <div className="change-header-actions">
+          <button
+            type="button"
+            className="btn-enterprise btn-outline-soft"
+            onClick={() => setShowRollbackModal(true)}
+            title="Propose historical configuration rollback"
+          >
+            <RotateCcw size={14} className="text-amber-600" />
+            <span>Propose Rollback</span>
           </button>
-          <button onClick={() => setShowProposeModal(true)} className="btn btn-primary btn-sm">
-            ➕ Propose Change Set
+
+          <button
+            type="button"
+            className={`btn-enterprise btn-outline-soft ${isRefreshing ? 'is-loading' : ''}`}
+            onClick={loadChangeSets}
+            disabled={isRefreshing}
+            title="Refresh change sets"
+          >
+            <RotateCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-enterprise btn-primary-blue"
+            onClick={() => {
+              setShowProposeModal(true);
+              setJsonError(null);
+            }}
+            id="btn-propose-changeset"
+          >
+            <Plus size={15} />
+            <span>Propose Change Set</span>
           </button>
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* Top 4 KPI Stat Cards */}
+      <div className="change-kpi-grid">
+        {/* Card 1: Total Change Sets */}
+        <div className="change-stat-card card-stagger-1">
+          <div className="change-stat-header">
+            <span className="change-stat-label">Total Change Sets</span>
+            <div className="change-stat-icon-wrap blue">
+              <GitCommit size={17} />
+            </div>
+          </div>
+          <div className="change-stat-value text-slate-900">
+            <CountUpNumber value={totalChangeSets} />
+          </div>
+          <div className="change-stat-subtext">Versioned configuration updates</div>
+          <div className="change-stat-accent-bar blue" />
+        </div>
+
+        {/* Card 2: Pending Reviews */}
+        <div className="change-stat-card card-stagger-2">
+          <div className="change-stat-header">
+            <span className="change-stat-label">Pending Approval</span>
+            <div className="change-stat-icon-wrap amber">
+              <Clock size={17} />
+            </div>
+          </div>
+          <div className="change-stat-value text-amber-600">
+            <CountUpNumber value={pendingCount} />
+          </div>
+          <div className="change-stat-subtext">Maker-checker approval queue</div>
+          <div className="change-stat-accent-bar amber" />
+        </div>
+
+        {/* Card 3: Applied & Live */}
+        <div className="change-stat-card card-stagger-3">
+          <div className="change-stat-header">
+            <span className="change-stat-label">Applied &amp; Active</span>
+            <div className="change-stat-icon-wrap green">
+              <CheckCircle2 size={17} />
+            </div>
+          </div>
+          <div className="change-stat-value text-emerald-600">
+            <CountUpNumber value={appliedCount} />
+          </div>
+          <div className="change-stat-subtext">Successfully applied to tenants</div>
+          <div className="change-stat-accent-bar green" />
+        </div>
+
+        {/* Card 4: Rollback Operations */}
+        <div className="change-stat-card card-stagger-4">
+          <div className="change-stat-header">
+            <span className="change-stat-label">Rollback History</span>
+            <div className="change-stat-icon-wrap purple">
+              <RotateCcw size={17} />
+            </div>
+          </div>
+          <div className="change-stat-value text-purple-600">
+            <CountUpNumber value={rollbackCount} />
+          </div>
+          <div className="change-stat-subtext">Historical state restorations</div>
+          <div className="change-stat-accent-bar purple" />
+        </div>
+      </div>
+
+      {/* Global Feedback Banner */}
       {feedback && (
-        <div style={{ background: '#ecfdf5', border: '1px solid #10b981', color: '#065f46', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-          <span>{feedback}</span>
-          <button onClick={() => setFeedback(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+        <div className="change-feedback-banner success animate-slide-up">
+          <div className="feedback-content">
+            <CheckCircle2 size={16} />
+            <span>{feedback}</span>
+          </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setFeedback(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
+
+      {/* Global Error Banner */}
       {error && (
-        <div style={{ background: '#fef2f2', border: '1px solid #ef4444', color: '#991b1b', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between' }}>
-          <span>{error}</span>
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>✕</button>
+        <div className="change-feedback-banner danger animate-slide-up">
+          <div className="feedback-content">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button type="button" className="feedback-close-btn" onClick={() => setError(null)}>
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      {/* Filter Bar */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '20px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Status:</label>
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
-            <option value="">All Statuses</option>
-            <option value="PENDING">Pending</option>
-            <option value="APPROVED">Approved</option>
-            <option value="APPLIED">Applied</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
+      {/* Main Content Card */}
+      <div className="change-main-card card-stagger-4">
+        {/* Controls Toolbar: Filters & Search */}
+        <div className="change-toolbar">
+          <div className="change-filters-group">
+            <div className="filter-select-item">
+              <span className="filter-item-label">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="permissions-select-input"
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="APPROVED">Approved</option>
+                <option value="APPLIED">Applied</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            </div>
+
+            <div className="filter-select-item">
+              <span className="filter-item-label">Category:</span>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="permissions-select-input"
+              >
+                <option value="">All Categories</option>
+                <option value="COLLEGE_SETTING">College Setting</option>
+                <option value="COLLEGE_MODULE">College Module Access</option>
+                <option value="COLLEGE_STATUS">College Status / Lifecycle</option>
+                <option value="SYSTEM_SETTING">Global System Setting</option>
+              </select>
+            </div>
+
+            <div className="filter-select-item">
+              <span className="filter-item-label">Tenant:</span>
+              <select
+                value={collegeFilter}
+                onChange={(e) => setCollegeFilter(e.target.value)}
+                className="permissions-select-input"
+              >
+                <option value="">All Colleges</option>
+                {colleges.map((c) => (
+                  <option key={c.college_id} value={c.college_id}>
+                    {c.name} ({c.college_code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="change-search-box">
+            <Search size={15} className="search-icon" />
+            <input
+              type="text"
+              placeholder="Search target key, ID, or reason..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="change-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
         </div>
 
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Category:</label>
-          <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
-            <option value="">All Categories</option>
-            <option value="COLLEGE_SETTING">College Setting</option>
-            <option value="COLLEGE_MODULE">College Module Access</option>
-            <option value="COLLEGE_STATUS">College Status / Lifecycle</option>
-            <option value="SYSTEM_SETTING">Global System Setting</option>
-          </select>
-        </div>
-
-        <div>
-          <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Tenant College:</label>
-          <select value={collegeFilter} onChange={(e) => setCollegeFilter(e.target.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
-            <option value="">All Colleges</option>
-            {colleges.map((c) => (
-              <option key={c.college_id} value={c.college_id}>{c.name} ({c.college_code})</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Change Sets Table */}
-      <div className="card" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        {/* Directory Table / Loading / Empty */}
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>Loading change sets directory...</div>
-        ) : changeSets.length === 0 ? (
-          <div style={{ padding: '48px', textAlign: 'center' }}>
-            <span style={{ fontSize: '36px', display: 'block', marginBottom: '12px' }}>📂</span>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', color: '#0f172a' }}>No Change Sets Found</h3>
-            <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-              Create a change set proposal to version and audit configuration modifications.
-            </p>
+          <div className="change-loading-state">
+            <div className="loading-spinner-blue" />
+            <div className="loading-state-title">Loading Change Sets...</div>
+            <div className="loading-state-sub">Fetching version hashes and diff comparison records.</div>
+          </div>
+        ) : filteredChangeSets.length === 0 ? (
+          <div className="change-empty-state">
+            <div className="empty-state-badge-stage">
+              <div className="empty-state-badge-pulse" />
+              <div className="empty-state-icon-badge">
+                <GitCommit size={32} className="text-blue-600" />
+              </div>
+            </div>
+            <h3 className="empty-state-heading">No Change Sets Match Query</h3>
+            <p className="empty-state-description">Try adjusting your filters or propose a new configuration change set.</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Change Set</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Category</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Target / Scope</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Status</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Proposal Reason</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600' }}>Submitted</th>
-                <th style={{ padding: '12px 16px', fontWeight: '600', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {changeSets.map((cs) => {
-                const isMyOwn = user?.user_id && cs.requested_by === user.user_id;
-                return (
-                  <tr key={cs.change_set_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: '600', color: '#0f172a' }}>
-                      <code>{cs.target_key}</code>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className="badge badge-outline">{cs.category}</span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#475569' }}>
-                      {cs.college_id ? `College (${cs.college_id.slice(0, 8)}...)` : 'Platform Global'}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>{getStatusBadge(cs.status)}</td>
-                    <td style={{ padding: '12px 16px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {cs.reason || '—'}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#64748b' }}>
-                      {new Date(cs.created_at).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => handleOpenDetail(cs)}
-                          style={{ padding: '4px 10px', fontSize: '12px', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          Diff Inspection
-                        </button>
-                        {cs.status === 'PENDING' && isMyOwn && (
+          <div className="change-table-responsive">
+            <table className="change-table">
+              <thead>
+                <tr>
+                  <th>Change Set ID</th>
+                  <th>Category</th>
+                  <th>Target Parameter</th>
+                  <th>Target Tenant</th>
+                  <th>Governance Status</th>
+                  <th>Created Date</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredChangeSets.map((cs) => {
+                  const isPending = cs.status === 'PENDING';
+                  const isApplied = cs.status === 'APPLIED';
+                  const isApproved = cs.status === 'APPROVED';
+
+                  return (
+                    <tr key={cs.change_set_id} className="change-table-row">
+                      <td>
+                        <span className="code-pill font-mono">
+                          {cs.change_set_id ? cs.change_set_id.substring(0, 8) : '—'}...
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="category-tag">
+                          {cs.category}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="target-key-cell">
+                          <code className="target-key-text">{cs.target_key || '—'}</code>
+                        </div>
+                      </td>
+
+                      <td>
+                        <div className="tenant-cell">
+                          <Building2 size={13} className="text-slate-400" />
+                          <span>{cs.college_name || cs.college_id ? (cs.college_name || cs.college_id.substring(0, 8)) : 'Global Platform'}</span>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className={`node-status-badge ${cs.status?.toLowerCase()}`}>
+                          {isPending && <Clock size={11} />}
+                          {isApproved && <CheckCircle2 size={11} />}
+                          {isApplied && <CheckCircle2 size={11} />}
+                          {cs.status === 'REJECTED' && <XCircle size={11} />}
+                          {cs.status === 'CANCELLED' && <Ban size={11} />}
+                          <span>{cs.status}</span>
+                        </span>
+                      </td>
+
+                      <td className="text-xs text-slate-500">
+                        {cs.created_at ? new Date(cs.created_at).toLocaleDateString() : '—'}
+                      </td>
+
+                      <td style={{ textAlign: 'right' }}>
+                        <div className="change-action-buttons">
                           <button
-                            onClick={() => handleWithdraw(cs.change_set_id)}
-                            style={{ padding: '4px 10px', fontSize: '12px', background: '#fee2e2', color: '#991b1b', border: '1px solid #fca5a5', borderRadius: '4px', cursor: 'pointer' }}
+                            type="button"
+                            className="btn-table-action"
+                            onClick={() => handleOpenDetail(cs)}
+                            title="Inspect visual diff"
                           >
-                            Withdraw
+                            <GitCompare size={12} />
+                            <span>Inspect Diff</span>
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+
+                          {isPending && cs.proposed_by === user?.user_id && (
+                            <button
+                              type="button"
+                              className="btn-table-action danger"
+                              onClick={() => handleWithdraw(cs.change_set_id)}
+                              title="Withdraw change set"
+                            >
+                              <Ban size={12} />
+                              <span>Withdraw</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
-      {/* Diff & Detail Modal */}
+      {/* MODAL 1: Diff Inspector Modal */}
       {selectedChangeSet && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '760px', maxWidth: '90vw', maxHeight: '85vh', overflowY: 'auto', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '18px', fontWeight: '700', margin: '0 0 4px 0', color: '#0f172a' }}>
-                  Configuration Diff: {selectedChangeSet.target_key}
-                </h2>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>Change Set ID: {selectedChangeSet.change_set_id}</span>
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '840px', maxHeight: '90vh' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap blue">
+                <GitCompare size={20} />
               </div>
-              <button onClick={() => setSelectedChangeSet(null)} style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}>✕</button>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">
+                  Change Set Diff: {selectedChangeSet.target_key || selectedChangeSet.category}
+                </h3>
+                <div className="role-modal-badges">
+                  <span className="code-pill font-mono">{selectedChangeSet.change_set_id}</span>
+                  <span className={`node-status-badge ${selectedChangeSet.status?.toLowerCase()}`}>
+                    {selectedChangeSet.status}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setSelectedChangeSet(null)}
+              >
+                <X size={16} />
+              </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-              <div><strong>Status:</strong> {getStatusBadge(selectedChangeSet.status)}</div>
-              <div><strong>Category:</strong> {selectedChangeSet.category}</div>
-              <div><strong>Scope:</strong> {selectedChangeSet.college_id ? 'College Tenant' : 'Platform Global'}</div>
-            </div>
-
-            {/* Granular Field Diff Table */}
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#0f172a' }}>Before / Proposed Granular Comparison:</h4>
+            <div className="modal-dialog-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
               {detailLoading ? (
-                <p style={{ color: '#64748b' }}>Computing granular diffs...</p>
-              ) : diffItems.length === 0 ? (
-                <p style={{ color: '#64748b', fontSize: '13px' }}>No field-level diffs detected.</p>
+                <div className="change-loading-state" style={{ padding: '24px' }}>
+                  <div className="loading-spinner-blue" />
+                  <div className="loading-state-title">Computing Diff Comparison...</div>
+                </div>
               ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', border: '1px solid #e2e8f0' }}>
-                  <thead>
-                    <tr style={{ background: '#f1f5f9', textAlign: 'left', color: '#475569' }}>
-                      <th style={{ padding: '8px 12px' }}>Attribute Key</th>
-                      <th style={{ padding: '8px 12px' }}>Original (Before)</th>
-                      <th style={{ padding: '8px 12px' }}>Proposed (After)</th>
-                      <th style={{ padding: '8px 12px' }}>Change Type</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diffItems.map((d) => (
-                      <tr key={d.key} style={{ borderBottom: '1px solid #e2e8f0', background: d.changeType === 'MODIFIED' ? '#fefce8' : d.changeType === 'ADDED' ? '#f0fdf4' : d.changeType === 'REMOVED' ? '#fef2f2' : '#fff' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: '600' }}>{d.key}</td>
-                        <td style={{ padding: '8px 12px', color: '#64748b' }}>
-                          <code>{d.is_sensitive ? '••••••••' : JSON.stringify(d.original_value)}</code>
-                        </td>
-                        <td style={{ padding: '8px 12px', color: '#0f172a', fontWeight: '500' }}>
-                          <code>{d.is_sensitive ? '••••••••' : JSON.stringify(d.proposed_value)}</code>
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>
-                          <span style={{
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: '600',
-                            background: d.changeType === 'MODIFIED' ? '#fef08a' : d.changeType === 'ADDED' ? '#bbf7d0' : d.changeType === 'REMOVED' ? '#fecaca' : '#e2e8f0',
-                            color: d.changeType === 'MODIFIED' ? '#854d0e' : d.changeType === 'ADDED' ? '#166534' : d.changeType === 'REMOVED' ? '#991b1b' : '#475569',
-                          }}>
-                            {d.changeType}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <>
+                  <div className="role-detail-summary-grid">
+                    <div className="summary-item-card">
+                      <span className="summary-label">Category</span>
+                      <div className="summary-val text-blue-600" style={{ fontSize: '0.9rem' }}>
+                        {selectedChangeSet.category}
+                      </div>
+                    </div>
+                    <div className="summary-item-card">
+                      <span className="summary-label">Target Scope</span>
+                      <div className="summary-val text-slate-800" style={{ fontSize: '0.85rem' }}>
+                        {selectedChangeSet.college_name || selectedChangeSet.college_id || 'Global Platform'}
+                      </div>
+                    </div>
+                    <div className="summary-item-card">
+                      <span className="summary-label">Audit Reason</span>
+                      <div className="summary-val text-slate-600" style={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                        {selectedChangeSet.reason || 'None provided'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4 className="section-subheading mt-4">Before vs After Comparison</h4>
+
+                  {diffItems && diffItems.length > 0 ? (
+                    <div className="diff-items-container">
+                      {diffItems.map((d, idx) => (
+                        <div key={idx} className="diff-card">
+                          <div className="diff-field-name">{d.field_name || selectedChangeSet.target_key}</div>
+                          <div className="diff-split-view">
+                            <div className="diff-col before">
+                              <div className="diff-col-header text-rose-700 bg-rose-50">
+                                Previous / Current State
+                              </div>
+                              <pre className="diff-pre">
+                                {JSON.stringify(d.old_value, null, 2) || '(Not set / Default)'}
+                              </pre>
+                            </div>
+                            <div className="diff-col after">
+                              <div className="diff-col-header text-emerald-700 bg-emerald-50">
+                                Proposed State
+                              </div>
+                              <pre className="diff-pre">
+                                {JSON.stringify(d.new_value, null, 2)}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="diff-split-view">
+                      <div className="diff-col before">
+                        <div className="diff-col-header text-slate-700 bg-slate-100">
+                          Current Persisted Value
+                        </div>
+                        <pre className="diff-pre">
+                          {selectedChangeSet.current_value
+                            ? JSON.stringify(selectedChangeSet.current_value, null, 2)
+                            : '(Baseline Setting)'}
+                        </pre>
+                      </div>
+                      <div className="diff-col after">
+                        <div className="diff-col-header text-emerald-700 bg-emerald-50">
+                          Proposed Payload Value
+                        </div>
+                        <pre className="diff-pre">
+                          {selectedChangeSet.proposed_value
+                            ? JSON.stringify(selectedChangeSet.proposed_value, null, 2)
+                            : '(Empty)'}
+                        </pre>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-              <button onClick={() => setSelectedChangeSet(null)} style={{ padding: '8px 16px', background: '#e2e8f0', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+            <div className="modal-dialog-footer">
+              <button
+                type="button"
+                className="btn-enterprise btn-outline-soft"
+                onClick={() => setSelectedChangeSet(null)}
+              >
                 Close
               </button>
             </div>
@@ -400,74 +727,122 @@ export default function ChangeManagementPage() {
         </div>
       )}
 
-      {/* Propose Change Set Modal */}
+      {/* MODAL 2: Propose Change Set */}
       {showProposeModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '560px', maxWidth: '90vw', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#0f172a' }}>Propose Configuration Change Set</h3>
-            <form onSubmit={handleCreateProposal}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Change Category *</label>
-                <select value={propCategory} onChange={(e) => setPropCategory(e.target.value)} style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
-                  <option value="COLLEGE_SETTING">College Tenant Setting</option>
-                  <option value="COLLEGE_MODULE">College Module Entitlement</option>
-                  <option value="COLLEGE_STATUS">College Status / Lifecycle</option>
-                </select>
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '640px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap blue">
+                <Plus size={20} />
               </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Propose Configuration Change Set</h3>
+                <p className="modal-header-subtitle">
+                  Create a version-controlled proposal routed through peer review.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setShowProposeModal(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-              {propCategory !== 'SYSTEM_SETTING' && (
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Target College *</label>
-                  <select value={propCollegeId} onChange={(e) => setPropCollegeId(e.target.value)} required style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
-                    <option value="">Select a College</option>
+            <form onSubmit={handleCreateProposal}>
+              <div className="modal-dialog-body">
+                {jsonError && (
+                  <div className="modal-error-notice">
+                    <AlertCircle size={15} />
+                    <span>{jsonError}</span>
+                  </div>
+                )}
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Category *</label>
+                  <select
+                    value={propCategory}
+                    onChange={(e) => setPropCategory(e.target.value)}
+                    className="form-input-custom"
+                  >
+                    <option value="COLLEGE_SETTING">College Setting</option>
+                    <option value="COLLEGE_MODULE">College Module Access</option>
+                    <option value="COLLEGE_STATUS">College Status / Lifecycle</option>
+                    <option value="SYSTEM_SETTING">Global System Setting</option>
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Target College (Optional for global)</label>
+                  <select
+                    value={propCollegeId}
+                    onChange={(e) => setPropCollegeId(e.target.value)}
+                    className="form-input-custom"
+                  >
+                    <option value="">Global Platform / Multi-Tenant</option>
                     {colleges.map((c) => (
-                      <option key={c.college_id} value={c.college_id}>{c.name} ({c.college_code})</option>
+                      <option key={c.college_id} value={c.college_id}>
+                        {c.name} ({c.college_code})
+                      </option>
                     ))}
                   </select>
                 </div>
-              )}
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Target Setting Key / Identifier *</label>
-                <input
-                  type="text"
-                  value={propTargetKey}
-                  onChange={(e) => setPropTargetKey(e.target.value)}
-                  placeholder="e.g. attendance_mode, max_visitors_per_student, etc."
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Target Parameter Key *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. max_students_per_room or biometric_gate_pass_enabled"
+                    value={propTargetKey}
+                    onChange={(e) => setPropTargetKey(e.target.value)}
+                    className="form-input-custom font-mono"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Proposed Value (Valid JSON) *</label>
+                  <textarea
+                    rows={5}
+                    required
+                    value={propJsonValue}
+                    onChange={(e) => {
+                      setPropJsonValue(e.target.value);
+                      setJsonError(null);
+                    }}
+                    className="form-input-custom textarea font-mono text-xs"
+                  />
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Justification Reason *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    placeholder="Audit reason required for Maker-Checker queue..."
+                    value={propReason}
+                    onChange={(e) => setPropReason(e.target.value)}
+                    className="form-input-custom textarea"
+                  />
+                </div>
               </div>
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Proposed Value (JSON) *</label>
-                <textarea
-                  rows={4}
-                  value={propJsonValue}
-                  onChange={(e) => setPropJsonValue(e.target.value)}
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontFamily: 'monospace', fontSize: '12px' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Proposal Reason *</label>
-                <textarea
-                  rows={2}
-                  value={propReason}
-                  onChange={(e) => setPropReason(e.target.value)}
-                  placeholder="Explain why this change is necessary..."
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button type="button" onClick={() => setShowProposeModal(false)} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setShowProposeModal(false)}
+                  disabled={submittingProposal}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={submittingProposal} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-                  {submittingProposal ? 'Submitting...' : 'Submit Proposal'}
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary-blue"
+                  disabled={submittingProposal}
+                >
+                  {submittingProposal ? 'Proposing...' : 'Submit to Queue'}
                 </button>
               </div>
             </form>
@@ -475,55 +850,91 @@ export default function ChangeManagementPage() {
         </div>
       )}
 
-      {/* Propose Rollback Modal */}
+      {/* MODAL 3: Propose Rollback */}
       {showRollbackModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '12px', width: '520px', maxWidth: '90vw', padding: '24px' }}>
-            <h3 style={{ margin: '0 0 12px 0', fontSize: '18px', color: '#0f172a' }}>⏪ Propose Configuration Rollback</h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
-              Rollback generates an auditable, peer-approved change set that restores a retained historical snapshot from platform audit logs.
-            </p>
+        <div className="modal-backdrop-blur">
+          <div className="modal-dialog-card animate-badge-pop" style={{ maxWidth: '540px' }}>
+            <div className="modal-dialog-header">
+              <div className="modal-header-icon-wrap amber">
+                <RotateCcw size={20} />
+              </div>
+              <div className="modal-header-text">
+                <h3 className="modal-header-title">Propose Historical Rollback</h3>
+                <p className="modal-header-subtitle">
+                  Safely revert a specific historical mutation via peer authorization.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="modal-close-icon-btn"
+                onClick={() => setShowRollbackModal(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
             <form onSubmit={handleRollbackSubmit}>
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Target College *</label>
-                <select value={rollbackCollegeId} onChange={(e) => setRollbackCollegeId(e.target.value)} required style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}>
-                  <option value="">Select College</option>
-                  {colleges.map((c) => (
-                    <option key={c.college_id} value={c.college_id}>{c.name} ({c.college_code})</option>
-                  ))}
-                </select>
+              <div className="modal-dialog-body">
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Tenant College *</label>
+                  <select
+                    value={rollbackCollegeId}
+                    onChange={(e) => setRollbackCollegeId(e.target.value)}
+                    className="form-input-custom"
+                    required
+                  >
+                    <option value="">Select target institution...</option>
+                    {colleges.map((c) => (
+                      <option key={c.college_id} value={c.college_id}>
+                        {c.name} ({c.college_code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Audit Log ID to Revert *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="UUID of the historical audit entry"
+                    value={rollbackAuditId}
+                    onChange={(e) => setRollbackAuditId(e.target.value)}
+                    className="form-input-custom font-mono"
+                  />
+                  <span className="text-xs text-slate-500 mt-1">
+                    Copy the Audit Log ID from the Audit Logs explorer.
+                  </span>
+                </div>
+
+                <div className="form-group-custom">
+                  <label className="form-label-custom">Rollback Justification *</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Explain why this historical change must be reversed..."
+                    value={rollbackReason}
+                    onChange={(e) => setRollbackReason(e.target.value)}
+                    className="form-input-custom textarea"
+                  />
+                </div>
               </div>
 
-              <div style={{ marginBottom: '14px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Historical Audit Log ID *</label>
-                <input
-                  type="text"
-                  value={rollbackAuditId}
-                  onChange={(e) => setRollbackAuditId(e.target.value)}
-                  placeholder="UUID of historical audit snapshot (from Audit Log viewer)"
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Rollback Justification *</label>
-                <textarea
-                  rows={3}
-                  value={rollbackReason}
-                  onChange={(e) => setRollbackReason(e.target.value)}
-                  placeholder="State operational reason for reverting to this previous configuration version..."
-                  required
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-                <button type="button" onClick={() => setShowRollbackModal(false)} style={{ padding: '8px 16px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}>
+              <div className="modal-dialog-footer">
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft"
+                  onClick={() => setShowRollbackModal(false)}
+                  disabled={submittingRollback}
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={submittingRollback} style={{ padding: '8px 16px', background: '#b45309', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' }}>
-                  {submittingRollback ? 'Proposing...' : 'Submit Rollback Proposal'}
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary-blue"
+                  disabled={submittingRollback}
+                >
+                  {submittingRollback ? 'Submitting...' : 'Submit Rollback Proposal'}
                 </button>
               </div>
             </form>
