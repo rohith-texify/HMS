@@ -1,35 +1,48 @@
 import axios from 'axios';
 
+/**
+ * Institutional API Client Configuration
+ *
+ * In development: Uses Vite proxy or VITE_API_BASE_URL
+ * In production: Uses Render backend https://hms-1-mjvj.onrender.com
+ */
 const baseURL =
-  import.meta.env.VITE_API_BASE_URL ||
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : '');
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_BACKEND_TARGET) ||
+  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://hms-1-mjvj.onrender.com' : '');
 
 const api = axios.create({
   baseURL: baseURL || undefined,
-  timeout: 8000,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
+// Request interceptor to attach active JWT token and scope
 api.interceptors.request.use(
   (config) => {
     const token =
+      localStorage.getItem('token') ||
       localStorage.getItem('hms_college_token') ||
-      sessionStorage.getItem('hms_college_token') ||
-      localStorage.getItem('token');
+      localStorage.getItem('hms_student_token') ||
+      localStorage.getItem('hms_parent_token') ||
+      localStorage.getItem('hms_incharge_token') ||
+      localStorage.getItem('hms_security_token') ||
+      sessionStorage.getItem('token');
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Indicate college scope for tenant operational requests
+
+    // Explicit institutional scope for all college requests
     config.headers['X-Scope'] = 'COLLEGE';
     return config;
   },
   (error) => Promise.reject(error)
 );
 
+// Response interceptor to normalize response data and handle auth expiration
 api.interceptors.response.use(
   (response) => {
     if (response.data && response.data.success !== undefined) {
@@ -38,13 +51,40 @@ api.interceptors.response.use(
     return { success: true, data: response.data };
   },
   (error) => {
+    const isCanceled =
+      axios.isCancel(error) ||
+      error.name === 'CanceledError' ||
+      error.code === 'ERR_CANCELED';
+
+    if (isCanceled) {
+      return Promise.reject({
+        name: 'CanceledError',
+        code: 'ERR_CANCELED',
+        message: 'Request canceled',
+        isCanceled: true,
+      });
+    }
+
     const responseData = error.response?.data;
-    const message = responseData?.error?.message || error.message || 'An unexpected error occurred';
-    const code = responseData?.error?.code || 'NETWORK_ERROR';
+    const message = responseData?.error?.message || responseData?.message || error.message || 'An unexpected error occurred';
+    const code = responseData?.error?.code || (error.response ? 'HTTP_ERROR' : 'NETWORK_ERROR');
+    const status = error.response?.status || 500;
+
+    // Handle 401 Unauthorized / Expired Token
+    if (status === 401 && typeof window !== 'undefined') {
+      const isAuthEndpoint = error.config?.url?.includes('/auth/login');
+      if (!isAuthEndpoint && !window.location.pathname.includes('/login')) {
+        // Broadcast auth expiration event so AuthProvider can sync state
+        window.dispatchEvent(new CustomEvent('hms:auth_expired', { detail: { status, message } }));
+      }
+    }
+
     return Promise.reject({
-      status: error.response?.status || 500,
+      status,
       code,
       message,
+      name: error.name || 'Error',
+      response: error.response,
     });
   }
 );
