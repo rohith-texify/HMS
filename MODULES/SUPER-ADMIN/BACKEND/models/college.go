@@ -25,6 +25,7 @@ type College struct {
 	WardCode        *string    `json:"ward_code,omitempty" db:"ward_code"`
 	VillageCode     *string    `json:"village_code,omitempty" db:"village_code"`
 	CampusLocality  *string    `json:"campus_locality,omitempty" db:"campus_locality"`
+	LogoURL         *string    `json:"logo_url,omitempty" db:"logo_url"`
 	ActivatedAt     *time.Time `json:"activated_at,omitempty" db:"activated_at"`
 	SuspendedAt     *time.Time `json:"suspended_at,omitempty" db:"suspended_at"`
 	DeactivatedAt   *time.Time `json:"deactivated_at,omitempty" db:"deactivated_at"`
@@ -120,6 +121,7 @@ type CreateCollegeRequest struct {
 	WardCode        *string `json:"ward_code,omitempty" binding:"omitempty,max=20"`
 	VillageCode     *string `json:"village_code,omitempty" binding:"omitempty,max=20"`
 	CampusLocality  *string `json:"campus_locality,omitempty" binding:"omitempty,max=500"`
+	LogoURL         *string `json:"logo_url,omitempty" binding:"omitempty"`
 }
 
 // UpdateCollegeRequest represents the payload for updating a college.
@@ -137,6 +139,7 @@ type UpdateCollegeRequest struct {
 	WardCode        *string `json:"ward_code,omitempty" binding:"omitempty,max=20"`
 	VillageCode     *string `json:"village_code,omitempty" binding:"omitempty,max=20"`
 	CampusLocality  *string `json:"campus_locality,omitempty" binding:"omitempty,max=500"`
+	LogoURL         *string `json:"logo_url,omitempty" binding:"omitempty"`
 
 	ContactEmail *string `json:"contact_email,omitempty" binding:"omitempty,email"`
 }

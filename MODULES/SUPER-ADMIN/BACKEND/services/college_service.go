@@ -220,6 +220,11 @@ func (s *CollegeService) CreateCollege(
 			return err
 		}
 
+		if req.LogoURL != nil && strings.TrimSpace(*req.LogoURL) != "" {
+			logoVal := strings.TrimSpace(*req.LogoURL)
+			_, _ = s.repo.UpsertCollegeSetting(txCtx, college.CollegeID, "logo_url", models.JSONB{"value": logoVal}, false)
+		}
+
 		if req.Password != nil && strings.TrimSpace(*req.Password) != "" {
 			hash, hashErr := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
 			if hashErr != nil {
@@ -381,7 +386,7 @@ func (s *CollegeService) UpdateCollege(
 		req.Timezone == nil && req.ContactEmail == nil &&
 		req.LocationType == nil && req.StateCode == nil && req.DistrictCode == nil &&
 		req.SubdistrictCode == nil && req.BlockCode == nil && req.CityCode == nil &&
-		req.WardCode == nil && req.VillageCode == nil && req.CampusLocality == nil {
+		req.WardCode == nil && req.VillageCode == nil && req.CampusLocality == nil && req.LogoURL == nil {
 		return nil, apierrors.New(
 			apierrors.ValidationError,
 			"At least one field must be provided for update",
@@ -431,6 +436,10 @@ func (s *CollegeService) UpdateCollege(
 		oldData["contact_email"] = existing.ContactEmail
 		newData["contact_email"] = *req.ContactEmail
 	}
+	if req.LogoURL != nil && (existing.LogoURL == nil || *req.LogoURL != *existing.LogoURL) {
+		oldData["logo_url"] = existing.LogoURL
+		newData["logo_url"] = *req.LogoURL
+	}
 
 	// Update college within a transaction
 	var college *models.College
@@ -439,6 +448,11 @@ func (s *CollegeService) UpdateCollege(
 		college, txErr = s.repo.UpdateCollege(txCtx, collegeID, req)
 		if txErr != nil {
 			return txErr
+		}
+
+		if req.LogoURL != nil {
+			logoVal := strings.TrimSpace(*req.LogoURL)
+			_, _ = s.repo.UpsertCollegeSetting(txCtx, collegeID, "logo_url", models.JSONB{"value": logoVal}, false)
 		}
 
 		if len(newData) > 0 {

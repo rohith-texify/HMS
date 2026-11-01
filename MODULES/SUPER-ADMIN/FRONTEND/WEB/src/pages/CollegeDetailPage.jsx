@@ -113,6 +113,7 @@ export default function CollegeDetailPage() {
         custom_city: '',
         custom_area: '',
         contact_email: data.contact_email || '',
+        logo_url: data.logo_url || '',
       });
 
       // Attempt to load onboarding steps
@@ -407,21 +408,41 @@ export default function CollegeDetailPage() {
     <div>
       {/* Header */}
       <div className="header-container">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <h1 className="page-title">{college.name}</h1>
-            <span className={`badge ${getStatusBadgeClass(college.status)}`} style={{ fontSize: '0.85rem' }}>
-              {college.status}
-            </span>
+<div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {college.logo_url && (
+              <img
+                src={college.logo_url}
+                alt={college.name}
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  objectFit: 'contain',
+                  borderRadius: '10px',
+                  backgroundColor: '#ffffff',
+                  padding: '4px',
+                  border: '1px solid var(--border-color, #e2e8f0)',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+                  flexShrink: 0,
+                }}
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            )}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                <h1 className="page-title">{college.name}</h1>
+                <span className={`badge ${getStatusBadgeClass(college.status)}`} style={{ fontSize: '0.85rem' }}>
+                  {college.status}
+                </span>
+              </div>
+              <p className="page-subtitle" style={{ margin: 0 }}>
+                Tenant Code:{' '}
+                <strong style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
+                  {college.college_code}
+                </strong>{' '}
+                | ID: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{college.college_id}</span>
+              </p>
+            </div>
           </div>
-          <p className="page-subtitle">
-            Tenant Code:{' '}
-            <strong style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
-              {college.college_code}
-            </strong>{' '}
-            | ID: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{college.college_id}</span>
-          </p>
-        </div>
 
         <div className="quick-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {college.status === 'ONBOARDING' ? (
@@ -1065,6 +1086,34 @@ export default function CollegeDetailPage() {
                     disabled={editSubmitting}
                   />
                   {editErrors.name && <div className="form-error">{editErrors.name}</div>}
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-logo">
+                    College Logo (URL or Base64 Data URL)
+                  </label>
+                  <input
+                    id="edit-logo"
+                    name="logo_url"
+                    type="text"
+                    className="form-control"
+                    placeholder="https://example.edu/logo.png"
+                    value={editFormData.logo_url || ''}
+                    onChange={handleEditChange}
+                    disabled={editSubmitting}
+                  />
+                  <div className="form-hint">Provides branding across the College Admin sign-in screen and dashboard navigation.</div>
+                  {editFormData.logo_url && (
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <img
+                        src={editFormData.logo_url}
+                        alt="Preview"
+                        style={{ width: '40px', height: '40px', objectFit: 'contain', borderRadius: '6px', border: '1px solid #cbd5e1', padding: '2px' }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                      <span style={{ fontSize: '0.78rem', color: '#64748b' }}>Logo Live Preview</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Location Hierarchy: State -> Cities -> Areas */}

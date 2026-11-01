@@ -81,12 +81,29 @@ export default function InstitutionalLayout() {
         <div className="sidebar-brand-wrapper">
           <div className="sidebar-brand-content">
             <div className="sidebar-brand-badge">
-              <Building2 size={18} />
+              {user?.college_logo_url ? (
+                <img
+                  src={user.college_logo_url}
+                  alt={user.college_name || 'College Logo'}
+                  className="sidebar-brand-college-logo"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div style={{ display: user?.college_logo_url ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Building2 size={18} />
+              </div>
             </div>
             {!sidebarCollapsed && (
               <div className="sidebar-brand-info">
-                <span className="sidebar-brand-title">Texify HMS</span>
-                <span className="sidebar-brand-tag">{navConfig.brand}</span>
+                <span className="sidebar-brand-title" title={user?.college_name || 'Texify HMS'}>
+                  {user?.college_name || 'Texify HMS'}
+                </span>
+                <span className="sidebar-brand-tag">
+                  {user?.college_code ? `${user.college_code} • Admin` : navConfig.brand}
+                </span>
               </div>
             )}
           </div>

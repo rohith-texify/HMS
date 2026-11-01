@@ -161,6 +161,10 @@ export const portalAuthService = {
       roleName: roleConfig.displayName,
       scope: roleScope,
       collegeId: collegeId,
+      college_id: collegeId,
+      college_code: membership?.college_code || membership?.CollegeCode || '',
+      college_name: membership?.college_name || membership?.CollegeName || '',
+      college_logo_url: membership?.college_logo_url || membership?.CollegeLogoURL || '',
       expiresAt: expires_at,
       module: roleConfig.module,
     };
@@ -258,6 +262,36 @@ export const portalAuthService = {
       localStorage.removeItem(k);
       sessionStorage.removeItem(k);
     });
+  },
+
+  /**
+   * Fetch public branding for a college by code, id, or email.
+   * @param {string} identifier
+   * @returns {Promise<Object|null>}
+   */
+  async getCollegeBranding(identifier) {
+    if (!identifier) return null;
+    try {
+      const res = await api.get('/auth/college-branding', {
+        params: { identifier: identifier.trim() },
+      });
+      return res.data?.college || null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Fetch list of all public active colleges.
+   * @returns {Promise<Array>}
+   */
+  async listPublicColleges() {
+    try {
+      const res = await api.get('/auth/colleges');
+      return res.data?.colleges || [];
+    } catch {
+      return [];
+    }
   },
 };
 

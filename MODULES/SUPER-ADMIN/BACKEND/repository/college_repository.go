@@ -90,6 +90,7 @@ func (r *Repository) ListCollegesWithFilter(
 			ward_code,
 			village_code,
 			campus_locality,
+			logo_url,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -132,6 +133,7 @@ func (r *Repository) ListCollegesWithFilter(
 			&college.WardCode,
 			&college.VillageCode,
 			&college.CampusLocality,
+			&college.LogoURL,
 			&college.ActivatedAt,
 			&college.SuspendedAt,
 			&college.DeactivatedAt,
@@ -176,6 +178,7 @@ func (r *Repository) GetCollegeByID(
 			ward_code,
 			village_code,
 			campus_locality,
+			logo_url,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -206,6 +209,7 @@ func (r *Repository) GetCollegeByID(
 		&college.WardCode,
 		&college.VillageCode,
 		&college.CampusLocality,
+		&college.LogoURL,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,
@@ -245,6 +249,7 @@ func (r *Repository) GetCollegeByCode(
 			ward_code,
 			village_code,
 			campus_locality,
+			logo_url,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -275,6 +280,7 @@ func (r *Repository) GetCollegeByCode(
 		&college.WardCode,
 		&college.VillageCode,
 		&college.CampusLocality,
+		&college.LogoURL,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,
@@ -323,10 +329,11 @@ func (r *Repository) CreateCollege(
 			city_code,
 			ward_code,
 			village_code,
-			campus_locality
+			campus_locality,
+			logo_url
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, 'ONBOARDING',
-			$7, $8, $9, $10, $11, $12, $13, $14, $15
+			$7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)
 		RETURNING
 			college_id,
@@ -346,6 +353,7 @@ func (r *Repository) CreateCollege(
 			ward_code,
 			village_code,
 			campus_locality,
+			logo_url,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -374,6 +382,7 @@ func (r *Repository) CreateCollege(
 		req.WardCode,
 		req.VillageCode,
 		req.CampusLocality,
+		req.LogoURL,
 	).Scan(
 		&college.CollegeID,
 		&college.CollegeCode,
@@ -392,6 +401,7 @@ func (r *Repository) CreateCollege(
 		&college.WardCode,
 		&college.VillageCode,
 		&college.CampusLocality,
+		&college.LogoURL,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,
@@ -512,6 +522,12 @@ func (r *Repository) UpdateCollege(
 		argPos++
 	}
 
+	if req.LogoURL != nil {
+		query += fmt.Sprintf(`, logo_url = $%d`, argPos)
+		args = append(args, *req.LogoURL)
+		argPos++
+	}
+
 	query += fmt.Sprintf(` WHERE college_id = $%d`, argPos)
 	args = append(args, collegeID)
 	argPos++
@@ -535,6 +551,7 @@ func (r *Repository) UpdateCollege(
 			ward_code,
 			village_code,
 			campus_locality,
+			logo_url,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -563,6 +580,7 @@ func (r *Repository) UpdateCollege(
 		&college.WardCode,
 		&college.VillageCode,
 		&college.CampusLocality,
+		&college.LogoURL,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -35,7 +36,10 @@ type AuthMembership struct {
 	RoleCode     string     `json:"role_code"`
 	RoleName     string     `json:"role_name"`
 	RoleScope    string     `json:"role_scope"`
-	IsSystemRole bool       `json:"is_system_role"`
+	IsSystemRole   bool       `json:"is_system_role"`
+	CollegeCode    *string    `json:"college_code,omitempty"`
+	CollegeName    *string    `json:"college_name,omitempty"`
+	CollegeLogoURL *string    `json:"college_logo_url,omitempty"`
 }
 
 // FindAuthIdentityByEmail retrieves the user account and all of
@@ -131,12 +135,19 @@ func (r *Repository) FindAuthIdentityByEmail(
 			r.role_code,
 			r.role_name,
 			r.scope,
-			r.is_system_role
+			r.is_system_role,
+
+			c.college_code,
+			c.name,
+			c.logo_url
 
 		FROM platform.user_roles ur
 
 		INNER JOIN platform.roles r
 			ON r.role_id = ur.role_id
+
+		LEFT JOIN platform.colleges c
+			ON c.college_id = ur.college_id
 
 		WHERE ur.user_id = $1
 		  AND ur.status = 'ACTIVE'
@@ -177,6 +188,9 @@ func (r *Repository) FindAuthIdentityByEmail(
 			&membership.RoleName,
 			&membership.RoleScope,
 			&membership.IsSystemRole,
+			&membership.CollegeCode,
+			&membership.CollegeName,
+			&membership.CollegeLogoURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf(
@@ -199,4 +213,71 @@ func (r *Repository) FindAuthIdentityByEmail(
 	}
 
 	return &identity, nil
+}
+
+
+// PublicCollegeBranding contains basic public branding for login and institutional identification.
+type PublicCollegeBranding struct {
+	CollegeID   uuid.UUID `json:"college_id"`
+	CollegeCode string    `json:"college_code"`
+	Name        string    `json:"name"`
+	LogoURL     *string   `json:"logo_url,omitempty"`
+	Status      string    `json:"status"`
+}
+
+// ListPublicColleges returns public branding information for all active/onboarding colleges.
+func (r *Repository) ListPublicColleges(ctx context.Context) ([]PublicCollegeBranding, error) {
+	rows, err := r.Executor(ctx).Query(ctx, `
+		SELECT college_id, college_code, name, logo_url, status
+		FROM platform.colleges
+		WHERE status IN ('ACTIVE', 'ONBOARDING')
+		ORDER BY name ASC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list public colleges: %w", err)
+	}
+	defer rows.Close()
+
+	var list []PublicCollegeBranding
+	for rows.Next() {
+		var b PublicCollegeBranding
+		if err := rows.Scan(&b.CollegeID, &b.CollegeCode, &b.Name, &b.LogoURL, &b.Status); err != nil {
+			return nil, fmt.Errorf("failed to scan public college: %w", err)
+		}
+		list = append(list, b)
+	}
+	return list, nil
+}
+
+// GetPublicCollegeBranding finds a college's branding by code, id, name, or admin email prefix.
+func (r *Repository) GetPublicCollegeBranding(ctx context.Context, identifier string) (*PublicCollegeBranding, error) {
+	idLower := strings.TrimSpace(strings.ToLower(identifier))
+	if idLower == "" {
+		return nil, ErrNotFound
+	}
+	prefix := idLower
+	if atIdx := strings.Index(prefix, "@"); atIdx != -1 {
+		prefix = prefix[:atIdx]
+	}
+	if dotAdminIdx := strings.Index(prefix, ".admin"); dotAdminIdx != -1 {
+		prefix = prefix[:dotAdminIdx]
+	}
+
+	var b PublicCollegeBranding
+	err := r.Executor(ctx).QueryRow(ctx, `
+		SELECT college_id, college_code, name, logo_url, status
+		FROM platform.colleges
+		WHERE LOWER(college_code) = $1
+		   OR LOWER(college_code) = $2
+		   OR college_id::text = $1
+		   OR LOWER(name) ILIKE $1
+		LIMIT 1
+	`, idLower, prefix).Scan(&b.CollegeID, &b.CollegeCode, &b.Name, &b.LogoURL, &b.Status)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("failed to get college branding: %w", err)
+	}
+	return &b, nil
 }
