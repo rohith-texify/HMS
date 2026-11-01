@@ -26,6 +26,9 @@ const AdminComplaintsPage = lazy(() => import('../../modules/admin/pages/Complai
 const AdminVisitorsPage = lazy(() => import('../../modules/admin/pages/VisitorsPage'));
 const AdminParcelsPage = lazy(() => import('../../modules/admin/pages/ParcelsPage'));
 const AdminSOSPage = lazy(() => import('../../modules/admin/pages/SOSPage'));
+const AdminFoodPage = lazy(() => import('../../modules/admin/pages/FoodPage'));
+const AdminAnnouncementsPage = lazy(() => import('../../modules/admin/pages/AnnouncementsPage'));
+const AdminFeesPage = lazy(() => import('../../modules/admin/pages/FeesPage'));
 
 // Lazy-loaded Student Pages
 const StudentDashboardPage = lazy(() => import('../../modules/student/pages/DashboardPage'));
@@ -109,6 +112,9 @@ export default function AppRoutes() {
           <Route path="visitors" element={<AdminVisitorsPage />} />
           <Route path="parcels" element={<AdminParcelsPage />} />
           <Route path="sos" element={<AdminSOSPage />} />
+          <Route path="food" element={<AdminFoodPage />} />
+          <Route path="announcements" element={<AdminAnnouncementsPage />} />
+          <Route path="fees" element={<AdminFeesPage />} />
         </Route>
 
         {/* ============================================================== */}

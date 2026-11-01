@@ -21,6 +21,8 @@ import {
   Ticket,
   Package,
   ShieldAlert,
+  Megaphone,
+  CreditCard,
 } from 'lucide-react';
 
 /**
@@ -189,6 +191,32 @@ export const ROLE_NAVIGATION = {
           },
         ],
       },
+      {
+        group: 'Campus Living & Welfare',
+        items: [
+          {
+            label: 'Hostel Mess & Food',
+            path: '/admin/food',
+            icon: Utensils,
+            permission: 'hostel.view',
+            description: 'Daily dining menus, meal serving schedules, and student food feedback',
+          },
+          {
+            label: 'Notice & Broadcasts',
+            path: '/admin/announcements',
+            icon: Megaphone,
+            permission: 'hostel.view',
+            description: 'Administrative circulars, hostel notices, and emergency broadcast dispatch',
+          },
+          {
+            label: 'Hostel Fees & Invoicing',
+            path: '/admin/fees',
+            icon: CreditCard,
+            permission: 'people.view',
+            description: 'Institutional fee tier schedules, caution deposit rules, and resident billing records',
+          },
+        ],
+      },
     ],
   },
 
@@ -242,6 +270,14 @@ export const ROLE_NAVIGATION = {
           { label: 'SOS & Emergency', path: '/admin/sos', icon: ShieldAlert, permission: 'people.view' },
         ],
       },
+      {
+        group: 'Campus Living & Welfare',
+        items: [
+          { label: 'Hostel Mess & Food', path: '/admin/food', icon: Utensils, permission: 'hostel.view' },
+          { label: 'Notice & Broadcasts', path: '/admin/announcements', icon: Megaphone, permission: 'hostel.view' },
+          { label: 'Hostel Fees & Invoicing', path: '/admin/fees', icon: CreditCard, permission: 'people.view' },
+        ],
+      },
     ],
   },
 
@@ -293,6 +329,14 @@ export const ROLE_NAVIGATION = {
           { label: 'Visitor Access', path: '/admin/visitors', icon: Users, permission: 'people.view' },
           { label: 'Student Parcels', path: '/admin/parcels', icon: Package, permission: 'people.view' },
           { label: 'SOS & Emergency', path: '/admin/sos', icon: ShieldAlert, permission: 'people.view' },
+        ],
+      },
+      {
+        group: 'Campus Living & Welfare',
+        items: [
+          { label: 'Hostel Mess & Food', path: '/admin/food', icon: Utensils, permission: 'hostel.view' },
+          { label: 'Notice & Broadcasts', path: '/admin/announcements', icon: Megaphone, permission: 'hostel.view' },
+          { label: 'Hostel Fees & Invoicing', path: '/admin/fees', icon: CreditCard, permission: 'people.view' },
         ],
       },
     ],
@@ -504,6 +548,9 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/visitors': { group: 'Support & Safety', title: 'Visitor Access' },
     '/admin/parcels': { group: 'Support & Safety', title: 'Student Parcels' },
     '/admin/sos': { group: 'Support & Safety', title: 'SOS & Emergency' },
+    '/admin/food': { group: 'Campus Living & Welfare', title: 'Hostel Mess & Food' },
+    '/admin/announcements': { group: 'Campus Living & Welfare', title: 'Notice & Broadcasts' },
+    '/admin/fees': { group: 'Campus Living & Welfare', title: 'Hostel Fees & Invoicing' },
   };
 
   return routeMap[pathname] || { group: roleConfig?.brand || 'College Administration', title: 'Dashboard' };

@@ -377,19 +377,55 @@ export const adminService = {
   },
 
   // Notifications
-  async getNotifications() {
-    const res = await api.get('/college/notifications');
+  // =========================================================================
+  // Notification & Announcements Operations
+  // =========================================================================
+  async getNotifications(params = {}) {
+    const query = params.unread ? '?unread=true' : '';
+    const res = await api.get(`/college/notifications${query}`);
     return res.data || res;
   },
   async getUnreadNotificationCount() {
     const res = await api.get('/college/notifications/unread-count');
     return res.data || res;
   },
+  async getNotification(id) {
+    const res = await api.get(`/college/notifications/${id}`);
+    return res.data || res;
+  },
+  async createNotification(payload) {
+    return api.post('/college/notifications', payload);
+  },
   async markNotificationRead(id) {
     return api.patch(`/college/notifications/${id}/read`);
   },
   async markAllNotificationsRead() {
     return api.patch('/college/notifications/read-all');
+  },
+
+  // =========================================================================
+  // Food & Mess Operations
+  // =========================================================================
+  async getTodayMenus() {
+    const res = await api.get('/college/mess/today');
+    return res.data || res;
+  },
+  async getHostelMealMenus(hostelId) {
+    const res = await api.get(`/college/hostels/${hostelId}/mess/menus`);
+    return res.data || res;
+  },
+  async createMealMenu(hostelId, payload) {
+    return api.post(`/college/hostels/${hostelId}/mess/menus`, payload);
+  },
+  async getHostelMealTimings(hostelId) {
+    const res = await api.get(`/college/hostels/${hostelId}/mess/timings`);
+    return res.data || res;
+  },
+  async createMealTiming(hostelId, payload) {
+    return api.post(`/college/hostels/${hostelId}/mess/timings`, payload);
+  },
+  async submitFoodFeedback(payload) {
+    return api.post('/college/mess/feedback', payload);
   },
 
   // =========================================================================
