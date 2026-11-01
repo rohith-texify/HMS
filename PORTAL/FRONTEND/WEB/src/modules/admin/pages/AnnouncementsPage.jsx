@@ -94,7 +94,7 @@ export default function AdminAnnouncementsPage() {
         adminService.getNotifications(),
         adminService.getUnreadNotificationCount(),
         adminService.getStudents({ limit: 100 }),
-        adminService.getStaffList(),
+        adminService.getStaff(),
       ]);
 
       const notifList = notifsRes.status === 'fulfilled'

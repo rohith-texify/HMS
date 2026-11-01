@@ -223,6 +223,9 @@ export const adminService = {
     const res = await api.get('/college/staff');
     return res.data || res;
   },
+  async getStaffList() {
+    return this.getStaff();
+  },
   async getStaffById(id) {
     const res = await api.get(`/college/staff/${id}`);
     return res.data || res;
@@ -327,6 +330,9 @@ export const adminService = {
   async getLeaveRequests(params = {}) {
     const res = await api.get('/college/leaves', { params });
     return res.data || res;
+  },
+  async getLeaves(params = {}) {
+    return this.getLeaveRequests(params);
   },
   async getLeaveRequestById(leaveId) {
     const res = await api.get(`/college/leaves/${leaveId}`);

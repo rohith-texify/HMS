@@ -66,7 +66,7 @@ export default function AdminAuditLogPage() {
         studentsRes,
       ] = await Promise.allSettled([
         adminService.getBedAllocations(),
-        adminService.getLeaves(),
+        adminService.getLeaveRequests(),
         adminService.getComplaints(),
         adminService.getNotifications(),
         adminService.getStudents({ limit: 50 }),
