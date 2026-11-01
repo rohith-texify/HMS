@@ -19,6 +19,8 @@ import {
   ClipboardCheck,
   Footprints,
   Ticket,
+  Package,
+  ShieldAlert,
 } from 'lucide-react';
 
 /**
@@ -154,6 +156,39 @@ export const ROLE_NAVIGATION = {
           },
         ],
       },
+      {
+        group: 'Support & Safety',
+        items: [
+          {
+            label: 'Student Complaints',
+            path: '/admin/complaints',
+            icon: Wrench,
+            permission: 'requests.view',
+            description: 'Maintenance work orders, repair requests, and service tickets',
+          },
+          {
+            label: 'Visitor Access',
+            path: '/admin/visitors',
+            icon: Users,
+            permission: 'people.view',
+            description: 'Campus visitor reception, entry rules, and perimeter checkpoints',
+          },
+          {
+            label: 'Student Parcels',
+            path: '/admin/parcels',
+            icon: Package,
+            permission: 'people.view',
+            description: 'Courier delivery intake, mailroom drop points, and claim security',
+          },
+          {
+            label: 'SOS & Emergency',
+            path: '/admin/sos',
+            icon: ShieldAlert,
+            permission: 'people.view',
+            description: 'Crisis response coordination, duty wardens, and emergency contacts',
+          },
+        ],
+      },
     ],
   },
 
@@ -198,6 +233,15 @@ export const ROLE_NAVIGATION = {
           { label: 'Gate Clearances', path: '/admin/gate-passes', icon: Ticket, permission: 'requests.view' },
         ],
       },
+      {
+        group: 'Support & Safety',
+        items: [
+          { label: 'Student Complaints', path: '/admin/complaints', icon: Wrench, permission: 'requests.view' },
+          { label: 'Visitor Access', path: '/admin/visitors', icon: Users, permission: 'people.view' },
+          { label: 'Student Parcels', path: '/admin/parcels', icon: Package, permission: 'people.view' },
+          { label: 'SOS & Emergency', path: '/admin/sos', icon: ShieldAlert, permission: 'people.view' },
+        ],
+      },
     ],
   },
 
@@ -240,6 +284,15 @@ export const ROLE_NAVIGATION = {
           { label: 'Leave Requests', path: '/admin/leaves', icon: FileText, permission: 'requests.view' },
           { label: 'Student Movement', path: '/admin/movement', icon: Footprints, permission: 'people.view' },
           { label: 'Gate Clearances', path: '/admin/gate-passes', icon: Ticket, permission: 'requests.view' },
+        ],
+      },
+      {
+        group: 'Support & Safety',
+        items: [
+          { label: 'Student Complaints', path: '/admin/complaints', icon: Wrench, permission: 'requests.view' },
+          { label: 'Visitor Access', path: '/admin/visitors', icon: Users, permission: 'people.view' },
+          { label: 'Student Parcels', path: '/admin/parcels', icon: Package, permission: 'people.view' },
+          { label: 'SOS & Emergency', path: '/admin/sos', icon: ShieldAlert, permission: 'people.view' },
         ],
       },
     ],
@@ -447,6 +500,10 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/leaves': { group: 'Operations & Movement', title: 'Leave Requests' },
     '/admin/movement': { group: 'Operations & Movement', title: 'Student Movement' },
     '/admin/gate-passes': { group: 'Operations & Movement', title: 'Gate Clearances' },
+    '/admin/complaints': { group: 'Support & Safety', title: 'Student Complaints' },
+    '/admin/visitors': { group: 'Support & Safety', title: 'Visitor Access' },
+    '/admin/parcels': { group: 'Support & Safety', title: 'Student Parcels' },
+    '/admin/sos': { group: 'Support & Safety', title: 'SOS & Emergency' },
   };
 
   return routeMap[pathname] || { group: roleConfig?.brand || 'College Administration', title: 'Dashboard' };

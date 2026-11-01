@@ -346,9 +346,33 @@ export const adminService = {
     return api.post(`/college/leaves/${leaveId}/cancel`);
   },
 
-  // Complaints
+  // Complaints Operations
   async getComplaints(params = {}) {
     const res = await api.get('/college/complaints', { params });
+    return res.data || res;
+  },
+  async getComplaintById(complaintId) {
+    const res = await api.get(`/college/complaints/${complaintId}`);
+    return res.data || res;
+  },
+  async getComplaintSummary() {
+    const res = await api.get('/college/complaints/reports/summary');
+    return res.data || res;
+  },
+  async createComplaint(payload) {
+    return api.post('/college/complaints', payload);
+  },
+  async updateComplaintStatus(complaintId, payload) {
+    return api.patch(`/college/complaints/${complaintId}/status`, payload);
+  },
+  async assignComplaint(complaintId, payload) {
+    return api.patch(`/college/complaints/${complaintId}/assign`, payload);
+  },
+  async resolveComplaint(complaintId, payload) {
+    return api.patch(`/college/complaints/${complaintId}/resolve`, payload);
+  },
+  async getComplaintUpdates(complaintId) {
+    const res = await api.get(`/college/complaints/${complaintId}/updates`);
     return res.data || res;
   },
 

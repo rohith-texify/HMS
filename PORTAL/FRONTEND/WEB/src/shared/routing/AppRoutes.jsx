@@ -22,6 +22,10 @@ const AdminAttendancePage = lazy(() => import('../../modules/admin/pages/Attenda
 const AdminLeavesPage = lazy(() => import('../../modules/admin/pages/LeavesPage'));
 const AdminMovementPage = lazy(() => import('../../modules/admin/pages/MovementPage'));
 const AdminGatePassesPage = lazy(() => import('../../modules/admin/pages/GatePassesPage'));
+const AdminComplaintsPage = lazy(() => import('../../modules/admin/pages/ComplaintsPage'));
+const AdminVisitorsPage = lazy(() => import('../../modules/admin/pages/VisitorsPage'));
+const AdminParcelsPage = lazy(() => import('../../modules/admin/pages/ParcelsPage'));
+const AdminSOSPage = lazy(() => import('../../modules/admin/pages/SOSPage'));
 
 // Lazy-loaded Student Pages
 const StudentDashboardPage = lazy(() => import('../../modules/student/pages/DashboardPage'));
@@ -101,6 +105,10 @@ export default function AppRoutes() {
           <Route path="leaves" element={<AdminLeavesPage />} />
           <Route path="movement" element={<AdminMovementPage />} />
           <Route path="gate-passes" element={<AdminGatePassesPage />} />
+          <Route path="complaints" element={<AdminComplaintsPage />} />
+          <Route path="visitors" element={<AdminVisitorsPage />} />
+          <Route path="parcels" element={<AdminParcelsPage />} />
+          <Route path="sos" element={<AdminSOSPage />} />
         </Route>
 
         {/* ============================================================== */}
