@@ -26,3 +26,4 @@ func (s *AllocationService) GetCurrentAllocation(ctx context.Context, collegeID,
 	}
 	return s.repo.GetCurrentAllocation(ctx, collegeID, studentID)
 }
+

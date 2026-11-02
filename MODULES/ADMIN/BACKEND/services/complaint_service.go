@@ -23,3 +23,4 @@ func (s *ComplaintService) GetComplaintSummary(ctx context.Context, collegeID uu
 	}
 	return s.repo.GetComplaintSummary(ctx, collegeID)
 }
+

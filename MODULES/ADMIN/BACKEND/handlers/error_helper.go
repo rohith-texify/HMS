@@ -24,3 +24,4 @@ func respondError(c *gin.Context, err error) {
 
 	response.InternalError(c)
 }
+

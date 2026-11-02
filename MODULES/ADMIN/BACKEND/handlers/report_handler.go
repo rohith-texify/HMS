@@ -22,3 +22,4 @@ func (h *ReportHandler) GetDashboardSummary(c *gin.Context) {
 
 	response.OK(c, summary)
 }
+

@@ -116,3 +116,4 @@ func (h *HostelHandler) ListBeds(c *gin.Context) {
 
 	response.OK(c, gin.H{"beds": beds})
 }
+

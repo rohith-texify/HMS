@@ -39,3 +39,4 @@ func (h *LeaveHandler) GetLeaveSummary(c *gin.Context) {
 
 	response.OK(c, summary)
 }
+

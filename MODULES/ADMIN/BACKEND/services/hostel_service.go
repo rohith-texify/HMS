@@ -59,3 +59,4 @@ func (s *HostelService) ListBeds(ctx context.Context, collegeID, roomID uuid.UUI
 	}
 	return s.repo.ListBeds(ctx, collegeID, roomID)
 }
+

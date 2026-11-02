@@ -38,3 +38,4 @@ func (s *ReportService) GetDashboardSummary(ctx context.Context, collegeID uuid.
 		"open_complaints":    openComplaints,
 	}, nil
 }
+

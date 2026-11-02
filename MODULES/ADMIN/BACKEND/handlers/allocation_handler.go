@@ -47,3 +47,4 @@ func (h *AllocationHandler) GetCurrentAllocation(c *gin.Context) {
 
 	response.OK(c, allocation)
 }
+

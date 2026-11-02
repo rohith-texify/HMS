@@ -56,3 +56,4 @@ func (h *StaffHandler) ListSecurityAssignments(c *gin.Context) {
 
 	response.OK(c, gin.H{"security_assignments": assignments})
 }
+

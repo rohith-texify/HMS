@@ -38,3 +38,4 @@ func (s *AttendanceService) GetAttendanceSummary(
 	}
 	return s.repo.GetAttendanceSummary(ctx, collegeID, date)
 }
+

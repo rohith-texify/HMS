@@ -31,3 +31,4 @@ func (s *StaffService) ListSecurityAssignments(ctx context.Context, collegeID uu
 	}
 	return s.repo.ListSecurityAssignments(ctx, collegeID)
 }
+

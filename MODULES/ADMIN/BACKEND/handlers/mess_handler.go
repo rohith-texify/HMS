@@ -53,3 +53,4 @@ func (h *MessHandler) ListMealMenus(c *gin.Context) {
 
 	response.OK(c, gin.H{"menus": menus})
 }
+

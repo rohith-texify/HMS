@@ -39,3 +39,4 @@ func (h *ComplaintHandler) GetComplaintSummary(c *gin.Context) {
 
 	response.OK(c, summary)
 }
+

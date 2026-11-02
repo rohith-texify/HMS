@@ -74,3 +74,4 @@ func (s *StudentService) ListStudentParents(
 
 	return s.repo.ListStudentParents(ctx, collegeID, studentID)
 }
+

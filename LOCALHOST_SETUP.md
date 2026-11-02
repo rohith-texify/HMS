@@ -4,7 +4,7 @@
 
 Your HMS system is now **RUNNING LOCALLY** with:
 
-- ✅ **Backend API** running on `http://localhost:8080`
+- ✅ **Backend API** running on `http://localhost:3001`
 - ✅ **Super Admin Frontend** running on `http://localhost:3000`
 - ✅ **Database** connected (Local PostgreSQL or Neon as configured in .env)
 
@@ -21,9 +21,9 @@ Password: Password@123
 
 ### Backend API
 ```
-Health Check: http://localhost:8080/health
-Database Check: http://localhost:8080/health/db
-Base URL: http://localhost:8080
+Health Check: http://localhost:3001/health
+Database Check: http://localhost:3001/health/db
+Base URL: http://localhost:3001
 ```
 
 ---
@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File START_LOCAL.ps1
 This will:
 1. Check prerequisites
 2. Build backend
-3. Start backend server (port 8080)
+3. Start backend server (port 3001)
 4. Install frontend dependencies
 5. Start frontend dev server (port 3000)
 
@@ -111,7 +111,7 @@ d:\HMS
 
 ### 1. Check Backend Health
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:3001/health
 ```
 
 Expected response:
@@ -126,7 +126,7 @@ Expected response:
 
 ### 2. Check Database Connection
 ```bash
-curl http://localhost:8080/health/db
+curl http://localhost:3001/health/db
 ```
 
 Expected response:
@@ -143,7 +143,7 @@ Expected response:
 
 ### 3. Test Login
 ```bash
-curl -X POST http://localhost:8080/auth/login \
+curl -X POST http://localhost:3001/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "superadmin@hms.local",
@@ -191,12 +191,12 @@ Press `Ctrl+C` in the frontend terminal (or close the window)
 1. Open browser DevTools (F12)
 2. Check Console tab for errors
 3. Check Network tab for failed API calls
-4. Verify backend is running: `http://localhost:8080/health`
+4. Verify backend is running: `http://localhost:3001/health`
 
 ### Issue: Login Fails
 **Check:**
-1. Backend is running: `http://localhost:8080/health`
-2. Database is connected: `http://localhost:8080/health/db`
+1. Backend is running: `http://localhost:3001/health`
+2. Database is connected: `http://localhost:3001/health/db`
 3. Test credentials are correct (see table above)
 4. Check browser console for specific error message
 
@@ -216,9 +216,9 @@ Press `Ctrl+C` in the frontend terminal (or close the window)
    - Check network connectivity
 
 ### Issue: Port Already in Use
-**For port 8080 (backend):**
+**For port 3001 (backend):**
 ```powershell
-netstat -ano | Select-String ":8080"
+netstat -ano | Select-String ":3001"
 # Kill the process: taskkill /PID <PID> /F
 ```
 
@@ -262,9 +262,9 @@ Get-Content -Path d:\HMS\backend.log -Tail 50 -Wait
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
-| Backend API | http://localhost:8080 |
-| Health Check | http://localhost:8080/health |
-| DB Health | http://localhost:8080/health/db |
+| Backend API | http://localhost:3001 |
+| Health Check | http://localhost:3001/health |
+| DB Health | http://localhost:3001/health/db |
 
 ## 📝 Login Credentials
 

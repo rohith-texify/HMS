@@ -15,3 +15,4 @@ func (s *NotificationService) ListNotifications(ctx context.Context, collegeID u
 	}
 	return s.repo.ListNotifications(ctx, collegeID)
 }
+

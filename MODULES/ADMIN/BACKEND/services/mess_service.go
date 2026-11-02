@@ -23,3 +23,4 @@ func (s *MessService) ListMealMenus(ctx context.Context, collegeID, hostelID uui
 	}
 	return s.repo.ListMealMenus(ctx, collegeID, hostelID)
 }
+

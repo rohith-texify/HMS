@@ -23,3 +23,4 @@ func (s *LeaveService) GetLeaveSummary(ctx context.Context, collegeID uuid.UUID)
 	}
 	return s.repo.GetLeaveSummary(ctx, collegeID)
 }
+

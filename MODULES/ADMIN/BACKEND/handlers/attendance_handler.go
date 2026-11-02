@@ -60,3 +60,4 @@ func (h *AttendanceHandler) GetAttendanceSummary(c *gin.Context) {
 
 	response.OK(c, summary)
 }
+

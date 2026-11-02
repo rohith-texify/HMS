@@ -80,3 +80,4 @@ func getAuthenticatedActor(c *gin.Context) (uuid.UUID, string, error) {
 
 	return actorID, role, nil
 }
+

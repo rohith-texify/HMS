@@ -22,3 +22,4 @@ func (h *NotificationHandler) ListNotifications(c *gin.Context) {
 
 	response.OK(c, gin.H{"notifications": notifications})
 }
+

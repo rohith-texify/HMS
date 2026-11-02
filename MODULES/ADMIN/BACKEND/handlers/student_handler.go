@@ -117,3 +117,4 @@ func (h *StudentHandler) ListStudentParents(c *gin.Context) {
 
 	response.OK(c, gin.H{"parents": parents})
 }
+
