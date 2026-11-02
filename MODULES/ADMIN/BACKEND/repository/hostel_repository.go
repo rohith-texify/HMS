@@ -176,3 +176,4 @@ func (r *Repository) ListBeds(ctx context.Context, collegeID, roomID uuid.UUID) 
 	}
 	return beds, nil
 }
+

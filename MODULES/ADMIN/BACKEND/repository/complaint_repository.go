@@ -69,3 +69,4 @@ func (r *Repository) GetComplaintSummary(ctx context.Context, collegeID uuid.UUI
 	}
 	return &s, nil
 }
+

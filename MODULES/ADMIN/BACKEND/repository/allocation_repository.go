@@ -70,3 +70,4 @@ func (r *Repository) GetCurrentAllocation(ctx context.Context, collegeID, studen
 	}
 	return &a, nil
 }
+

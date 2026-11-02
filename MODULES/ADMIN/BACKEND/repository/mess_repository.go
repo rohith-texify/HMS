@@ -74,3 +74,4 @@ func (r *Repository) ListMealMenus(ctx context.Context, collegeID, hostelID uuid
 	}
 	return menus, nil
 }
+

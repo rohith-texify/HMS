@@ -71,3 +71,4 @@ func (r *Repository) GetAttendanceSummary(ctx context.Context, collegeID uuid.UU
 	}
 	return &s, nil
 }
+

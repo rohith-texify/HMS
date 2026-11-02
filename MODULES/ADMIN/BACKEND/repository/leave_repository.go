@@ -70,3 +70,4 @@ func (r *Repository) GetLeaveSummary(ctx context.Context, collegeID uuid.UUID) (
 	}
 	return &s, nil
 }
+

@@ -109,3 +109,4 @@ func (r *Repository) ListSecurityAssignments(ctx context.Context, collegeID uuid
 	}
 	return assignments, nil
 }
+

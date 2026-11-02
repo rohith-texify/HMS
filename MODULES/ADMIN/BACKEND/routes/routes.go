@@ -10,7 +10,7 @@ import (
 )
 
 // RegisterCollegeAdminRoutes registers all College Admin module routes.
-// Modeled directly on RegisterSuperAdminRoutes in MODULES/SUPER-ADMIN/BACKEND/routes/routes.go.
+// Symmetrically modeled on RegisterSuperAdminRoutes in MODULES/SUPER-ADMIN/BACKEND/routes/routes.go.
 func RegisterCollegeAdminRoutes(
 	router *gin.RouterGroup,
 	db *database.Database,
@@ -44,17 +44,6 @@ func RegisterCollegeAdminRoutes(
 	notificationHandler := handlers.NewNotificationHandler(notificationService)
 	reportHandler := handlers.NewReportHandler(reportService)
 
-	_ = studentHandler
-	_ = hostelHandler
-	_ = allocationHandler
-	_ = attendanceHandler
-	_ = leaveHandler
-	_ = complaintHandler
-	_ = messHandler
-	_ = staffHandler
-	_ = notificationHandler
-	_ = reportHandler
-
 	// Canonical College Admin module routes group
 	collegeAdmin := router.Group("/admin")
 	{
@@ -65,6 +54,49 @@ func RegisterCollegeAdminRoutes(
 				"version": "1.0.0",
 			})
 		})
+
+		// Dashboard & Analytics
+		collegeAdmin.GET("/dashboard/summary", requireView, reportHandler.GetDashboardSummary)
+
+		// Student Management
+		collegeAdmin.GET("/students", requireView, studentHandler.ListStudents)
+		collegeAdmin.GET("/students/:id", requireView, studentHandler.GetStudentByID)
+		collegeAdmin.PATCH("/students/:id/status", requireManage, studentHandler.UpdateStudentStatus)
+		collegeAdmin.GET("/students/:id/parents", requireView, studentHandler.ListStudentParents)
+
+		// Hostel & Room Structure
+		collegeAdmin.GET("/hostels", requireView, hostelHandler.ListHostels)
+		collegeAdmin.GET("/hostels/:hostel_id/blocks", requireView, hostelHandler.ListBlocks)
+		collegeAdmin.GET("/blocks/:block_id/floors", requireView, hostelHandler.ListFloors)
+		collegeAdmin.GET("/floors/:floor_id/rooms", requireView, hostelHandler.ListRooms)
+		collegeAdmin.GET("/rooms/:room_id/beds", requireView, hostelHandler.ListBeds)
+
+		// Bed Allocations
+		collegeAdmin.GET("/allocations", requireView, allocationHandler.ListBedAllocations)
+		collegeAdmin.GET("/allocations/student/:student_id", requireView, allocationHandler.GetCurrentAllocation)
+
+		// Curfew & Attendance
+		collegeAdmin.GET("/attendance", requireView, attendanceHandler.ListStudentAttendance)
+		collegeAdmin.GET("/attendance/summary", requireView, attendanceHandler.GetAttendanceSummary)
+
+		// Leave Requests
+		collegeAdmin.GET("/leaves", requireView, leaveHandler.ListLeaveRequests)
+		collegeAdmin.GET("/leaves/summary", requireView, leaveHandler.GetLeaveSummary)
+
+		// Complaints & Maintenance
+		collegeAdmin.GET("/complaints", requireView, complaintHandler.ListComplaints)
+		collegeAdmin.GET("/complaints/summary", requireView, complaintHandler.GetComplaintSummary)
+
+		// Mess & Dining
+		collegeAdmin.GET("/hostels/:hostel_id/mess/timings", requireView, messHandler.ListMealTimings)
+		collegeAdmin.GET("/hostels/:hostel_id/mess/menus", requireView, messHandler.ListMealMenus)
+
+		// Staff & Gate Assignments
+		collegeAdmin.GET("/staff", requireView, staffHandler.ListStaff)
+		collegeAdmin.GET("/gates", requireView, staffHandler.ListGates)
+		collegeAdmin.GET("/security-assignments", requireView, staffHandler.ListSecurityAssignments)
+
+		// Announcements & Notifications
+		collegeAdmin.GET("/notifications", requireView, notificationHandler.ListNotifications)
 	}
 }
-

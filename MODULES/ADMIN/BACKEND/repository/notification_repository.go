@@ -40,3 +40,4 @@ func (r *Repository) ListNotifications(ctx context.Context, collegeID uuid.UUID)
 	}
 	return notifications, nil
 }
+
