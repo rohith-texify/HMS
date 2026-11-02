@@ -112,3 +112,4 @@ type ReportService struct {
 func NewReportService(db *database.Database, repo *repository.Repository) *ReportService {
 	return &ReportService{repo: repo}
 }
+

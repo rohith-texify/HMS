@@ -74,3 +74,4 @@ func (r *Repository) GetDB(ctx context.Context) (DBTX, error) {
 	}
 	return nil, ErrCollegePoolNotConfigured
 }
+

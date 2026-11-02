@@ -41,3 +41,4 @@ adminroutes.RegisterCollegeAdminRoutes(
 - **Mandatory Scope:** `COLLEGE`
 - **Tenant Context:** Derived automatically from JWT claims (`membership.college_id`).
 - **Database Connection:** Uses `db.CollegePool` with Row-Level Security (RLS) enforcement.
+

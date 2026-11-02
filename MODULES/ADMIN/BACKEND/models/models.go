@@ -306,3 +306,4 @@ type Notification struct {
 	TargetAudience string    `json:"target_audience" db:"target_audience"`
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 }
+

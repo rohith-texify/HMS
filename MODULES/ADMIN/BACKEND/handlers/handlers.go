@@ -147,3 +147,4 @@ func ExtractTenantID(c *gin.Context) (uuid.UUID, bool) {
 	}
 	return uuid.Nil, false
 }
+

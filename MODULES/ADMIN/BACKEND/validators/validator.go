@@ -27,3 +27,4 @@ func ValidateRequiredString(val, fieldName string) error {
 	}
 	return nil
 }
+
