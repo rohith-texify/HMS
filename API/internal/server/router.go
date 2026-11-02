@@ -152,6 +152,8 @@ func NewRouter(
 	authRoutes := router.Group("/auth")
 	{
 		authRoutes.POST("/login", authHandler.Login)
+		authRoutes.GET("/colleges", authHandler.ListColleges)
+		authRoutes.GET("/college-branding", authHandler.GetCollegeBranding)
 	}
 
 	geoPool := db.GetPlatformPool()

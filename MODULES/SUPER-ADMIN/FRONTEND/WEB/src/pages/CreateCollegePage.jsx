@@ -21,6 +21,10 @@ import {
 } from '../constants/indiaLocations';
 import {
   Building2,
+  Upload,
+  Trash2,
+  Link2,
+  Image as ImageIcon,
   Sparkles,
   MapPin,
   Rocket,
@@ -87,6 +91,26 @@ export default function CreateCollegePage() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState(null);
   const [successCollege, setSuccessCollege] = useState(null);
+  const [logoInputMode, setLogoInputMode] = useState('upload'); // 'upload' or 'url'
+  const fileInputRef = useRef(null);
+
+  const handleLogoFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setServerError('Please upload a valid image file (PNG, JPG, SVG, WebP)');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setServerError('Logo file size must be less than 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFormData((prev) => ({ ...prev, logo_url: String(reader.result || '') }));
+      setServerError(null);
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Dynamic geo option lists with immediate canonical baseline
   const [districts, setDistricts] = useState(() => getCanonicalDistricts());
@@ -562,6 +586,7 @@ export default function CreateCollegePage() {
         id: effectiveCollegeId,
         college_code: createdCollege.college_code || payload.college_code,
         name: createdCollege.name || payload.name,
+        logo_url: createdCollege?.logo_url || payload.logo_url,
         created_admin_email: effectiveAdminEmail,
         created_password: formData.password,
         location_summary: locationHierarchyDisplay,
@@ -957,6 +982,116 @@ export default function CreateCollegePage() {
                         <span>{errors.name}</span>
                       </span>
                     )}
+                  </div>
+
+                  {/* College Logo Field */}
+                  <div className="create-field-group" style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                      <label className="create-field-label" style={{ marginBottom: 0 }}>
+                        <span>College Logo <span className="label-hint" style={{ fontWeight: 400 }}>(Visible on College Admin Portal)</span></span>
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.78rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => setLogoInputMode('upload')}
+                          className={`btn-sm ${logoInputMode === 'upload' ? 'btn-primary-blue' : 'btn-secondary'}`}
+                          style={{ padding: '3px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                        >
+                          <Upload size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                          Upload File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setLogoInputMode('url')}
+                          className={`btn-sm ${logoInputMode === 'url' ? 'btn-primary-blue' : 'btn-secondary'}`}
+                          style={{ padding: '3px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid var(--border-color)' }}
+                        >
+                          <Link2 size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                          Image URL
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {formData.logo_url ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', width: '100%' }}>
+                          <img
+                            src={formData.logo_url}
+                            alt="College Logo Preview"
+                            style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '6px', background: '#fff', border: '1px solid #cbd5e1', padding: '2px' }}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                          />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>College Logo Attached</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>This logo will appear on the College Admin sign-in screen and dashboard navigation.</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFormData((prev) => ({ ...prev, logo_url: '' }));
+                              if (fileInputRef.current) fileInputRef.current.value = '';
+                            }}
+                            className="btn-danger-ghost btn-sm"
+                            style={{ padding: '4px 8px', cursor: 'pointer' }}
+                            title="Remove logo"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      ) : logoInputMode === 'upload' ? (
+                        <div
+                          onClick={() => fileInputRef.current?.click()}
+                          style={{
+                            flex: 1,
+                            minWidth: '240px',
+                            border: '2px dashed #cbd5e1',
+                            borderRadius: '8px',
+                            padding: '16px',
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            background: '#f8fafc',
+                            transition: 'all 0.2s',
+                          }}
+                          onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = '#3b82f6'; }}
+                          onDragLeave={(e) => { e.currentTarget.style.borderColor = '#cbd5e1'; }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            e.currentTarget.style.borderColor = '#cbd5e1';
+                            const file = e.dataTransfer.files?.[0];
+                            if (file) handleLogoFile(file);
+                          }}
+                        >
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleLogoFile(file);
+                            }}
+                          />
+                          <Upload size={20} style={{ color: '#64748b', marginBottom: '4px' }} />
+                          <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Click to upload college logo (PNG, JPG, SVG, WebP)
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                            Recommended transparent PNG or SVG, max 2MB
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ flex: 1, minWidth: '240px' }}>
+                          <input
+                            type="url"
+                            name="logo_url"
+                            className="create-input"
+                            placeholder="https://example.edu/assets/logo.png"
+                            value={formData.logo_url}
+                            onChange={(e) => setFormData((prev) => ({ ...prev, logo_url: e.target.value }))}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

@@ -423,3 +423,17 @@ func (s *Service) checkCollegeApplicationAccess(
 
 	return nil
 }
+
+func (s *Service) ListPublicColleges(ctx context.Context) ([]repository.PublicCollegeBranding, error) {
+	if s.repository == nil {
+		return nil, apierrors.New(apierrors.InternalError, "repository unavailable")
+	}
+	return s.repository.ListPublicColleges(ctx)
+}
+
+func (s *Service) GetPublicCollegeBranding(ctx context.Context, identifier string) (*repository.PublicCollegeBranding, error) {
+	if s.repository == nil {
+		return nil, apierrors.New(apierrors.InternalError, "repository unavailable")
+	}
+	return s.repository.GetPublicCollegeBranding(ctx, identifier)
+}

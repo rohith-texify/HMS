@@ -364,8 +364,8 @@ body {
 }
 
 .sidebar-brand-badge {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   background-color: #2563eb;
   color: #ffffff;
@@ -373,6 +373,15 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.sidebar-brand-college-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+  background-color: #ffffff;
 }
 
 .sidebar-brand-info {

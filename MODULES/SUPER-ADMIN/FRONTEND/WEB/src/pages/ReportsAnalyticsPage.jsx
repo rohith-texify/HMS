@@ -126,6 +126,7 @@ export default function ReportsAnalyticsPage() {
 
   useEffect(() => {
     loadAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, securityDays]);
 
   const handleExportCsv = async () => {

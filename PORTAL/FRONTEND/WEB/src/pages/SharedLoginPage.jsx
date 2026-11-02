@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP, portalAuthService } from '../shared/auth/portalAuthService';
 import {
   Shield,
   Mail,
@@ -27,6 +27,48 @@ export default function SharedLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [colleges, setColleges] = useState([]);
+  const [selectedCollege, setSelectedCollege] = useState(null);
+
+  useEffect(() => {
+    portalAuthService.listPublicColleges().then((data) => {
+      if (Array.isArray(data) && data.length > 0) {
+        setColleges(data);
+        const queryParams = new URLSearchParams(location.search);
+        const colParam = queryParams.get('college');
+        if (colParam) {
+          const match = data.find(
+            (c) =>
+              c.college_code?.toLowerCase() === colParam.toLowerCase() ||
+              c.college_id === colParam
+          );
+          if (match) setSelectedCollege(match);
+        }
+      }
+    });
+  }, [location.search]);
+
+  const handleEmailChange = (e) => {
+    const val = e.target.value;
+    setEmail(val);
+
+    if (val.includes('@') || val.length >= 3) {
+      const match = colleges.find((c) => {
+        const code = c.college_code?.toLowerCase();
+        const valLower = val.toLowerCase();
+        return (
+          code &&
+          (valLower.startsWith(code + '.') ||
+            valLower.startsWith(code + '@') ||
+            valLower.includes('@' + code) ||
+            valLower.includes('.' + code + '.'))
+        );
+      });
+      if (match) {
+        setSelectedCollege(match);
+      }
+    }
+  };
 
   const { login, isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -98,23 +140,41 @@ export default function SharedLoginPage() {
         {/* Brand & Header Topbar */}
         <div className="portal-brand-block">
           <div className="portal-brand-identity">
-            <img
-              src="/texify-logo.png"
-              alt="Texify Technologies"
-              className="portal-brand-logo-img"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                if (e.currentTarget.nextSibling) {
-                  e.currentTarget.nextSibling.style.display = 'flex';
-                }
-              }}
-            />
+            {selectedCollege?.logo_url ? (
+              <img
+                src={selectedCollege.logo_url}
+                alt={selectedCollege.name}
+                className="portal-college-logo-img"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (e.currentTarget.nextSibling) {
+                    e.currentTarget.nextSibling.style.display = 'flex';
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src="/texify-logo.png"
+                alt="Texify Technologies"
+                className="portal-brand-logo-img"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  if (e.currentTarget.nextSibling) {
+                    e.currentTarget.nextSibling.style.display = 'flex';
+                  }
+                }}
+              />
+            )}
             <div className="portal-brand-fallback-logo" style={{ display: 'none' }}>
               <Building2 size={18} />
             </div>
             <div className="portal-brand-name-group">
-              <span className="portal-brand-main-title">Texify HMS</span>
-              <span className="portal-brand-caption">College Administration</span>
+              <span className="portal-brand-main-title">
+                {selectedCollege?.name || 'Texify HMS'}
+              </span>
+              <span className="portal-brand-caption">
+                {selectedCollege?.college_code ? `${selectedCollege.college_code} College Administration` : 'College Administration'}
+              </span>
             </div>
           </div>
 
@@ -126,9 +186,13 @@ export default function SharedLoginPage() {
 
         {/* Title Block */}
         <div className="portal-header-titles">
-          <h1 className="portal-title">College Admin Sign In</h1>
+          <h1 className="portal-title">
+            {selectedCollege?.name ? `${selectedCollege.name} Sign In` : 'College Admin Sign In'}
+          </h1>
           <p className="portal-subtitle">
-            Sign in with your College Administrator credentials to manage campus hostels, staff, students, and operational allocations.
+            {selectedCollege?.name
+              ? `Official Administrator portal for ${selectedCollege.name} (${selectedCollege.college_code}). Sign in with your assigned administrative credentials.`
+              : 'Sign in with your College Administrator credentials to manage campus hostels, staff, students, and operational allocations.'}
           </p>
         </div>
 
@@ -179,7 +243,7 @@ export default function SharedLoginPage() {
                 className="field-input"
                 placeholder="admin@college.edu"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={handleEmailChange}
                 disabled={loading}
                 autoComplete="username"
                 required

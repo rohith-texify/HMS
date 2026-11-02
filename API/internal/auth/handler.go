@@ -100,3 +100,36 @@ func (h *Handler) Login(c *gin.Context) {
 		nil,
 	)
 }
+
+
+func (h *Handler) ListColleges(c *gin.Context) {
+	colleges, err := h.service.ListPublicColleges(c.Request.Context())
+	if err != nil {
+		response.Error(c, apierrors.New(apierrors.InternalError, "failed to list colleges"))
+		return
+	}
+	response.JSON(c, http.StatusOK, gin.H{
+		"colleges": colleges,
+	}, nil)
+}
+
+func (h *Handler) GetCollegeBranding(c *gin.Context) {
+	identifier := c.Query("identifier")
+	if identifier == "" {
+		identifier = c.Query("college_code")
+	}
+	if identifier == "" {
+		response.Error(c, apierrors.New(apierrors.ValidationError, "identifier or college_code is required"))
+		return
+	}
+
+	branding, err := h.service.GetPublicCollegeBranding(c.Request.Context(), identifier)
+	if err != nil {
+		response.Error(c, apierrors.New(apierrors.NotFound, "college not found"))
+		return
+	}
+
+	response.JSON(c, http.StatusOK, gin.H{
+		"college": branding,
+	}, nil)
+}

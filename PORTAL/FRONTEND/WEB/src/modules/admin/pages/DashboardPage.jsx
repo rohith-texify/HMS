@@ -340,15 +340,35 @@ export default function AdminDashboardPage() {
     <div className="fade-in-up">
       {/* 1. Page Header & Operational Toolbar */}
       <div className="enterprise-hero-header">
-        <div className="hero-header-titles">
-          <div className="hero-category-pill">
-            <BarChart3 size={13} />
-            <span>Operational Telemetry</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+          {user?.college_logo_url && (
+            <img
+              src={user.college_logo_url}
+              alt={user.college_name || 'College Logo'}
+              style={{
+                width: '56px',
+                height: '56px',
+                objectFit: 'contain',
+                borderRadius: '12px',
+                background: '#ffffff',
+                padding: '4px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                flexShrink: 0,
+              }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+            />
+          )}
+          <div className="hero-header-titles">
+            <div className="hero-category-pill">
+              <BarChart3 size={13} />
+              <span>{user?.college_code ? `${user.college_code} • Operational Telemetry` : 'Operational Telemetry'}</span>
+            </div>
+            <h1 className="hero-main-title">{user?.college_name || 'College Admin Dashboard'}</h1>
+            <p className="hero-subtitle">
+              Live residential metrics, capacity utilization, student movement, and facility management.
+            </p>
           </div>
-          <h1 className="hero-main-title">College Admin Dashboard</h1>
-          <p className="hero-subtitle">
-            Live residential metrics, capacity utilization, student movement, and facility management.
-          </p>
         </div>
 
         <div className="hero-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>

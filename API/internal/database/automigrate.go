@@ -136,6 +136,7 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 
 		// Ensure high-performance indexes across all modules (platform + app)
 		_, _ = pool.Exec(seedCtx, `
+			ALTER TABLE platform.colleges ADD COLUMN IF NOT EXISTS logo_url TEXT;
 			CREATE INDEX IF NOT EXISTS idx_colleges_status ON platform.colleges (status);
 			CREATE INDEX IF NOT EXISTS idx_colleges_created_at ON platform.colleges (created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_college_modules_college ON platform.college_modules (college_id, status);

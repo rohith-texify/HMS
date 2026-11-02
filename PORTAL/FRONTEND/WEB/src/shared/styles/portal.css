@@ -101,6 +101,19 @@
   display: block;
 }
 
+.portal-college-logo-img {
+  height: 38px;
+  width: 38px;
+  max-width: 48px;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 2px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
 .portal-brand-fallback-logo {
   width: 34px;
   height: 34px;
