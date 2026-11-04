@@ -1,4 +1,1 @@
-import { createContext } from 'react';
-
-export const AuthContext = createContext(null);
-export default AuthContext;
+export { AuthContext, default } from './AuthContext.jsx';

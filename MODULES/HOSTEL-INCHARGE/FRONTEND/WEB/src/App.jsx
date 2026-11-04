@@ -1,11 +1,14 @@
 import React from 'react';
 import { AuthProvider } from './hooks/AuthProvider';
 import AppRoutes from './routes/AppRoutes';
+import ErrorBoundary from './app/ErrorBoundary';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
