@@ -406,6 +406,21 @@ a {
   min-width: 0;
 }
 
+.profile-access-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+}
+
+.profile-access-grid .portal-state {
+  min-width: 0;
+  align-self: stretch;
+}
+
+.profile-access-return {
+  margin-top: 20px;
+}
+
 .route-loading,
 .access-boundary,
 .standalone-page {
