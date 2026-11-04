@@ -8,6 +8,7 @@ const LoginPage = lazy(() => import('../pages/LoginPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
 const StudentDetailPage = lazy(() => import('../pages/StudentDetailPage'));
 const LeavesPage = lazy(() => import('../pages/LeavesPage'));
+const UpdatesPage = lazy(() => import('../pages/UpdatesPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 function RouteLoadingFallback() {
@@ -29,6 +30,7 @@ export default function AppRoutes() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/students/:studentId" element={<StudentDetailPage />} />
             <Route path="/leaves" element={<LeavesPage />} />
+            <Route path="/updates" element={<UpdatesPage />} />
           </Route>
         </Route>
 

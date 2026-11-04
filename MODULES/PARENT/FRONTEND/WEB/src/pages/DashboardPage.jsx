@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../services/api';
 import PortalState from '../components/PortalState';
 import useAuth from '../hooks/useAuth';
@@ -164,6 +165,11 @@ export default function DashboardPage() {
             })}
           </ul>
         )}
+        <div className="updates-page-link">
+          <Link to="/updates" className="btn btn-secondary">
+            View all notifications and announcements
+          </Link>
+        </div>
       </section>
 
       <section className="dashboard-section" aria-labelledby="unavailable-heading">

@@ -92,6 +92,12 @@ export default function AppLayout() {
             >
               Overview
             </NavLink>
+            <NavLink
+              to="/updates"
+              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+            >
+              Visitors, parcels &amp; notifications
+            </NavLink>
           </nav>
           <p className="sidebar-notice">
             Ward and leave information is unavailable until parent-specific access is verified.
