@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	apierrors "github.com/yourusername/hostel-management-system/API/pkg/errors"
-	"github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/models"
 )
 
 // GetDashboardSummary aggregates high level metrics for the College Admin dashboard.
@@ -38,4 +37,3 @@ func (s *ReportService) GetDashboardSummary(ctx context.Context, collegeID uuid.
 		"open_complaints":    openComplaints,
 	}, nil
 }
-

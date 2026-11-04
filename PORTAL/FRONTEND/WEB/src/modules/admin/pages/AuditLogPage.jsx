@@ -23,11 +23,10 @@ import {
   Lock,
   Tag,
   Sparkles,
+  Layers,
+  ArrowRight,
 } from 'lucide-react';
 import {
-  PageHeader,
-  DataTable,
-  SearchInput,
   LoadingState,
   EmptyState,
   Modal,
@@ -257,168 +256,119 @@ export default function AdminAuditLogPage() {
     }
   };
 
-  const getModuleBadgeColor = (mod) => {
+  const getModuleBadgeClass = (mod) => {
     switch (mod) {
       case 'HOSTEL':
-        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300';
+        return 'badge-blue';
       case 'REQUESTS':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300';
+        return 'badge-green';
       case 'SUPPORT':
-        return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300';
+        return 'badge-amber';
       case 'COMMUNICATION':
-        return 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300';
+        return 'badge-purple';
       case 'PEOPLE':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300';
+        return 'badge-blue';
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300';
+        return 'badge-blue';
     }
   };
 
-  const getStatusBadgeColor = (st) => {
+  const getStatusBadgeClass = (st) => {
     switch (st) {
       case 'ALLOCATED':
       case 'ACTIVE':
       case 'APPROVED':
       case 'RESOLVED':
       case 'SENT':
-        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300';
+        return 'badge-green';
       case 'PENDING':
       case 'IN_PROGRESS':
       case 'OPEN':
-        return 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300';
+        return 'badge-amber';
       case 'REJECTED':
       case 'CANCELLED':
-        return 'bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300';
+        return 'badge-enterprise';
       default:
-        return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+        return 'badge-enterprise';
     }
   };
 
-  // Table Columns
-  const columns = [
-    {
-      key: 'timestamp',
-      title: 'Event Timestamp',
-      render: (row) => (
-        <div className="flex items-center gap-2 whitespace-nowrap">
-          <Clock className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-xs text-slate-600 dark:text-slate-400">
-            {row.timestamp ? new Date(row.timestamp).toLocaleString() : '—'}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'module',
-      title: 'Domain Module',
-      render: (row) => (
-        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${getModuleBadgeColor(row.module)}`}>
-          {row.module}
-        </span>
-      ),
-    },
-    {
-      key: 'action',
-      title: 'Action Performed',
-      render: (row) => (
-        <span className="font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
-          {row.action}
-        </span>
-      ),
-    },
-    {
-      key: 'summary',
-      title: 'Activity Description',
-      render: (row) => (
-        <div className="max-w-md">
-          <p className="text-xs font-medium text-slate-900 dark:text-slate-100 line-clamp-1">
-            {row.summary}
-          </p>
-        </div>
-      ),
-    },
-    {
-      key: 'actor_role',
-      title: 'Actor Role',
-      render: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-          {row.actor_role}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      title: 'Outcome',
-      render: (row) => (
-        <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${getStatusBadgeColor(row.status)}`}>
-          {row.status}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Details',
-      render: (row) => (
-        <button
-          onClick={() => {
-            setSelectedEvent(row);
-            setDetailsModalOpen(true);
-          }}
-          className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          title="Inspect audit event"
-        >
-          <Eye className="w-4 h-4" />
-        </button>
-      ),
-    },
-  ];
+  const isFiltered = searchTerm || moduleFilter !== 'ALL' || statusFilter !== 'ALL';
 
   if (loading && activities.length === 0) {
-    return <LoadingState message="Aggregating operational audit records..." />;
+    return (
+      <div className="fade-in-up" style={{ padding: '32px' }}>
+        <LoadingState message="Aggregating operational audit records..." />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <PageHeader
-        title="Operational Audit & Activity Ledger"
-        subtitle="Review read-only operational activity streams, administrative decisions, and residential compliance events."
-        icon={FileText}
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => {
-                setIsRefreshing(true);
-                loadActivities();
-              }}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-750 transition"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-
-            <button
-              onClick={handleExportAuditCSV}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition shadow-sm"
-            >
-              <Download className="w-4 h-4" />
-              Export Audit Log
-            </button>
+    <div className="fade-in-up">
+      {/* Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <FileText size={13} />
+            <span>Administration &amp; Governance</span>
           </div>
-        }
-      />
+          <h1 className="hero-main-title">Audit &amp; Activity Log</h1>
+          <p className="hero-subtitle">
+            Review read-only operational activity streams, administrative decisions, and residential compliance events.
+          </p>
+        </div>
 
-      {/* Export Banner */}
+        <div className="hero-action-buttons">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRefreshing(true);
+              loadActivities();
+            }}
+            disabled={isRefreshing}
+            className="btn-enterprise-secondary"
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Data'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportAuditCSV}
+            className="btn-enterprise-primary"
+            title="Download audit records as CSV"
+          >
+            <Download size={14} />
+            <span>Export Audit Log</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Export Success Banner */}
       {exportSuccessBanner && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-sm font-medium">{exportSuccessBanner}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} style={{ color: '#10b981' }} />
+            <span>{exportSuccessBanner}</span>
           </div>
           <button
+            type="button"
             onClick={() => setExportSuccessBanner(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
           >
             Dismiss
           </button>
@@ -427,219 +377,375 @@ export default function AdminAuditLogPage() {
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-            <span className="text-sm font-medium">{errorMessage}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+            <span>{errorMessage}</span>
           </div>
           <button
+            type="button"
             onClick={() => setErrorMessage(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
           >
             Dismiss
           </button>
         </div>
       )}
 
-      {/* KPI Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-lg">
-            <FileText className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {activities.length}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Aggregated Audit Events
+      {/* KPI Stat Cards Grid */}
+      <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Ledger Events</span>
+            <div className="stat-kpi-icon-wrap blue">
+              <FileText size={17} />
             </div>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-lg">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white">
-              Verified Immutable
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Database Integrity State
-            </div>
+          <div className="stat-kpi-value text-blue-600">{activities.length}</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot green" />
+            <span>Tenant operational actions recorded</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-lg">
-            <Clock className="w-6 h-6" />
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Ledger Integrity</span>
+            <div className="stat-kpi-icon-wrap emerald">
+              <ShieldCheck size={17} />
+            </div>
           </div>
-          <div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white">
-              Real-time Ledger
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Event Logging Cadence
-            </div>
+          <div className="stat-kpi-value text-emerald-600">Verified</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot green" />
+            <span>Append-only immutable event stream</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-lg">
-            <Lock className="w-6 h-6" />
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Logging Cadence</span>
+            <div className="stat-kpi-icon-wrap amber">
+              <Clock size={17} />
+            </div>
           </div>
-          <div>
-            <div className="text-sm font-bold text-slate-900 dark:text-white">
-              Tenant Isolated
+          <div className="stat-kpi-value text-amber-600">Real-time</div>
+          <div className="stat-kpi-footnote">
+            <span>Synchronous transaction events</span>
+          </div>
+        </div>
+
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Tenancy Scope</span>
+            <div className="stat-kpi-icon-wrap purple">
+              <Lock size={17} />
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Compliance Scope Boundary
-            </div>
+          </div>
+          <div className="stat-kpi-value text-purple-600">Isolated</div>
+          <div className="stat-kpi-footnote">
+            <span>College {user?.college_id ? `${user.college_id.slice(0, 8)}...` : 'Partition'} boundary</span>
           </div>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex-1 min-w-[240px] max-w-md">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search audit action, summary, or ID..."
-          />
+      {/* Main Activity Table Card */}
+      <div className="enterprise-card" style={{ padding: '24px' }}>
+        <div className="card-topbar">
+          <div className="card-title-group">
+            <div className="card-title-icon-wrap">
+              <FileText size={16} />
+            </div>
+            <div>
+              <h2 className="card-title-text" style={{ margin: 0 }}>Operational Activity Ledger</h2>
+              <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                Showing {filteredActivities.length} of {activities.length} recorded administrative &amp; operational actions.
+              </p>
+            </div>
+          </div>
+          <span className="badge-enterprise badge-blue">
+            {filteredActivities.length} Events Listed
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={moduleFilter}
-            onChange={(e) => setModuleFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-          >
-            <option value="ALL">All Domain Modules</option>
-            <option value="HOSTEL">Hostel Management</option>
-            <option value="REQUESTS">Leaves & Outpass</option>
-            <option value="SUPPORT">Complaints & Grievances</option>
-            <option value="COMMUNICATION">Broadcast Notices</option>
-            <option value="PEOPLE">Students & Admissions</option>
-          </select>
+        {/* Filter Toolbar */}
+        <div className="enterprise-filter-bar" style={{ marginBottom: '18px' }}>
+          <div className="filter-search-field" style={{ flex: '1 1 320px', maxWidth: '420px' }}>
+            <Search size={14} className="filter-search-icon" />
+            <input
+              type="text"
+              className="filter-search-input"
+              placeholder="Search audit action, summary, or ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{ position: 'absolute', right: '8px', border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
 
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-          >
-            <option value="ALL">All Outcomes</option>
-            <option value="ALLOCATED">Allocated</option>
-            <option value="ACTIVE">Active</option>
-            <option value="APPROVED">Approved</option>
-            <option value="PENDING">Pending</option>
-            <option value="OPEN">Open</option>
-            <option value="RESOLVED">Resolved</option>
-          </select>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <select
+              value={moduleFilter}
+              onChange={(e) => setModuleFilter(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                fontSize: '0.82rem',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                background: '#ffffff',
+                color: '#334155',
+                outline: 'none',
+                fontWeight: 500,
+              }}
+            >
+              <option value="ALL">All Domain Modules</option>
+              <option value="HOSTEL">Hostel Management</option>
+              <option value="REQUESTS">Leaves &amp; Outpass</option>
+              <option value="SUPPORT">Complaints &amp; Grievances</option>
+              <option value="COMMUNICATION">Broadcast Notices</option>
+              <option value="PEOPLE">Students &amp; Admissions</option>
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              style={{
+                padding: '7px 12px',
+                fontSize: '0.82rem',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                background: '#ffffff',
+                color: '#334155',
+                outline: 'none',
+                fontWeight: 500,
+              }}
+            >
+              <option value="ALL">All Outcome Statuses</option>
+              <option value="ALLOCATED">Allocated</option>
+              <option value="ACTIVE">Active</option>
+              <option value="APPROVED">Approved</option>
+              <option value="PENDING">Pending</option>
+              <option value="OPEN">Open</option>
+              <option value="RESOLVED">Resolved</option>
+              <option value="SENT">Sent</option>
+            </select>
+
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setModuleFilter('ALL');
+                  setStatusFilter('ALL');
+                }}
+                className="btn-enterprise-secondary"
+                style={{ fontSize: '0.78rem', padding: '6px 12px' }}
+              >
+                <X size={12} />
+                <span>Reset</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Audit Log Table */}
-      <DataTable
-        columns={columns}
-        data={filteredActivities}
-        loading={isRefreshing}
-        emptyMessage={
+        {/* Audit Log Table */}
+        {filteredActivities.length === 0 ? (
           <EmptyState
             icon={FileText}
             title="No Activity Logs Found"
             message="No operational events match your filter parameters."
           />
-        }
-      />
+        ) : (
+          <div className="enterprise-table-container">
+            <table className="enterprise-table">
+              <thead>
+                <tr>
+                  <th>Event Timestamp</th>
+                  <th>Domain Module</th>
+                  <th>Action Performed</th>
+                  <th>Activity Description</th>
+                  <th>Actor Role</th>
+                  <th>Outcome</th>
+                  <th style={{ textAlign: 'right' }}>Inspect</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredActivities.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', fontSize: '0.78rem', color: '#64748b' }}>
+                        <Clock size={13} style={{ color: '#94a3b8' }} />
+                        <span>{row.timestamp ? new Date(row.timestamp).toLocaleString() : '—'}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className={`badge-enterprise ${getModuleBadgeClass(row.module)}`}>
+                        {row.module}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.76rem', fontWeight: 700, color: '#1e293b' }}>
+                        {row.action}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ maxWidth: '380px' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 500, color: '#0f172a', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {row.summary}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600 }}>
+                        {row.actor_role}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`badge-enterprise ${getStatusBadgeClass(row.status)}`}>
+                        {row.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedEvent(row);
+                          setDetailsModalOpen(true);
+                        }}
+                        className="btn-enterprise-secondary"
+                        style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                        title="Inspect event details"
+                      >
+                        <Eye size={13} />
+                        <span>View</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {/* Architectural Compliance Notice */}
-      <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700 flex items-start gap-3">
-        <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-        <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
-            Audit Boundary Architecture:{' '}
-          </span>
-          Centralized regulatory audit trails are written to <code className="font-mono text-[11px]">platform.audit_logs</code> with
-          cryptographic tamper-evidence for SuperAdmin platform governance. This institutional ledger surfaces
-          tenant-scoped operational events (student admissions, room assignments, leave clearances, work order changes)
-          in strict read-only compliance with tenant isolation rules.
+        {/* Architectural Compliance Notice */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            padding: '14px 16px',
+            borderRadius: '10px',
+            background: '#f8fafc',
+            border: '1px solid var(--border-color)',
+            marginTop: '20px',
+          }}
+        >
+          <Info size={16} style={{ color: '#4f46e5', flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+            <strong style={{ color: '#0f172a' }}>Audit Boundary Architecture: </strong>
+            Centralized regulatory audit trails are written to <code style={{ fontFamily: 'monospace', fontSize: '0.74rem', background: '#e2e8f0', padding: '1px 5px', borderRadius: '4px' }}>platform.audit_logs</code> with
+            cryptographic tamper-evidence for SuperAdmin platform governance. This institutional ledger surfaces
+            tenant-scoped operational events (student admissions, room assignments, leave clearances, work order changes)
+            in strict read-only compliance with tenant isolation rules.
+          </div>
         </div>
       </div>
 
-      {/* MODAL: EVENT DETAILS */}
+      {/* ===================================================================== */}
+      {/* MODAL: EVENT DETAILS                                                  */}
+      {/* ===================================================================== */}
       {detailsModalOpen && selectedEvent && (
         <Modal
           isOpen={detailsModalOpen}
           onClose={() => setDetailsModalOpen(false)}
           title="Operational Audit Event Details"
         >
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${getModuleBadgeColor(selectedEvent.module)}`}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span className={`badge-enterprise ${getModuleBadgeClass(selectedEvent.module)}`}>
                 {selectedEvent.module}
               </span>
-              <span className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
                 {selectedEvent.action}
               </span>
-              <span className={`ml-auto px-2 py-0.5 rounded text-xs font-semibold ${getStatusBadgeColor(selectedEvent.status)}`}>
+              <span className={`badge-enterprise ${getStatusBadgeClass(selectedEvent.status)}`} style={{ marginLeft: 'auto' }}>
                 {selectedEvent.status}
               </span>
             </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700">
-              <div className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '14px' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '4px' }}>
                 Event Description
               </div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-relaxed">
+              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#0f172a', lineHeight: 1.4 }}>
                 {selectedEvent.summary}
-              </p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-slate-500 block">Event Identifier:</span>
-                <span className="font-mono font-semibold text-slate-800 dark:text-slate-200 break-all">
-                  {selectedEvent.id}
-                </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Entity Type:</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{selectedEvent.entity_type}</span>
               </div>
-              <div>
-                <span className="text-slate-500 block">Timestamp:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Entity ID:</span>
+                <span style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: '#2563eb' }}>{selectedEvent.entity_id}</span>
+              </div>
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Actor Role:</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{selectedEvent.actor_role}</span>
+              </div>
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '10px 12px' }}>
+                <span style={{ fontSize: '0.72rem', color: '#64748b', display: 'block' }}>Recorded Timestamp:</span>
+                <span style={{ fontSize: '0.82rem', color: '#0f172a' }}>
                   {selectedEvent.timestamp ? new Date(selectedEvent.timestamp).toLocaleString() : '—'}
                 </span>
               </div>
-              <div>
-                <span className="text-slate-500 block">Actor Authority:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
-                  {selectedEvent.actor_role}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Entity Type & ID:</span>
-                <span className="font-mono text-slate-800 dark:text-slate-200 break-all">
-                  {selectedEvent.entity_type} ({selectedEvent.entity_id})
-                </span>
-              </div>
             </div>
 
-            {selectedEvent.details && (
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                <span className="text-xs text-slate-500 font-semibold block mb-1">
-                  Structured Payload Metadata:
-                </span>
-                <pre className="text-xs font-mono p-3 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-x-auto text-slate-800 dark:text-slate-200 max-h-40">
-                  {JSON.stringify(selectedEvent.details, null, 2)}
-                </pre>
+            {selectedEvent.details && Object.keys(selectedEvent.details).length > 0 && (
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '14px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '8px' }}>
+                  Payload Attributes
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                  {Object.entries(selectedEvent.details).map(([k, v]) => (
+                    <div key={k} style={{ fontSize: '0.78rem' }}>
+                      <span style={{ color: '#64748b', textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}: </span>
+                      <strong style={{ color: '#0f172a' }}>{v ? String(v) : '—'}</strong>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
-            <div className="flex justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px' }}>
               <button
                 type="button"
                 onClick={() => setDetailsModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
+                className="btn-enterprise-primary"
+                style={{ padding: '8px 18px', fontSize: '0.84rem' }}
               >
                 Close
               </button>

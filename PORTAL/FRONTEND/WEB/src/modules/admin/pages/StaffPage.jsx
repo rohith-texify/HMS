@@ -4,15 +4,19 @@ import adminService from '../services/adminService';
 import { useAuth } from '../../../shared/auth/useAuth';
 import {
   Users,
+  LayoutGrid,
+  List,
   Search,
   RefreshCw,
   Phone,
   Mail,
   UserCheck,
   Plus,
+  UserPlus,
   Edit2,
   Trash2,
   Eye,
+  EyeOff,
   ShieldCheck,
   ShieldAlert,
   UserX,
@@ -52,6 +56,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
 
   // Active Tab: 'staff', 'incharges', 'security', 'passwords'
   const activeTab = searchParams.get('tab') || defaultTab || 'staff';
+  const [displayMode, setDisplayMode] = useState('CARDS');
 
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
@@ -97,19 +102,25 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
 
   // Staff Form
   const [staffFormData, setStaffFormData] = useState({
-    user_id: '',
     employee_number: '',
     first_name: '',
     middle_name: '',
     last_name: '',
-    designation: '',
+    designation: 'Hostel In-Charge',
+    role_code: 'HOSTEL_INCHARGE',
+    hostel_id: '',
     department_id: '',
     phone: '',
     alternate_phone: '',
     email: '',
+    password: '',
+    confirm_password: '',
     joining_date: '',
     employment_status: 'ACTIVE',
   });
+  const [showStaffPassword, setShowStaffPassword] = useState(false);
+  const [showStaffConfirmPassword, setShowStaffConfirmPassword] = useState(false);
+  const [showAdvancedStaffFields, setShowAdvancedStaffFields] = useState(false);
   const [newStaffStatus, setNewStaffStatus] = useState('ACTIVE');
   const [staffSubmitting, setStaffSubmitting] = useState(false);
   const [staffFormError, setStaffFormError] = useState(null);
@@ -157,6 +168,30 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
   });
   const [securitySubmitting, setSecuritySubmitting] = useState(false);
   const [securityFormError, setSecurityFormError] = useState(null);
+
+  // Security Personnel Enrollment State
+  const [enrollSecurityOpen, setEnrollSecurityOpen] = useState(false);
+  const [securityEnrollSubmitting, setSecurityEnrollSubmitting] = useState(false);
+  const [securityEnrollError, setSecurityEnrollError] = useState(null);
+  const [showSecurityPassword, setShowSecurityPassword] = useState(false);
+  const [showSecurityConfirmPassword, setShowSecurityConfirmPassword] = useState(false);
+  const [securityEnrollFormData, setSecurityEnrollFormData] = useState({
+    name: '',
+    first_name: '',
+    middle_name: '',
+    last_name: '',
+    employee_number: '',
+    designation: 'Security Officer',
+    role_code: 'SECURITY',
+    gate_id: '',
+    phone: '',
+    alternate_phone: '',
+    email: '',
+    password: '',
+    confirm_password: '',
+    joining_date: new Date().toISOString().split('T')[0],
+    employment_status: 'ACTIVE',
+  });
 
   // =========================================================================
   // TAB 4: Password & Account Management State
@@ -375,63 +410,94 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
   // Staff Handlers: Create, Edit, Status
   // =========================================================================
   const handleOpenCreateStaff = () => {
-    // Generate pseudo-UUID if user wants to link to existing or new user
-    const autoUUID = crypto.randomUUID ? crypto.randomUUID() : '10000000-0000-4000-8000-000000000001';
     setStaffFormData({
-      user_id: autoUUID,
       employee_number: `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+      name: '',
       first_name: '',
       middle_name: '',
       last_name: '',
-      designation: 'Hostel Warden',
+      designation: 'Hostel In-Charge',
+      role_code: 'HOSTEL_INCHARGE',
+      hostel_id: hostelsList.length > 0 ? (hostelsList[0].id || hostelsList[0].hostel_id) : '',
       department_id: '',
       phone: '',
       alternate_phone: '',
       email: '',
+      password: '',
+      confirm_password: '',
       joining_date: new Date().toISOString().split('T')[0],
       employment_status: 'ACTIVE',
     });
+    setShowStaffPassword(false);
+    setShowStaffConfirmPassword(false);
+    setShowAdvancedStaffFields(false);
     setStaffFormError(null);
     setCreateStaffOpen(true);
   };
 
   const handleCreateStaffSubmit = async (e) => {
     e.preventDefault();
-    if (!staffFormData.first_name.trim()) {
-      setStaffFormError('First Name is strictly required.');
+    const fullName = (staffFormData.name || staffFormData.first_name || '').trim();
+    if (!fullName) {
+      setStaffFormError('Staff member name is required.');
       return;
     }
-    if (!staffFormData.user_id.trim()) {
-      setStaffFormError('User Account ID (UUID) is required to associate credentials.');
+    if (!staffFormData.email.trim()) {
+      setStaffFormError('College Email Address is required.');
       return;
     }
+    if (!staffFormData.phone.trim()) {
+      setStaffFormError('Mobile Number is required.');
+      return;
+    }
+    if (!staffFormData.password) {
+      setStaffFormError('Password is required for staff account creation.');
+      return;
+    }
+    if (staffFormData.password.length < 8) {
+      setStaffFormError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (staffFormData.password !== staffFormData.confirm_password) {
+      setStaffFormError('Type Password and Retype Password do not match.');
+      return;
+    }
+
+
 
     setStaffSubmitting(true);
     setStaffFormError(null);
 
     try {
+      const nameParts = fullName.split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || (staffFormData.last_name || '');
+
       const payload = {
-        user_id: staffFormData.user_id.trim(),
-        employee_number: staffFormData.employee_number.trim(),
-        first_name: staffFormData.first_name.trim(),
-        middle_name: staffFormData.middle_name.trim(),
-        last_name: staffFormData.last_name.trim(),
-        designation: staffFormData.designation.trim(),
-        department_id: staffFormData.department_id.trim() || undefined,
+        employee_number: staffFormData.employee_number?.trim() || `EMP-${Math.floor(1000 + Math.random() * 9000)}`,
+        first_name: firstName,
+        middle_name: staffFormData.middle_name?.trim() || '',
+        last_name: lastName,
+        designation: staffFormData.designation?.trim() || 'Hostel In-Charge',
+        role_code: 'HOSTEL_INCHARGE',
+        hostel_id: undefined,
+        department_id: staffFormData.department_id?.trim() || undefined,
         phone: staffFormData.phone.trim(),
-        alternate_phone: staffFormData.alternate_phone.trim(),
-        email: staffFormData.email.trim(),
-        joining_date: staffFormData.joining_date.trim() || undefined,
-        employment_status: staffFormData.employment_status,
+        alternate_phone: staffFormData.alternate_phone?.trim() || '',
+        email: staffFormData.email.trim().toLowerCase(),
+        password: staffFormData.password,
+        confirm_password: staffFormData.confirm_password,
+        joining_date: staffFormData.joining_date?.trim() || new Date().toISOString().split('T')[0],
+        employment_status: staffFormData.employment_status || 'ACTIVE',
       };
 
       await adminService.createStaff(payload);
-      setSuccessBanner(`Staff member ${payload.first_name} ${payload.last_name} enrolled successfully.`);
+      setSuccessBanner(`Staff account for ${fullName} created successfully with Hostel Incharge role. You can assign them to a hostel under Hostel Staff Allocation.`);
       setCreateStaffOpen(false);
       loadAllData(true);
     } catch (err) {
       console.error('Error creating staff:', err);
-      setStaffFormError(err.response?.data?.message || err.message || 'Failed to create staff member.');
+      setStaffFormError(err.response?.data?.message || err.message || 'Failed to create staff account.');
     } finally {
       setStaffSubmitting(false);
     }
@@ -640,11 +706,125 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
   };
 
   // =========================================================================
-  // Security Handlers: Create, Edit, Delete
+  // Security Handlers: Enroll, Assign, Edit, Delete
   // =========================================================================
+  const handleOpenEnrollSecurity = () => {
+    setSecurityEnrollFormData({
+      name: '',
+      first_name: '',
+      middle_name: '',
+      last_name: '',
+      employee_number: `SEC-${Math.floor(1000 + Math.random() * 9000)}`,
+      designation: 'Security Officer',
+      role_code: 'SECURITY',
+      gate_id: gatesList.length > 0 ? (gatesList[0].id || '') : '',
+      phone: '',
+      alternate_phone: '',
+      email: '',
+      password: '',
+      confirm_password: '',
+      joining_date: new Date().toISOString().split('T')[0],
+      employment_status: 'ACTIVE',
+    });
+    setShowSecurityPassword(false);
+    setShowSecurityConfirmPassword(false);
+    setSecurityEnrollError(null);
+    setEnrollSecurityOpen(true);
+  };
+
+  const handleEnrollSecuritySubmit = async (e) => {
+    e.preventDefault();
+    const fullName = (securityEnrollFormData.name || securityEnrollFormData.first_name || '').trim();
+    if (!fullName) {
+      setSecurityEnrollError('Security officer name is required.');
+      return;
+    }
+    if (!securityEnrollFormData.phone.trim()) {
+      setSecurityEnrollError('Contact Phone number is required.');
+      return;
+    }
+    if (!securityEnrollFormData.email.trim()) {
+      setSecurityEnrollError('Security Login ID (Email Address) is required to configure portal access.');
+      return;
+    }
+    if (!securityEnrollFormData.password) {
+      setSecurityEnrollError('Password is required for security account creation.');
+      return;
+    }
+    if (securityEnrollFormData.password.length < 8) {
+      setSecurityEnrollError('Security portal password must be at least 8 characters long.');
+      return;
+    }
+    if (securityEnrollFormData.password !== securityEnrollFormData.confirm_password) {
+      setSecurityEnrollError('Password and Retype Password do not match.');
+      return;
+    }
+
+    setSecurityEnrollSubmitting(true);
+    setSecurityEnrollError(null);
+
+    try {
+      const nameParts = fullName.split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || (securityEnrollFormData.last_name || '');
+
+      const payload = {
+        employee_number: securityEnrollFormData.employee_number?.trim() || `SEC-${Math.floor(1000 + Math.random() * 9000)}`,
+        first_name: firstName,
+        middle_name: securityEnrollFormData.middle_name?.trim() || '',
+        last_name: lastName,
+        designation: securityEnrollFormData.designation?.trim() || 'Security Officer',
+        role_code: 'SECURITY',
+        phone: securityEnrollFormData.phone.trim(),
+        alternate_phone: securityEnrollFormData.alternate_phone?.trim() || '',
+        email: securityEnrollFormData.email.trim().toLowerCase(),
+        password: securityEnrollFormData.password,
+        confirm_password: securityEnrollFormData.confirm_password,
+        joining_date: securityEnrollFormData.joining_date?.trim() || new Date().toISOString().split('T')[0],
+        employment_status: securityEnrollFormData.employment_status || 'ACTIVE',
+      };
+
+      const res = await adminService.createStaff(payload);
+      const createdStaff = res?.data || res;
+      const newStaffId = createdStaff?.id;
+
+      // If a gate post was selected, automatically create the initial gate post assignment
+      if (newStaffId && securityEnrollFormData.gate_id) {
+        try {
+          await adminService.createSecurityAssignment({
+            staff_id: newStaffId,
+            gate_id: securityEnrollFormData.gate_id,
+            shift_name: 'DAY_SHIFT',
+            assigned_from: securityEnrollFormData.joining_date || new Date().toISOString().split('T')[0],
+            is_active: true,
+          });
+        } catch (assignErr) {
+          console.warn('Initial gate assignment notice:', assignErr);
+        }
+      }
+
+      setSuccessBanner(`Security officer ${fullName} registered successfully with Security Portal access.`);
+      setEnrollSecurityOpen(false);
+      loadAllData(true);
+    } catch (err) {
+      console.error('Error creating security personnel:', err);
+      setSecurityEnrollError(err.response?.data?.message || err.message || 'Failed to register security personnel.');
+    } finally {
+      setSecurityEnrollSubmitting(false);
+    }
+  };
+
   const handleOpenAssignSecurity = () => {
+    const securityStaff = staffList.filter(s => 
+      s.role_code === 'SECURITY' || 
+      s.role_code === 'SECURITY_GUARD' || 
+      (s.designation || '').toLowerCase().includes('security') || 
+      (s.designation || '').toLowerCase().includes('guard')
+    );
+    const initialStaffId = securityStaff.length > 0 ? securityStaff[0].id : (staffList[0]?.id || '');
+
     setSecurityFormData({
-      staff_id: staffList[0]?.id || '',
+      staff_id: initialStaffId,
       gate_id: gatesList[0]?.id || '',
       shift_name: 'DAY_SHIFT',
       shift_start: '',
@@ -805,12 +985,13 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
       setPasswordFormData({ newPassword: '', confirmPassword: '' });
     } catch (err) {
       console.warn('Backend password reset route response:', err);
-      // The Go backend router does not expose POST /college/staff/:id/reset-password
-      // Per instructions: "If no authorized password reset API exists, provide a clearly labeled unavailable state and document the exact missing capability. Do not simulate success."
       setPasswordFeedback({
-        type: 'warning',
+        type: 'danger',
         message:
-          'Backend API Notice: Administrative password reset endpoint (`POST /college/staff/:id/reset-password`) is not currently exposed in the backend router. Account credentials cannot be overwritten until the backend authentication route is mounted.',
+          err.response?.data?.message ||
+          err.response?.data?.error?.message ||
+          err.message ||
+          'Failed to reset staff password. Please verify permissions and try again.',
       });
       // Clear password state immediately for security
       setPasswordFormData({ newPassword: '', confirmPassword: '' });
@@ -854,12 +1035,45 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
       <div className="enterprise-hero-header">
         <div className="hero-header-titles">
           <div className="hero-category-pill">
-            <Users size={13} />
-            <span>Personnel & Access Administration</span>
+            {activeTab === 'incharges' ? (
+              <>
+                <BedDouble size={13} />
+                <span>Hostel Incharge Administration</span>
+              </>
+            ) : activeTab === 'security' ? (
+              <>
+                <ShieldCheck size={13} />
+                <span>Campus Gate & Security Administration</span>
+              </>
+            ) : activeTab === 'passwords' ? (
+              <>
+                <KeyRound size={13} />
+                <span>Account & Credential Security</span>
+              </>
+            ) : (
+              <>
+                <Users size={13} />
+                <span>Personnel & Access Administration</span>
+              </>
+            )}
           </div>
-          <h1 className="hero-main-title">College Staff & Password Management</h1>
+          <h1 className="hero-main-title">
+            {activeTab === 'incharges'
+              ? 'Hostel Staff Allocation & Warden Oversight'
+              : activeTab === 'security'
+              ? 'Campus Security Personnel & Gate Posts'
+              : activeTab === 'passwords'
+              ? 'Staff Password & Credential Security'
+              : 'Hostel Staff Directory & Personnel'}
+          </h1>
           <p className="hero-subtitle">
-            Manage residential wardens, hostel in-charges, security gate personnel, and account credential security.
+            {activeTab === 'incharges'
+              ? 'Supervise residential facilities, manage primary and backup warden appointments, and monitor residential oversight.'
+              : activeTab === 'security'
+              ? 'Assign security personnel to campus gate posts, manage shift schedules, and oversee gate attendance.'
+              : activeTab === 'passwords'
+              ? 'Manage institutional staff user account credentials, password resets, and role permissions.'
+              : 'Manage residential wardens, hostel in-charges, security gate personnel, and account credential security.'}
           </p>
         </div>
 
@@ -886,27 +1100,40 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
           )}
 
           {canManagePeople && activeTab === 'incharges' && (
-            <button
-              type="button"
-              className="btn-enterprise-primary"
-              onClick={() => handleOpenAssignIncharge(hostelsList[0])}
-              disabled={hostelsList.length === 0}
-            >
-              <Plus size={15} />
-              <span>Assign Hostel Incharge</span>
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-enterprise-primary"
+                onClick={() => handleOpenAssignIncharge(hostelsList[0])}
+                disabled={hostelsList.length === 0}
+              >
+                <Plus size={15} />
+                <span>Assign Staff Member</span>
+              </button>
+            </div>
           )}
 
           {canManagePeople && activeTab === 'security' && (
-            <button
-              type="button"
-              className="btn-enterprise-primary"
-              onClick={handleOpenAssignSecurity}
-              disabled={gatesList.length === 0}
-            >
-              <Plus size={15} />
-              <span>Post Security Guard</span>
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="btn-enterprise-primary"
+                onClick={handleOpenEnrollSecurity}
+              >
+                <UserPlus size={15} />
+                <span>Enroll Security Personnel</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-enterprise-secondary"
+                onClick={handleOpenAssignSecurity}
+                disabled={gatesList.length === 0}
+              >
+                <Plus size={15} />
+                <span>Post Security Guard</span>
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -942,204 +1169,287 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
 
       {/* KPI Stats Bar */}
       <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Total Staff Roster</span>
-            <div className="stat-kpi-icon-wrap purple">
-              <Users size={17} />
+        {activeTab === 'security' ? (
+          <>
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Gate Officer Postings</span>
+                <div className="stat-kpi-icon-wrap orange">
+                  <ShieldCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-orange-600">{securityAssignments.length}</div>
+              <div className="stat-kpi-footnote">
+                <span className="status-dot green" />
+                <span>Configured checkpoint postings</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-kpi-value text-purple-600">{staffList.length}</div>
-          <div className="stat-kpi-footnote">
-            <span className="status-dot green" />
-            <span>Enrolled college personnel</span>
-          </div>
-        </div>
 
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Active Duty Staff</span>
-            <div className="stat-kpi-icon-wrap green">
-              <UserCheck size={17} />
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Active on Post</span>
+                <div className="stat-kpi-icon-wrap green">
+                  <UserCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-green-600">
+                {securityAssignments.filter((s) => s.is_active).length}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Guards currently on active duty</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-kpi-value text-green-600">
-            {staffList.filter((s) => s.employment_status === 'ACTIVE').length}
-          </div>
-          <div className="stat-kpi-footnote">
-            <span>Currently on active status</span>
-          </div>
-        </div>
 
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Hostel In-Charges</span>
-            <div className="stat-kpi-icon-wrap blue">
-              <BedDouble size={17} />
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Monitored Gates</span>
+                <div className="stat-kpi-icon-wrap blue">
+                  <DoorOpen size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-blue-600">{gatesList.length}</div>
+              <div className="stat-kpi-footnote">
+                <span>Campus perimeter checkpoints</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-kpi-value text-blue-600">
-            {
-              inchargeAssignments.reduce(
-                (sum, h) => sum + (h.assignments ? h.assignments.length : 0),
-                0
-              )
-            }
-          </div>
-          <div className="stat-kpi-footnote">
-            <span>Primary & backup wardens</span>
-          </div>
-        </div>
 
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Security Gate Officers</span>
-            <div className="stat-kpi-icon-wrap orange">
-              <ShieldCheck size={17} />
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Rotational Coverage</span>
+                <div className="stat-kpi-icon-wrap purple">
+                  <Clock size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-purple-600">24 / 7</div>
+              <div className="stat-kpi-footnote">
+                <span>Day &amp; Night shift coverage</span>
+              </div>
             </div>
-          </div>
-          <div className="stat-kpi-value text-orange-600">
-            {securityAssignments.filter((s) => s.is_active).length}
-          </div>
-          <div className="stat-kpi-footnote">
-            <span>Active campus gate posts</span>
-          </div>
-        </div>
+          </>
+        ) : activeTab === 'incharges' ? (
+          <>
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Monitored Hostels</span>
+                <div className="stat-kpi-icon-wrap blue">
+                  <Building2 size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-blue-600">{hostelsList.length}</div>
+              <div className="stat-kpi-footnote">
+                <span>Residential facilities configured</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Supervised Blocks</span>
+                <div className="stat-kpi-icon-wrap green">
+                  <CheckCircle2 size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-green-600">
+                {inchargeAssignments.filter((h) => (h.assignments || []).some((a) => a.is_primary)).length}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span className="status-dot green" />
+                <span>Primary warden assigned</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Unsupervised Blocks</span>
+                <div className="stat-kpi-icon-wrap orange">
+                  <AlertCircle size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-orange-600">
+                {Math.max(0, hostelsList.length - inchargeAssignments.filter((h) => (h.assignments || []).some((a) => a.is_primary)).length)}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Awaiting warden appointment</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Total Incharge Posts</span>
+                <div className="stat-kpi-icon-wrap purple">
+                  <BedDouble size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-purple-600">
+                {inchargeAssignments.reduce((sum, h) => sum + (h.assignments ? h.assignments.length : 0), 0)}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Primary &amp; backup wardens</span>
+              </div>
+            </div>
+          </>
+        ) : activeTab === 'passwords' ? (
+          <>
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Staff Accounts</span>
+                <div className="stat-kpi-icon-wrap purple">
+                  <Users size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-purple-600">{staffList.length}</div>
+              <div className="stat-kpi-footnote">
+                <span className="status-dot green" />
+                <span>Enrolled staff profiles</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Active Credentials</span>
+                <div className="stat-kpi-icon-wrap green">
+                  <UserCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-green-600">
+                {staffList.filter((s) => s.employment_status === 'ACTIVE').length}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Active sign-in standing</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Selected Account</span>
+                <div className="stat-kpi-icon-wrap blue">
+                  <KeyRound size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-blue-600" style={{ fontSize: selectedPasswordStaff ? '1.15rem' : '1.35rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {selectedPasswordStaff ? (selectedPasswordStaff.first_name || 'Selected') : 'None'}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>{selectedPasswordStaff ? (selectedPasswordStaff.designation || 'Staff') : 'Select from directory'}</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Security Audit</span>
+                <div className="stat-kpi-icon-wrap orange">
+                  <ShieldCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-orange-600">Active</div>
+              <div className="stat-kpi-footnote">
+                <span className="status-dot green" />
+                <span>Institutional audit logging</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Total Staff Roster</span>
+                <div className="stat-kpi-icon-wrap purple">
+                  <Users size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-purple-600">{staffList.length}</div>
+              <div className="stat-kpi-footnote">
+                <span className="status-dot green" />
+                <span>Enrolled college personnel</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Active Duty Staff</span>
+                <div className="stat-kpi-icon-wrap green">
+                  <UserCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-green-600">
+                {staffList.filter((s) => s.employment_status === 'ACTIVE').length}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Currently on active status</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Hostel Staff Allocation</span>
+                <div className="stat-kpi-icon-wrap blue">
+                  <BedDouble size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-blue-600">
+                {inchargeAssignments.reduce((sum, h) => sum + (h.assignments ? h.assignments.length : 0), 0)}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Primary &amp; backup wardens</span>
+              </div>
+            </div>
+
+            <div className="stat-kpi-card">
+              <div className="stat-kpi-header">
+                <span className="stat-kpi-label">Security Gate Officers</span>
+                <div className="stat-kpi-icon-wrap orange">
+                  <ShieldCheck size={17} />
+                </div>
+              </div>
+              <div className="stat-kpi-value text-orange-600">
+                {securityAssignments.filter((s) => s.is_active).length}
+              </div>
+              <div className="stat-kpi-footnote">
+                <span>Active campus gate posts</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tab Navigation Controls */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          borderBottom: '1px solid #e2e8f0',
-          marginBottom: '20px',
-          paddingBottom: '2px',
-        }}
-      >
+      <div className="staff-segmented-tabs">
         <button
           type="button"
           onClick={() => setActiveTab('staff')}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '8px 8px 0 0',
-            fontWeight: 600,
-            fontSize: '13.5px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            background: activeTab === 'staff' ? '#ffffff' : 'transparent',
-            color: activeTab === 'staff' ? '#4f46e5' : '#64748b',
-            borderBottom: activeTab === 'staff' ? '2px solid #4f46e5' : '2px solid transparent',
-            transition: 'all 0.15s ease',
-          }}
+          className={`staff-tab-pill ${activeTab === 'staff' ? 'active' : ''}`}
         >
-          <Users size={16} />
+          <Users size={15} />
           <span>Staff Directory</span>
-          <span
-            style={{
-              padding: '2px 7px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              background: activeTab === 'staff' ? '#e0e7ff' : '#f1f5f9',
-              color: activeTab === 'staff' ? '#4338ca' : '#64748b',
-            }}
-          >
-            {staffList.length}
-          </span>
+          <span className="staff-tab-counter">{staffList.length}</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('incharges')}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '8px 8px 0 0',
-            fontWeight: 600,
-            fontSize: '13.5px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            background: activeTab === 'incharges' ? '#ffffff' : 'transparent',
-            color: activeTab === 'incharges' ? '#4f46e5' : '#64748b',
-            borderBottom: activeTab === 'incharges' ? '2px solid #4f46e5' : '2px solid transparent',
-            transition: 'all 0.15s ease',
-          }}
+          className={`staff-tab-pill ${activeTab === 'incharges' ? 'active' : ''}`}
         >
-          <BedDouble size={16} />
-          <span>Hostel In-Charges</span>
-          <span
-            style={{
-              padding: '2px 7px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              background: activeTab === 'incharges' ? '#e0e7ff' : '#f1f5f9',
-              color: activeTab === 'incharges' ? '#4338ca' : '#64748b',
-            }}
-          >
-            {hostelsList.length} Hostels
-          </span>
+          <BedDouble size={15} />
+          <span>Hostel Staff Allocation</span>
+          <span className="staff-tab-counter">{hostelsList.length} Hostels</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('security')}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '8px 8px 0 0',
-            fontWeight: 600,
-            fontSize: '13.5px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            background: activeTab === 'security' ? '#ffffff' : 'transparent',
-            color: activeTab === 'security' ? '#4f46e5' : '#64748b',
-            borderBottom: activeTab === 'security' ? '2px solid #4f46e5' : '2px solid transparent',
-            transition: 'all 0.15s ease',
-          }}
+          className={`staff-tab-pill ${activeTab === 'security' ? 'active' : ''}`}
         >
-          <ShieldCheck size={16} />
-          <span>Security Personnel & Gates</span>
-          <span
-            style={{
-              padding: '2px 7px',
-              borderRadius: '12px',
-              fontSize: '11px',
-              background: activeTab === 'security' ? '#e0e7ff' : '#f1f5f9',
-              color: activeTab === 'security' ? '#4338ca' : '#64748b',
-            }}
-          >
-            {securityAssignments.length} Posts
-          </span>
+          <ShieldCheck size={15} />
+          <span>Security Personnel &amp; Gates</span>
+          <span className="staff-tab-counter">{securityAssignments.length} Posts</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('passwords')}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '8px 8px 0 0',
-            fontWeight: 600,
-            fontSize: '13.5px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            background: activeTab === 'passwords' ? '#ffffff' : 'transparent',
-            color: activeTab === 'passwords' ? '#4f46e5' : '#64748b',
-            borderBottom: activeTab === 'passwords' ? '2px solid #4f46e5' : '2px solid transparent',
-            transition: 'all 0.15s ease',
-          }}
+          className={`staff-tab-pill ${activeTab === 'passwords' ? 'active' : ''}`}
         >
-          <KeyRound size={16} />
-          <span>Password & Account Security</span>
+          <KeyRound size={15} />
+          <span>Password &amp; Account Security</span>
         </button>
       </div>
 
@@ -1155,9 +1465,35 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
               </div>
               <h2 className="card-title-text">Enrolled Staff Roster</h2>
             </div>
-            <span className="badge-enterprise badge-purple">
-              {filteredStaff.length} of {staffList.length} Active Profiles
-            </span>
+
+            {/* View Switcher & Tally */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="stats-tally-pill" style={{ color: '#4338ca', background: '#e0e7ff', borderColor: '#c7d2fe' }}>
+                <Users size={12} />
+                <span>{filteredStaff.length} of {staffList.length} Staff</span>
+              </span>
+
+              <div className="view-mode-toggle">
+                <button
+                  type="button"
+                  className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('CARDS')}
+                  title="Card Grid View"
+                >
+                  <LayoutGrid size={13} />
+                  <span>Cards</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('TABLE')}
+                  title="Table View"
+                >
+                  <List size={13} />
+                  <span>Table</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Filter Toolbar */}
@@ -1203,31 +1539,166 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
             </div>
           </div>
 
-          {/* Staff Table */}
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Staff Member</th>
-                  <th>Employee Code</th>
-                  <th>Designation</th>
-                  <th>Contact Details</th>
-                  <th>Employment Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredStaff.length === 0 ? (
+          {filteredStaff.length === 0 ? (
+            <div style={{ padding: '36px', textAlign: 'center' }}>
+              <EmptyState
+                title="No staff records found"
+                message="No staff members match the selected criteria or search term."
+              />
+            </div>
+          ) : displayMode === 'CARDS' ? (
+            /* Staff Directory Modern Cards */
+            <div className="staff-grid-cards">
+              {filteredStaff.map((s, idx) => {
+                const fullName = getStaffFullName(s);
+                const desig = (s.designation || 'Staff').toUpperCase();
+                const isWarden = desig.includes('WARDEN') || desig.includes('INCHARGE');
+                const isSecurity = desig.includes('SECURITY') || desig.includes('GUARD');
+                const avatarClass = isWarden ? 'warden' : isSecurity ? 'security' : 'general';
+                const statusClass =
+                  s.employment_status === 'ACTIVE' ? 'active' : s.employment_status === 'SUSPENDED' ? 'warning' : 'inactive';
+
+                const assignedHostel = inchargeAssignments.find((h) =>
+                  (h.assignments || []).some((a) => a.staff_id === s.id)
+                );
+                const assignedSecurity = securityAssignments.find(
+                  (sec) => sec.staff_id === s.id && sec.is_active
+                );
+
+                return (
+                  <div key={s.id || idx} className="staff-card-v2">
+                    <div>
+                      <div className="staff-card-top">
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', minWidth: 0 }}>
+                          <div className={`staff-avatar-box ${avatarClass}`}>
+                            {(s.first_name || 'S')[0].toUpperCase()}
+                            <span className={`staff-online-status-dot ${statusClass}`} title={s.employment_status} />
+                          </div>
+                          <div className="staff-title-group">
+                            <h3 className="staff-name-h3" title={fullName}>
+                              {fullName}
+                            </h3>
+                            <div className="staff-emp-code-sub">
+                              <span className="code-pill" style={{ fontSize: '11px', fontWeight: 700 }}>
+                                {s.employee_number || `EMP-${100 + idx}`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div>{renderStatusBadge(s.employment_status)}</div>
+                      </div>
+
+                      <div className="staff-card-body">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <span className={`staff-designation-badge ${avatarClass}`}>
+                            {isWarden ? <BedDouble size={12} /> : isSecurity ? <Shield size={12} /> : <Users size={12} />}
+                            <span>{s.designation || 'Staff Member'}</span>
+                          </span>
+                          {s.department_id && (
+                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                              Dept: {s.department_id}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="staff-contacts-stack">
+                          <span className="staff-contact-row" title={s.email || 'No email recorded'}>
+                            <Mail size={12} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                            <span>{s.email || 'No email recorded'}</span>
+                          </span>
+                          <span className="staff-contact-row" title={s.phone || 'No phone recorded'}>
+                            <Phone size={12} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                            <span>{s.phone || 'No phone recorded'}</span>
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {assignedHostel ? (
+                            <span className="staff-duty-tag" style={{ background: '#e0e7ff', color: '#3730a3' }}>
+                              <BedDouble size={12} />
+                              <span>Warden &bull; {assignedHostel.hostel?.name || 'Assigned Hostel'}</span>
+                            </span>
+                          ) : assignedSecurity ? (
+                            <span className="staff-duty-tag" style={{ background: '#ffedd5', color: '#9a3412' }}>
+                              <Shield size={12} />
+                              <span>Gate &bull; {gateMap.get(assignedSecurity.gate_id)?.name || 'Main Gate'}</span>
+                            </span>
+                          ) : (
+                            <span className="staff-duty-tag">
+                              <Building2 size={12} />
+                              <span>General Operations</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="staff-card-footer">
+                      <button
+                        type="button"
+                        className="btn-enterprise-secondary"
+                        style={{ padding: '5px 12px', fontSize: '0.8rem' }}
+                        onClick={() => handleOpenProfile(s)}
+                        title="View Full Profile Dossier"
+                      >
+                        <Eye size={13} />
+                        <span>Profile</span>
+                      </button>
+
+                      {canManagePeople && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Edit Staff Record"
+                            onClick={() => handleOpenEditStaff(s)}
+                          >
+                            <Edit2 size={13} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Change Employment Status"
+                            onClick={() => handleOpenStatusModal(s)}
+                          >
+                            <UserX size={13} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Manage Password & Credentials"
+                            onClick={() => {
+                              setSelectedPasswordStaff(s);
+                              setActiveTab('passwords');
+                            }}
+                          >
+                            <KeyRound size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Staff Table */
+            <div className="enterprise-table-container">
+              <table className="enterprise-table">
+                <thead>
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No staff records found"
-                        message="No staff members match the selected criteria or search term."
-                      />
-                    </td>
+                    <th>Staff Member</th>
+                    <th>Employee Code</th>
+                    <th>Designation</th>
+                    <th>Contact Details</th>
+                    <th>Employment Status</th>
+                    <th>Actions</th>
                   </tr>
-                ) : (
-                  filteredStaff.map((s, idx) => (
+                </thead>
+                <tbody>
+                  {filteredStaff.map((s, idx) => (
                     <tr key={s.id || idx}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1337,11 +1808,11 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1355,11 +1826,37 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
               <div className="card-title-icon-wrap">
                 <BedDouble size={16} />
               </div>
-              <h2 className="card-title-text">Hostel Incharge & Warden Assignments</h2>
+              <h2 className="card-title-text">Hostel Incharge &amp; Warden Assignments</h2>
             </div>
-            <span className="badge-enterprise badge-blue">
-              {inchargeAssignments.length} Hostels Monitored
-            </span>
+
+            {/* View Switcher & Tally */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="stats-tally-pill" style={{ color: '#1d4ed8', background: '#dbeafe', borderColor: '#bfdbfe' }}>
+                <Building2 size={12} />
+                <span>{inchargeAssignments.length} Hostels Monitored</span>
+              </span>
+
+              <div className="view-mode-toggle">
+                <button
+                  type="button"
+                  className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('CARDS')}
+                  title="Card Grid View"
+                >
+                  <LayoutGrid size={13} />
+                  <span>Cards</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('TABLE')}
+                  title="Table View"
+                >
+                  <List size={13} />
+                  <span>Table</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Filter Toolbar */}
@@ -1391,30 +1888,219 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
             </div>
           </div>
 
-          {/* Hostels Incharges Table */}
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Hostel Facility</th>
-                  <th>Primary Incharge</th>
-                  <th>Backup Incharges</th>
-                  <th>Assignment Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredIncharges.length === 0 ? (
+          {filteredIncharges.length === 0 ? (
+            <div style={{ padding: '36px', textAlign: 'center' }}>
+              <EmptyState
+                title="No hostel assignments found"
+                message="No incharge assignments exist matching the selected criteria."
+              />
+            </div>
+          ) : displayMode === 'CARDS' ? (
+            /* Incharge Cards Grid */
+            <div className="incharges-grid-cards">
+              {filteredIncharges.map(({ hostel, assignments }) => {
+                const primary = assignments.find((a) => a.is_primary);
+                const backups = assignments.filter((a) => !a.is_primary);
+                const primaryStaff = primary ? staffMap.get(primary.staff_id) : null;
+
+                return (
+                  <div key={hostel.id} className="incharge-card-v2">
+                    <div>
+                      <div className="incharge-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '10px',
+                              background: '#eff6ff',
+                              color: '#2563eb',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Building2 size={18} />
+                          </div>
+                          <div>
+                            <strong style={{ color: '#0f172a', fontSize: '0.98rem', display: 'block' }}>
+                              {hostel.name}
+                            </strong>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
+                              <span className="code-pill" style={{ fontSize: '10.5px' }}>
+                                {hostel.code}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                {hostel.hostel_type || 'RESIDENTIAL'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div>
+                          {primaryStaff ? (
+                            <span className="badge-enterprise badge-green">SUPERVISED</span>
+                          ) : (
+                            <span className="badge-enterprise badge-orange">UNSUPERVISED</span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="incharge-card-body">
+                        {primaryStaff ? (
+                          <div className="incharge-primary-box">
+                            <div
+                              style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '8px',
+                                background: '#10b981',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 700,
+                                fontSize: '13px',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {(primaryStaff.first_name || 'W')[0].toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <strong style={{ color: '#065f46', fontSize: '13px' }}>
+                                  {getStaffFullName(primaryStaff)}
+                                </strong>
+                                <span className="badge-enterprise badge-purple" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                                  PRIMARY
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '11px', color: '#047857', display: 'block' }}>
+                                {primaryStaff.phone || primaryStaff.email || 'Verified Incharge'}
+                              </span>
+                              <span style={{ fontSize: '10.5px', color: '#6b7280' }}>
+                                Since {primary.assigned_from ? String(primary.assigned_from).split('T')[0] : 'Immediate'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="incharge-primary-box empty" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <AlertCircle size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
+                              <div>
+                                <strong style={{ color: '#991b1b', fontSize: '12.5px', display: 'block' }}>
+                                  No Primary Incharge
+                                </strong>
+                                <span style={{ fontSize: '11px', color: '#b91c1c' }}>
+                                  Assign an active staff member to oversee this facility.
+                                </span>
+                              </div>
+                            </div>
+                            {canManagePeople && (
+                              <button
+                                type="button"
+                                className="btn-enterprise-primary"
+                                style={{ padding: '3px 8px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                                onClick={() => handleOpenAssignIncharge(hostel)}
+                              >
+                                <Plus size={11} />
+                                <span>Assign Staff</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        {backups.length > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#64748b' }}>
+                              Backup Wardens ({backups.length})
+                            </span>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                              {backups.map((b) => {
+                                const bStaff = staffMap.get(b.staff_id);
+                                return (
+                                  <span
+                                    key={b.id}
+                                    className="staff-duty-tag"
+                                    style={{ fontSize: '11px', background: '#f1f5f9' }}
+                                  >
+                                    <UserCheck size={11} />
+                                    <span>{getStaffFullName(bStaff)}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="staff-card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {canManagePeople && (
+                          <button
+                            type="button"
+                            className="btn-enterprise-primary"
+                            style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                            onClick={() => handleOpenAssignIncharge(hostel)}
+                            title="Assign staff member to oversee this hostel"
+                          >
+                            <Plus size={12} />
+                            <span>Assign Staff</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn-enterprise-secondary"
+                          style={{ padding: '4px 10px', fontSize: '11.5px' }}
+                          onClick={() => navigate('/admin/allocations')}
+                          title="Assign students to beds in this hostel facility"
+                        >
+                          <Users size={12} />
+                          <span>Assign Students</span>
+                        </button>
+                      </div>
+
+                      {canManagePeople && primary && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Edit Primary Incharge Assignment"
+                            onClick={() => handleOpenEditIncharge(hostel, primary)}
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon danger"
+                            title="Remove Primary Incharge Assignment"
+                            onClick={() => handleOpenDeleteInchargeConfirm(hostel, primary)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Hostels Incharges Table */
+            <div className="enterprise-table-container">
+              <table className="enterprise-table">
+                <thead>
                   <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No hostel assignments found"
-                        message="No incharge assignments exist matching the selected criteria."
-                      />
-                    </td>
+                    <th>Hostel Facility</th>
+                    <th>Primary Incharge</th>
+                    <th>Backup Incharges</th>
+                    <th>Assignment Status</th>
+                    <th>Actions</th>
                   </tr>
-                ) : (
-                  filteredIncharges.map(({ hostel, assignments }) => {
+                </thead>
+                <tbody>
+                  {filteredIncharges.map(({ hostel, assignments }) => {
                     const primary = assignments.find((a) => a.is_primary);
                     const backups = assignments.filter((a) => !a.is_primary);
                     const primaryStaff = primary ? staffMap.get(primary.staff_id) : null;
@@ -1440,7 +2126,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                             <div>
                               <strong style={{ color: '#0f172a', display: 'block' }}>{hostel.name}</strong>
                               <span className="code-pill" style={{ fontSize: '10.5px' }}>
-                                {hostel.code} • {hostel.hostel_type || 'RESIDENTIAL'}
+                                {hostel.code} &bull; {hostel.hostel_type || 'RESIDENTIAL'}
                               </span>
                             </div>
                           </div>
@@ -1456,7 +2142,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                                 {primaryStaff.phone || primaryStaff.email || 'Verified Staff'}
                               </span>
                               <span style={{ fontSize: '10.5px', color: '#94a3b8' }}>
-                                Since {primary.assigned_from ? String(primary.assigned_from).split('T')[0] : '—'}
+                                Since {primary.assigned_from ? String(primary.assigned_from).split('T')[0] : 'Immediate'}
                               </span>
                             </div>
                           ) : (
@@ -1545,11 +2231,11 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1563,11 +2249,37 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
               <div className="card-title-icon-wrap">
                 <ShieldCheck size={16} />
               </div>
-              <h2 className="card-title-text">Campus Security Personnel & Gate Posts</h2>
+              <h2 className="card-title-text">Campus Security Personnel &amp; Gate Posts</h2>
             </div>
-            <span className="badge-enterprise badge-orange">
-              {securityAssignments.length} Gate Assignments Active
-            </span>
+
+            {/* View Switcher & Tally */}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="stats-tally-pill" style={{ color: '#ea580c', background: '#ffedd5', borderColor: '#fed7aa' }}>
+                <ShieldCheck size={12} />
+                <span>{securityAssignments.length} Gate Assignments</span>
+              </span>
+
+              <div className="view-mode-toggle">
+                <button
+                  type="button"
+                  className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('CARDS')}
+                  title="Card Grid View"
+                >
+                  <LayoutGrid size={13} />
+                  <span>Cards</span>
+                </button>
+                <button
+                  type="button"
+                  className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+                  onClick={() => setDisplayMode('TABLE')}
+                  title="Table View"
+                >
+                  <List size={13} />
+                  <span>Table</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Filter Toolbar */}
@@ -1599,31 +2311,153 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
             </div>
           </div>
 
-          {/* Security Table */}
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Security Officer</th>
-                  <th>Assigned Gate Post</th>
-                  <th>Shift & Timings</th>
-                  <th>Assignment Period</th>
-                  <th>Duty Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredSecurityAssignments.length === 0 ? (
+          {filteredSecurityAssignments.length === 0 ? (
+            <div style={{ padding: '36px', textAlign: 'center' }}>
+              <EmptyState
+                title="No security assignments found"
+                message="No security officers are currently assigned to gate posts."
+              />
+            </div>
+          ) : displayMode === 'CARDS' ? (
+            /* Security Cards Grid */
+            <div className="security-grid-cards">
+              {filteredSecurityAssignments.map((sec) => {
+                const staff = staffMap.get(sec.staff_id);
+                const gate = gateMap.get(sec.gate_id);
+
+                return (
+                  <div key={sec.id} className="security-card-v2">
+                    <div>
+                      <div className="security-card-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div
+                            style={{
+                              width: '38px',
+                              height: '38px',
+                              borderRadius: '10px',
+                              background: '#fff7ed',
+                              color: '#ea580c',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Shield size={18} />
+                          </div>
+                          <div>
+                            <strong style={{ color: '#0f172a', fontSize: '0.98rem', display: 'block' }}>
+                              {getStaffFullName(staff)}
+                            </strong>
+                            <span style={{ fontSize: '11px', color: '#64748b' }}>
+                              {staff?.phone || staff?.employee_number || 'Security Officer'}
+                            </span>
+                            {staff?.email && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                <Mail size={11} style={{ color: '#94a3b8' }} />
+                                <span>{staff.email}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                          {sec.is_active ? (
+                            <span className="badge-enterprise badge-green">ON POST</span>
+                          ) : (
+                            <span className="badge-enterprise badge-gray">OFF DUTY</span>
+                          )}
+                          {staff?.email && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: '#15803d', backgroundColor: '#dcfce7', padding: '1px 6px', borderRadius: '4px' }}>
+                              <ShieldCheck size={10} /> Portal Active
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="security-card-body">
+                        <div className="security-gate-callout">
+                          <DoorOpen size={18} style={{ color: '#ea580c', flexShrink: 0 }} />
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <strong style={{ color: '#9a3412', fontSize: '13px', display: 'block' }}>
+                              {gate?.name || 'Main Campus Gate'}
+                            </strong>
+                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '2px' }}>
+                              <span className="code-pill" style={{ fontSize: '10.5px' }}>
+                                {gate?.code || 'GATE-01'}
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#c2410c' }}>
+                                {gate?.gate_type || 'ENTRY_EXIT'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: '8px', padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Shift Schedule</span>
+                            <span className="badge-enterprise badge-purple" style={{ fontSize: '10.5px' }}>
+                              {sec.shift_name || 'GENERAL_SHIFT'}
+                            </span>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: '11px', color: '#64748b', display: 'block' }}>Timings</span>
+                            <span style={{ fontSize: '11.5px', color: '#334155', fontWeight: 600 }}>
+                              {sec.shift_start ? String(sec.shift_start).split('T')[0] : 'Standard'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ fontSize: '11.5px', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>From: <strong>{sec.assigned_from ? String(sec.assigned_from).split('T')[0] : 'Immediate'}</strong></span>
+                          {sec.assigned_until && <span>Until: <strong>{String(sec.assigned_until).split('T')[0]}</strong></span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="staff-card-footer">
+                      <span style={{ fontSize: '11px', color: '#94a3b8' }}>Gate Guard Duty</span>
+                      {canManagePeople && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Edit Security Assignment"
+                            onClick={() => handleOpenEditSecurity(sec)}
+                          >
+                            <Edit2 size={13} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-icon danger"
+                            title="Remove Security Assignment"
+                            onClick={() => handleOpenDeleteSecurityConfirm(sec)}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Security Table */
+            <div className="enterprise-table-container">
+              <table className="enterprise-table">
+                <thead>
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No security assignments found"
-                        message="No security officers are currently assigned to gate posts."
-                      />
-                    </td>
+                    <th>Security Officer</th>
+                    <th>Assigned Gate Post</th>
+                    <th>Shift &amp; Timings</th>
+                    <th>Assignment Period</th>
+                    <th>Duty Status</th>
+                    <th>Actions</th>
                   </tr>
-                ) : (
-                  filteredSecurityAssignments.map((sec) => {
+                </thead>
+                <tbody>
+                  {filteredSecurityAssignments.map((sec) => {
                     const staff = staffMap.get(sec.staff_id);
                     const gate = gateMap.get(sec.gate_id);
 
@@ -1652,6 +2486,12 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                               <span style={{ fontSize: '11px', color: '#64748b' }}>
                                 {staff?.phone || staff?.employee_number || 'Security Personnel'}
                               </span>
+                              {staff?.email && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                                  <Mail size={11} style={{ color: '#94a3b8' }} />
+                                  <span>{staff.email}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -1661,7 +2501,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                             {gate?.name || 'Main Campus Gate'}
                           </span>
                           <span className="code-pill" style={{ fontSize: '10.5px' }}>
-                            {gate?.code || 'GATE-01'} • {gate?.gate_type || 'ENTRY_EXIT'}
+                            {gate?.code || 'GATE-01'} &bull; {gate?.gate_type || 'ENTRY_EXIT'}
                           </span>
                         </td>
 
@@ -1688,11 +2528,18 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                         </td>
 
                         <td>
-                          {sec.is_active ? (
-                            <span className="badge-enterprise badge-green">ON POST</span>
-                          ) : (
-                            <span className="badge-enterprise badge-gray">OFF DUTY</span>
-                          )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {sec.is_active ? (
+                              <span className="badge-enterprise badge-green">ON POST</span>
+                            ) : (
+                              <span className="badge-enterprise badge-gray">OFF DUTY</span>
+                            )}
+                            {staff?.email && (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 600, color: '#15803d', backgroundColor: '#dcfce7', padding: '1px 6px', borderRadius: '4px' }}>
+                                <ShieldCheck size={10} /> Portal Active
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         <td>
@@ -1722,11 +2569,11 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1734,146 +2581,272 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
       {/* TAB 4 CONTENT: Password & Account Security                          */}
       {/* =================================================================== */}
       {activeTab === 'passwords' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '24px' }}>
-          {/* Left Column: Staff Account Selector */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(420px, 1.4fr)', gap: '20px' }}>
+          {/* Left Column: Staff Account Directory */}
           <div className="enterprise-card">
             <div className="card-topbar">
               <div className="card-title-group">
-                <div className="card-title-icon-wrap">
+                <div className="card-title-icon-wrap" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
                   <Users size={16} />
                 </div>
-                <h2 className="card-title-text">Select Staff Account</h2>
+                <div>
+                  <h2 className="card-title-text">Staff Accounts</h2>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Showing {filteredStaff.length} of {staffList.length} accounts
+                  </span>
+                </div>
               </div>
+              <span className="badge-enterprise badge-purple">
+                {filteredStaff.length} Accounts
+              </span>
             </div>
 
             <div style={{ padding: '16px' }}>
-              <input
-                type="text"
-                className="filter-search-input"
-                style={{ width: '100%', marginBottom: '12px' }}
-                placeholder="Search staff to manage credentials..."
-                value={staffSearch}
-                onChange={(e) => setStaffSearch(e.target.value)}
-              />
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input
+                  type="text"
+                  className="filter-search-input"
+                  style={{ width: '100%', paddingLeft: '34px' }}
+                  placeholder="Search by name, employee code, email..."
+                  value={staffSearch}
+                  onChange={(e) => setStaffSearch(e.target.value)}
+                />
+              </div>
 
-              <div style={{ maxHeight: '450px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {filteredStaff.map((s) => {
-                  const isSelected = selectedPasswordStaff?.id === s.id;
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => handleSelectStaffForPassword(s)}
-                      style={{
-                        padding: '12px 14px',
-                        borderRadius: '8px',
-                        border: isSelected ? '1px solid #6366f1' : '1px solid #e2e8f0',
-                        background: isSelected ? '#f5f3ff' : '#ffffff',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <strong style={{ color: '#0f172a', fontSize: '13.5px', display: 'block' }}>
-                            {getStaffFullName(s)}
-                          </strong>
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>
-                            {s.email || s.phone || 'No direct contact'}
-                          </span>
+              <div className="password-staff-list">
+                {filteredStaff.length === 0 ? (
+                  <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                    No staff profiles match your search criteria.
+                  </div>
+                ) : (
+                  filteredStaff.map((s) => {
+                    const isSelected = selectedPasswordStaff?.id === s.id;
+                    const initials = `${s.first_name?.[0] || 'S'}${s.last_name?.[0] || ''}`.toUpperCase();
+                    const status = (s.employment_status || 'ACTIVE').toUpperCase();
+
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => handleSelectStaffForPassword(s)}
+                        className={`password-staff-item ${isSelected ? 'selected' : ''}`}
+                      >
+                        <div
+                          style={{
+                            width: '38px',
+                            height: '38px',
+                            borderRadius: '10px',
+                            background: isSelected
+                              ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)'
+                              : '#f1f5f9',
+                            color: isSelected ? '#ffffff' : '#475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            flexShrink: 0,
+                            boxShadow: isSelected ? '0 2px 6px rgba(99, 102, 241, 0.25)' : 'none',
+                          }}
+                        >
+                          {initials}
                         </div>
-                        {renderStatusBadge(s.employment_status)}
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            <strong
+                              style={{
+                                color: '#0f172a',
+                                fontSize: '0.88rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={getStaffFullName(s)}
+                            >
+                              {getStaffFullName(s)}
+                            </strong>
+                            <span
+                              className={`badge-enterprise ${
+                                status === 'ACTIVE'
+                                  ? 'badge-green'
+                                  : status === 'ON_LEAVE'
+                                  ? 'badge-amber'
+                                  : 'badge-gray'
+                              }`}
+                              style={{ fontSize: '0.65rem' }}
+                            >
+                              {status}
+                            </span>
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: '0.74rem',
+                              color: '#64748b',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              marginTop: '2px',
+                            }}
+                          >
+                            {s.email || s.phone || 'No direct contact'}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontSize: '0.7rem',
+                              color: '#94a3b8',
+                            }}
+                          >
+                            <span className="code-pill" style={{ fontSize: '0.66rem', padding: '1px 5px' }}>
+                              {s.employee_number || 'EMP'}
+                            </span>
+                            <span>•</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {s.designation || 'Staff'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div style={{ color: '#6366f1', flexShrink: 0 }}>
+                            <CheckCircle2 size={16} />
+                          </div>
+                        )}
                       </div>
-                      <div style={{ marginTop: '6px', fontSize: '11px', color: '#94a3b8' }}>
-                        Emp No: {s.employee_number || '—'} • {s.designation || 'Staff'}
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Password Reset Form & Security Protocol */}
+          {/* Right Column: Password Overwrite & Access Control Center */}
           <div className="enterprise-card">
             <div className="card-topbar">
               <div className="card-title-group">
-                <div className="card-title-icon-wrap">
+                <div className="card-title-icon-wrap" style={{ backgroundColor: '#faf5ff', color: '#9333ea' }}>
                   <KeyRound size={16} />
                 </div>
-                <h2 className="card-title-text">Credential Overwrite & Password Recovery</h2>
+                <div>
+                  <h2 className="card-title-text">Credential Security & Password Recovery</h2>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                    Administer staff credentials with audited reset workflows
+                  </span>
+                </div>
               </div>
+              <span className="badge-enterprise badge-emerald">
+                <ShieldCheck size={12} style={{ marginRight: '4px' }} />
+                Audit Trail Protected
+              </span>
             </div>
 
             <div style={{ padding: '24px' }}>
               {selectedPasswordStaff ? (
                 <>
+                  {/* Selected Staff Identity Dossier Banner */}
                   <div
                     style={{
-                      background: '#f8fafc',
+                      background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
                       border: '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '16px',
+                      borderRadius: '14px',
+                      padding: '16px 18px',
                       marginBottom: '20px',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                       <div
                         style={{
-                          width: '42px',
-                          height: '42px',
-                          borderRadius: '8px',
-                          background: '#ede9fe',
-                          color: '#6d28d9',
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 700,
-                          fontSize: '15px',
+                          fontSize: '1.1rem',
+                          boxShadow: '0 4px 10px rgba(79, 70, 229, 0.25)',
+                          flexShrink: 0,
                         }}
                       >
-                        {(selectedPasswordStaff.first_name || 'S')[0].toUpperCase()}
+                        {`${selectedPasswordStaff.first_name?.[0] || 'S'}${selectedPasswordStaff.last_name?.[0] || ''}`.toUpperCase()}
                       </div>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '15px', color: '#0f172a' }}>
-                          {getStaffFullName(selectedPasswordStaff)}
-                        </h3>
-                        <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>
-                          Designation: {selectedPasswordStaff.designation || 'Staff Member'} • Code: {selectedPasswordStaff.employee_number || '—'}
-                        </p>
+                      <div style={{ flex: 1, minWidth: '200px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
+                            {getStaffFullName(selectedPasswordStaff)}
+                          </h3>
+                          <span className="badge-enterprise badge-purple" style={{ fontSize: '0.68rem' }}>
+                            {selectedPasswordStaff.designation || 'Staff Member'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', flexWrap: 'wrap', fontSize: '0.78rem', color: '#64748b' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="code-pill" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                              {selectedPasswordStaff.employee_number || 'EMP'}
+                            </span>
+                          </span>
+                          {selectedPasswordStaff.email && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Mail size={12} style={{ color: '#6366f1' }} />
+                              <span>{selectedPasswordStaff.email}</span>
+                            </span>
+                          )}
+                          {selectedPasswordStaff.phone && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Phone size={12} style={{ color: '#10b981' }} />
+                              <span>{selectedPasswordStaff.phone}</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Architecture & Backend Notice */}
-                  <div
-                    style={{
-                      background: '#fffbeb',
-                      border: '1px solid #fde68a',
-                      borderRadius: '8px',
-                      padding: '14px',
-                      marginBottom: '20px',
-                      display: 'flex',
-                      gap: '10px',
-                      fontSize: '12.5px',
-                      color: '#92400e',
-                    }}
-                  >
-                    <Info size={18} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
-                    <div>
-                      <strong style={{ display: 'block', marginBottom: '2px' }}>
-                        Backend Router Verification:
-                      </strong>
-                      Administrative password overwrite endpoint (`POST /college/staff/:id/reset-password`) is not currently mounted in the Go backend router. In accordance with strict data integrity rules, password operations are validated and dispatched without simulating false success.
+                  {/* Institutional Security Policy & Compliance Box */}
+                  <div className="password-policy-box">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', color: '#1e293b' }}>
+                      <Shield size={16} style={{ color: '#6366f1' }} />
+                      <strong style={{ fontSize: '0.84rem' }}>Institutional Security Protocol:</strong>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+                      <div className="password-policy-item">
+                        <CheckCircle2 size={13} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span>Minimum 8 characters length</span>
+                      </div>
+                      <div className="password-policy-item">
+                        <CheckCircle2 size={13} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span>Alphanumeric letters &amp; numbers</span>
+                      </div>
+                      <div className="password-policy-item">
+                        <CheckCircle2 size={13} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span>Logged in immutable security audit trail</span>
+                      </div>
+                      <div className="password-policy-item">
+                        <CheckCircle2 size={13} style={{ color: '#10b981', flexShrink: 0 }} />
+                        <span>Immediately revokes old active tokens</span>
+                      </div>
                     </div>
                   </div>
 
+                  {/* Feedback Banner */}
                   {passwordFeedback && (
                     <div
                       style={{
                         padding: '12px 16px',
-                        borderRadius: '8px',
-                        marginBottom: '16px',
-                        fontSize: '13px',
+                        borderRadius: '10px',
+                        marginBottom: '18px',
+                        fontSize: '0.84rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
                         background:
                           passwordFeedback.type === 'success'
                             ? '#ecfdf5'
@@ -1894,93 +2867,177 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                             : '#991b1b',
                       }}
                     >
-                      {passwordFeedback.message}
+                      {passwordFeedback.type === 'success' ? (
+                        <CheckCircle2 size={16} style={{ color: '#059669', flexShrink: 0 }} />
+                      ) : (
+                        <AlertCircle size={16} style={{ color: '#dc2626', flexShrink: 0 }} />
+                      )}
+                      <span>{passwordFeedback.message}</span>
                     </div>
                   )}
 
+                  {/* Reset Password Form */}
                   <form onSubmit={handlePasswordResetSubmit}>
                     <div style={{ marginBottom: '16px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                        New Temporary / Permanent Password
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                        New Account Password *
                       </label>
-                      <div style={{ position: 'relative' }}>
+                      <div className="password-input-group">
+                        <Lock size={15} className="password-input-icon" />
                         <input
                           type={showPassword ? 'text' : 'password'}
                           className="filter-search-input"
-                          style={{ width: '100%', paddingRight: '70px' }}
+                          style={{ width: '100%', paddingLeft: '34px', paddingRight: '38px' }}
+                          placeholder="Enter strong replacement password (min 8 chars)..."
                           value={passwordFormData.newPassword}
-                          onChange={(e) =>
-                            setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })
-                          }
-                          placeholder="Minimum 8 characters"
+                          onChange={(e) => setPasswordFormData({ ...passwordFormData, newPassword: e.target.value })}
                           required
                         />
                         <button
                           type="button"
+                          className="password-toggle-btn"
                           onClick={() => setShowPassword(!showPassword)}
-                          style={{
-                            position: 'absolute',
-                            right: '8px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            background: 'none',
-                            border: 'none',
-                            fontSize: '11px',
-                            color: '#6366f1',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
+                          title={showPassword ? 'Hide password' : 'Show password'}
                         >
-                          {showPassword ? 'Hide' : 'Show'}
+                          {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
+
+                      {/* Real-time strength meter */}
+                      {passwordFormData.newPassword && (
+                        <div style={{ marginTop: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#64748b' }}>Password Strength</span>
+                            <span
+                              style={{
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                                color:
+                                  passwordFormData.newPassword.length >= 10 && /[A-Z]/.test(passwordFormData.newPassword) && /[0-9]/.test(passwordFormData.newPassword)
+                                    ? '#16a34a'
+                                    : passwordFormData.newPassword.length >= 8
+                                    ? '#d97706'
+                                    : '#dc2626',
+                              }}
+                            >
+                              {passwordFormData.newPassword.length >= 10 && /[A-Z]/.test(passwordFormData.newPassword) && /[0-9]/.test(passwordFormData.newPassword)
+                                ? 'Strong'
+                                : passwordFormData.newPassword.length >= 8
+                                ? 'Moderate'
+                                : 'Too Short'}
+                            </span>
+                          </div>
+                          <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', overflow: 'hidden', display: 'flex' }}>
+                            <div
+                              style={{
+                                height: '100%',
+                                width:
+                                  passwordFormData.newPassword.length >= 10 && /[A-Z]/.test(passwordFormData.newPassword) && /[0-9]/.test(passwordFormData.newPassword)
+                                    ? '100%'
+                                    : passwordFormData.newPassword.length >= 8
+                                    ? '65%'
+                                    : '30%',
+                                background:
+                                  passwordFormData.newPassword.length >= 10 && /[A-Z]/.test(passwordFormData.newPassword) && /[0-9]/.test(passwordFormData.newPassword)
+                                    ? '#16a34a'
+                                    : passwordFormData.newPassword.length >= 8
+                                    ? '#f59e0b'
+                                    : '#ef4444',
+                                transition: 'all 0.2s ease',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                        Confirm Password
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+                        Confirm Replacement Password *
                       </label>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        className="filter-search-input"
-                        style={{ width: '100%' }}
-                        value={passwordFormData.confirmPassword}
-                        onChange={(e) =>
-                          setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })
-                        }
-                        placeholder="Re-enter password"
-                        required
-                      />
+                      <div className="password-input-group">
+                        <Lock size={15} className="password-input-icon" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          className="filter-search-input"
+                          style={{ width: '100%', paddingLeft: '34px', paddingRight: '38px' }}
+                          placeholder="Re-type password to verify match..."
+                          value={passwordFormData.confirmPassword}
+                          onChange={(e) => setPasswordFormData({ ...passwordFormData, confirmPassword: e.target.value })}
+                          required
+                        />
+                        {passwordFormData.confirmPassword && (
+                          <div style={{ position: 'absolute', right: '12px' }}>
+                            {passwordFormData.newPassword === passwordFormData.confirmPassword ? (
+                              <CheckCircle2 size={16} style={{ color: '#10b981' }} title="Passwords match" />
+                            ) : (
+                              <AlertCircle size={16} style={{ color: '#ef4444' }} title="Passwords do not match" />
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
                       <button
                         type="button"
                         className="btn-enterprise-secondary"
                         onClick={() => {
-                          setPasswordFormData({ newPassword: '', confirmPassword: '' });
+                          setSelectedPasswordStaff(null);
                           setPasswordFeedback(null);
+                          setPasswordFormData({ newPassword: '', confirmPassword: '' });
                         }}
                       >
-                        Clear Fields
+                        Clear Selection
                       </button>
 
                       <button
                         type="submit"
                         className="btn-enterprise-primary"
-                        disabled={passwordSubmitting || !canManagePeople}
+                        disabled={passwordSubmitting}
+                        style={{ gap: '6px' }}
                       >
-                        <Lock size={14} />
-                        <span>{passwordSubmitting ? 'Verifying with Backend...' : 'Submit Password Reset'}</span>
+                        <ShieldCheck size={14} />
+                        <span>{passwordSubmitting ? 'Overwriting...' : 'Update Staff Password'}</span>
                       </button>
                     </div>
                   </form>
                 </>
               ) : (
-                <EmptyState
-                  title="No staff account selected"
-                  message="Please select a staff member from the left list to review their account status or initiate a credential reset."
-                />
+                <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+                  <div
+                    style={{
+                      width: '56px',
+                      height: '56px',
+                      borderRadius: '16px',
+                      background: '#eff6ff',
+                      color: '#2563eb',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 16px',
+                    }}
+                  >
+                    <KeyRound size={26} />
+                  </div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>
+                    No Staff Account Selected
+                  </h3>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', maxWidth: '380px', margin: '0 auto 18px', lineHeight: 1.5 }}>
+                    Select an enrolled staff profile from the directory on the left to inspect authentication standing, verify contact information, or issue an authorized credential update.
+                  </p>
+                  {filteredStaff.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn-enterprise-secondary"
+                      onClick={() => handleSelectStaffForPassword(filteredStaff[0])}
+                      style={{ fontSize: '0.8rem', gap: '6px' }}
+                    >
+                      <UserCheck size={14} />
+                      <span>Select {filteredStaff[0].first_name} {filteredStaff[0].last_name || ''}</span>
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1994,7 +3051,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
         <Modal
           isOpen={createStaffOpen}
           onClose={() => setCreateStaffOpen(false)}
-          title="Enroll New College Staff Member"
+          title="Create Staff Account"
         >
           {staffFormError && (
             <div
@@ -2013,171 +3070,257 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
           )}
 
           <form onSubmit={handleCreateStaffSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+            {/* System Role: Fixed to Hostel In-Charge */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                System Role
+              </label>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 12px',
+                background: '#f1f5f9',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#0f172a'
+              }}>
+                <ShieldCheck size={16} style={{ color: '#2563eb' }} />
+                <span>Hostel In-Charge</span>
+              </div>
+            </div>
+
+            {/* Full Name */}
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                Full Name *
+              </label>
+              <input
+                type="text"
+                className="filter-search-input"
+                style={{ width: '100%', fontSize: '13px' }}
+                value={staffFormData.name !== undefined ? staffFormData.name : `${staffFormData.first_name} ${staffFormData.last_name}`.trim()}
+                onChange={(e) => setStaffFormData({ ...staffFormData, name: e.target.value, first_name: e.target.value })}
+                placeholder="Enter staff member full name (e.g. Dr. Kavitha Raman)"
+                required
+              />
+            </div>
+
+            {/* Mobile Number & College Email */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  User Account UUID *
+                  Mobile Number *
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.user_id}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, user_id: e.target.value })}
-                  placeholder="UUID (e.g. 10000000-0000-4000...)"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  value={staffFormData.phone}
+                  onChange={(e) => setStaffFormData({ ...staffFormData, phone: e.target.value })}
+                  placeholder="+91 9876543210"
                   required
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Employee Number
-                </label>
-                <input
-                  type="text"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.employee_number}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, employee_number: e.target.value })}
-                  placeholder="e.g. EMP-1042"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  First Name *
-                </label>
-                <input
-                  type="text"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.first_name}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, first_name: e.target.value })}
-                  placeholder="First name"
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Middle Name
-                </label>
-                <input
-                  type="text"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.middle_name}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, middle_name: e.target.value })}
-                  placeholder="Optional"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.last_name}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, last_name: e.target.value })}
-                  placeholder="Last name"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Designation / Role
-                </label>
-                <input
-                  type="text"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.designation}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, designation: e.target.value })}
-                  placeholder="e.g. Chief Warden, Hostel Incharge, Security Guard"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Employment Status
-                </label>
-                <select
-                  className="filter-select"
-                  style={{ width: '100%' }}
-                  value={staffFormData.employment_status}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, employment_status: e.target.value })}
-                >
-                  <option value="ACTIVE">ACTIVE</option>
-                  <option value="INACTIVE">INACTIVE</option>
-                  <option value="SUSPENDED">SUSPENDED</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Email Address
+                  College Email Address *
                 </label>
                 <input
                   type="email"
                   className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
+                  style={{ width: '100%', fontSize: '13px' }}
                   value={staffFormData.email}
                   onChange={(e) => setStaffFormData({ ...staffFormData, email: e.target.value })}
                   placeholder="staff@college.edu"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Primary Phone
-                </label>
-                <input
-                  type="tel"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.phone}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, phone: e.target.value })}
-                  placeholder="+91 9876543210"
+                  required
                 />
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Alternate Phone
-                </label>
-                <input
-                  type="tel"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.alternate_phone}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, alternate_phone: e.target.value })}
-                  placeholder="Optional alternate"
-                />
+            {/* Password Creation (Type Password & Retype Password) */}
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              marginBottom: '16px',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#1e293b', fontSize: '12.5px', fontWeight: 600 }}>
+                  <Lock size={14} style={{ color: '#0284c7' }} />
+                  <span>Account Credentials</span>
+                </div>
+                {staffFormData.password && staffFormData.confirm_password && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: staffFormData.password === staffFormData.confirm_password ? '#16a34a' : '#dc2626'
+                  }}>
+                    {staffFormData.password === staffFormData.confirm_password ? '✓ Passwords match' : '✗ Passwords do not match'}
+                  </span>
+                )}
               </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                    Type Password *
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showStaffPassword ? 'text' : 'password'}
+                      className="filter-search-input"
+                      style={{ width: '100%', fontSize: '12px', paddingRight: '36px' }}
+                      value={staffFormData.password}
+                      onChange={(e) => setStaffFormData({ ...staffFormData, password: e.target.value })}
+                      placeholder="Minimum 8 characters"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowStaffPassword(!showStaffPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        padding: 0,
+                      }}
+                      tabIndex={-1}
+                    >
+                      {showStaffPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Joining Date
-                </label>
-                <input
-                  type="date"
-                  className="filter-search-input"
-                  style={{ width: '100%', fontSize: '12px' }}
-                  value={staffFormData.joining_date}
-                  onChange={(e) => setStaffFormData({ ...staffFormData, joining_date: e.target.value })}
-                />
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                    Retype Password *
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showStaffConfirmPassword ? 'text' : 'password'}
+                      className="filter-search-input"
+                      style={{ width: '100%', fontSize: '12px', paddingRight: '36px' }}
+                      value={staffFormData.confirm_password}
+                      onChange={(e) => setStaffFormData({ ...staffFormData, confirm_password: e.target.value })}
+                      placeholder="Retype password"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowStaffConfirmPassword(!showStaffConfirmPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        padding: 0,
+                      }}
+                      tabIndex={-1}
+                    >
+                      {showStaffConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
               </div>
+              <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
+                The staff member can sign into the Hostel Incharge / Staff portal using their college email and this password.
+              </div>
+            </div>
+
+            {/* Optional Collapsible Details */}
+            <div style={{ marginBottom: '16px' }}>
+              <button
+                type="button"
+                onClick={() => setShowAdvancedStaffFields(!showAdvancedStaffFields)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#0284c7',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <span>{showAdvancedStaffFields ? '− Hide' : '+ Show'} Optional Details (Designation, Employee ID, Joining Date)</span>
+              </button>
+
+              {showAdvancedStaffFields && (
+                <div style={{ marginTop: '10px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                        Designation / Role Title
+                      </label>
+                      <input
+                        type="text"
+                        className="filter-search-input"
+                        style={{ width: '100%', fontSize: '12px' }}
+                        value={staffFormData.designation}
+                        onChange={(e) => setStaffFormData({ ...staffFormData, designation: e.target.value })}
+                        placeholder="e.g. Primary Hostel Incharge"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                        Employee Number
+                      </label>
+                      <input
+                        type="text"
+                        className="filter-search-input"
+                        style={{ width: '100%', fontSize: '12px' }}
+                        value={staffFormData.employee_number}
+                        onChange={(e) => setStaffFormData({ ...staffFormData, employee_number: e.target.value })}
+                        placeholder="e.g. EMP-1746"
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                        Joining Date
+                      </label>
+                      <input
+                        type="date"
+                        className="filter-search-input"
+                        style={{ width: '100%', fontSize: '12px' }}
+                        value={staffFormData.joining_date}
+                        onChange={(e) => setStaffFormData({ ...staffFormData, joining_date: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>
+                        Employment Status
+                      </label>
+                      <select
+                        className="filter-select"
+                        style={{ width: '100%', fontSize: '12px' }}
+                        value={staffFormData.employment_status}
+                        onChange={(e) => setStaffFormData({ ...staffFormData, employment_status: e.target.value })}
+                      >
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="INACTIVE">INACTIVE</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -2193,7 +3336,8 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                 className="btn-enterprise-primary"
                 disabled={staffSubmitting}
               >
-                {staffSubmitting ? 'Enrolling...' : 'Enroll Staff'}
+                <UserPlus size={14} />
+                <span>{staffSubmitting ? 'Creating Account...' : 'Create Staff Account'}</span>
               </button>
             </div>
           </form>
@@ -2849,6 +3993,316 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
       />
 
       {/* =================================================================== */}
+      {/* MODAL: Enroll Security Personnel & Credentials                     */}
+      {/* =================================================================== */}
+      {enrollSecurityOpen && (
+        <Modal
+          isOpen={enrollSecurityOpen}
+          onClose={() => setEnrollSecurityOpen(false)}
+          title="Enroll Campus Security Personnel"
+          subtitle="Register campus security officer and configure their portal login access"
+          maxWidth="640px"
+        >
+          {securityEnrollError && (
+            <div
+              style={{
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                color: '#991b1b',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '16px',
+              }}
+            >
+              {securityEnrollError}
+            </div>
+          )}
+
+          <form onSubmit={handleEnrollSecuritySubmit}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  System Role *
+                </label>
+                <div
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: '#f1f5f9',
+                    border: '1px solid #e2e8f0',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#0f172a',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <ShieldCheck size={15} style={{ color: '#ea580c' }} />
+                  <span>Security Guard (Campus Security)</span>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Badge / Security ID *
+                </label>
+                <input
+                  type="text"
+                  className="filter-search-input"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  placeholder="e.g. SEC-1042"
+                  value={securityEnrollFormData.employee_number}
+                  onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, employee_number: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Full Name *
+                </label>
+                <input
+                  type="text"
+                  className="filter-search-input"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  placeholder="e.g. Rajesh Kumar"
+                  value={securityEnrollFormData.name}
+                  onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, name: e.target.value, first_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Primary Phone *
+                </label>
+                <input
+                  type="tel"
+                  className="filter-search-input"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  placeholder="+91 9876543210"
+                  value={securityEnrollFormData.phone}
+                  onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, phone: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Alternate Phone
+                </label>
+                <input
+                  type="tel"
+                  className="filter-search-input"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  placeholder="Secondary telephone"
+                  value={securityEnrollFormData.alternate_phone}
+                  onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, alternate_phone: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Date of Joining
+                </label>
+                <input
+                  type="date"
+                  className="filter-search-input"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  value={securityEnrollFormData.joining_date}
+                  onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, joining_date: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Initial Gate Post (Optional)
+                </label>
+                <select
+                  className="filter-select"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  value={securityEnrollFormData.gate_id}
+                  onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, gate_id: e.target.value })}
+                >
+                  <option value="">Assign Later / Not Posted Yet</option>
+                  {gatesList.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Security Portal Access & Credentials Card */}
+            <div
+              style={{
+                marginTop: '16px',
+                padding: '16px',
+                borderRadius: '10px',
+                border: '1px solid #fed7aa',
+                backgroundColor: '#fff7ed',
+                marginBottom: '20px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <div
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '6px',
+                    backgroundColor: '#ffedd5',
+                    color: '#c2410c',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Lock size={15} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#9a3412' }}>
+                    Security Portal Access & Credentials (Security ID & Password)
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#c2410c' }}>
+                    Set up login credentials so the security officer can sign in to the Campus Gate Security Portal.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#431407', marginBottom: '4px' }}>
+                    Security Login ID / Email Address *
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="email"
+                      className="filter-search-input"
+                      style={{ width: '100%', paddingLeft: '34px', fontSize: '13px' }}
+                      placeholder="e.g. security.officer@college.edu"
+                      value={securityEnrollFormData.email}
+                      onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, email: e.target.value })}
+                      required
+                    />
+                    <Mail
+                      size={15}
+                      style={{
+                        position: 'absolute',
+                        left: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#94a3b8',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#431407', marginBottom: '4px' }}>
+                      Security Portal Password *
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showSecurityPassword ? 'text' : 'password'}
+                        className="filter-search-input"
+                        style={{ width: '100%', paddingRight: '36px', fontSize: '13px' }}
+                        placeholder="Min 8 characters"
+                        value={securityEnrollFormData.password}
+                        onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, password: e.target.value })}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSecurityPassword(!showSecurityPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '4px',
+                        }}
+                        tabIndex={-1}
+                        title={showSecurityPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showSecurityPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#431407', marginBottom: '4px' }}>
+                      Retype Password *
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type={showSecurityConfirmPassword ? 'text' : 'password'}
+                        className="filter-search-input"
+                        style={{ width: '100%', paddingRight: '36px', fontSize: '13px' }}
+                        placeholder="Confirm password"
+                        value={securityEnrollFormData.confirm_password}
+                        onChange={(e) => setSecurityEnrollFormData({ ...securityEnrollFormData, confirm_password: e.target.value })}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSecurityConfirmPassword(!showSecurityConfirmPassword)}
+                        style={{
+                          position: 'absolute',
+                          right: '8px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#64748b',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: '4px',
+                        }}
+                        tabIndex={-1}
+                        title={showSecurityConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showSecurityConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-enterprise-secondary"
+                onClick={() => setEnrollSecurityOpen(false)}
+                disabled={securityEnrollSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-enterprise-primary"
+                disabled={securityEnrollSubmitting}
+              >
+                {securityEnrollSubmitting ? 'Registering...' : 'Enroll Security Officer'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* =================================================================== */}
       {/* MODAL: Post Security Guard                                          */}
       {/* =================================================================== */}
       {assignSecurityOpen && (
@@ -2885,11 +4339,14 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                 onChange={(e) => setSecurityFormData({ ...securityFormData, staff_id: e.target.value })}
                 required
               >
-                {staffList.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {getStaffFullName(s)} ({s.employee_number || 'No Code'} - {s.designation || 'Security'})
-                  </option>
-                ))}
+                {staffList.map((s) => {
+                  const isSec = s.role_code === 'SECURITY' || s.role_code === 'SECURITY_GUARD' || (s.designation || '').toLowerCase().includes('security') || (s.designation || '').toLowerCase().includes('guard');
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {isSec ? '🛡️ ' : ''}{getStaffFullName(s)} ({s.employee_number || 'No Code'} - {s.designation || 'Staff'})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 

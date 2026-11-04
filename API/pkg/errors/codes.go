@@ -12,6 +12,7 @@ const (
 
 	// Request validation.
 	ValidationError = "VALIDATION_ERROR"
+	InvalidInput    = ValidationError
 
 	// Resource errors.
 	NotFound = "NOT_FOUND"

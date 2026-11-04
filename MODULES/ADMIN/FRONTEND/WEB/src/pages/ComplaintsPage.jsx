@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/auth/useAuth';
 import adminService from '../services/adminService';
+import { exportToCSV } from '../../../shared/utils/exportUtils';
 import {
   Wrench,
   MessageSquare,
@@ -25,6 +26,18 @@ import {
   FileText,
   Send,
   GraduationCap,
+  LayoutGrid,
+  List,
+  Zap,
+  Droplets,
+  UtensilsCrossed,
+  DoorClosed,
+  HelpCircle,
+  Download,
+  Phone,
+  ArrowRight,
+  ExternalLink,
+  SlidersHorizontal,
 } from 'lucide-react';
 import {
   PageHeader,
@@ -42,6 +55,16 @@ import {
 export default function AdminComplaintsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Display Mode: Cards vs Table
+  const [displayMode, setDisplayMode] = useState(() => {
+    return localStorage.getItem('hms_complaints_view_mode') || 'cards';
+  });
+
+  const handleSetDisplayMode = (mode) => {
+    setDisplayMode(mode);
+    localStorage.setItem('hms_complaints_view_mode', mode);
+  };
 
   // Permission checks
   const canManageComplaints = useMemo(() => {
@@ -86,6 +109,8 @@ export default function AdminComplaintsPage() {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [complaintUpdates, setComplaintUpdates] = useState([]);
   const [loadingUpdates, setLoadingUpdates] = useState(false);
+  const [drawerNewNote, setDrawerNewNote] = useState('');
+  const [submittingDrawerNote, setSubmittingDrawerNote] = useState(false);
 
   // Form States
   const [createFormData, setCreateFormData] = useState({
@@ -195,15 +220,24 @@ export default function AdminComplaintsPage() {
     let inProgressCount = 0;
     let resolvedCount = 0;
     let closedCount = 0;
+    let urgentCount = 0;
 
     complaints.forEach((c) => {
       const st = String(c.status || '').toUpperCase();
+      const pr = String(c.priority || '').toUpperCase();
       if (st === 'OPEN') openCount++;
       else if (st === 'ASSIGNED') assignedCount++;
       else if (st === 'IN_PROGRESS') inProgressCount++;
       else if (st === 'RESOLVED') resolvedCount++;
       else if (st === 'CLOSED') closedCount++;
+
+      if (pr === 'URGENT' && st !== 'RESOLVED' && st !== 'CLOSED') {
+        urgentCount++;
+      }
     });
+
+    const resolvedTotal = resolvedCount + closedCount;
+    const resolutionRate = total ? Math.round((resolvedTotal / total) * 100) : 100;
 
     return {
       total,
@@ -212,7 +246,46 @@ export default function AdminComplaintsPage() {
       inProgress: inProgressCount,
       resolved: resolvedCount,
       closed: closedCount,
+      urgent: urgentCount,
+      resolutionRate,
     };
+  }, [complaints]);
+
+  // Category counts
+  const categoryCounts = useMemo(() => {
+    const counts = {
+      ALL: complaints.length,
+      HOSTEL: 0,
+      ROOM: 0,
+      FOOD: 0,
+      WATER: 0,
+      ELECTRICITY: 0,
+      CLEANLINESS: 0,
+      MAINTENANCE: 0,
+      SECURITY: 0,
+    };
+    complaints.forEach((c) => {
+      const cat = String(c.category || '').toUpperCase();
+      if (counts[cat] !== undefined) counts[cat]++;
+    });
+    return counts;
+  }, [complaints]);
+
+  // Status counts
+  const statusCounts = useMemo(() => {
+    const counts = {
+      ALL: complaints.length,
+      OPEN: 0,
+      ASSIGNED: 0,
+      IN_PROGRESS: 0,
+      RESOLVED: 0,
+      CLOSED: 0,
+    };
+    complaints.forEach((c) => {
+      const st = String(c.status || '').toUpperCase();
+      if (counts[st] !== undefined) counts[st]++;
+    });
+    return counts;
   }, [complaints]);
 
   // =========================================================================
@@ -254,6 +327,19 @@ export default function AdminComplaintsPage() {
     });
   }, [complaints, studentMap, searchTerm, statusFilter, categoryFilter, priorityFilter]);
 
+  const hasActiveFilters =
+    searchTerm !== '' ||
+    statusFilter !== 'ALL' ||
+    categoryFilter !== 'ALL' ||
+    priorityFilter !== 'ALL';
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('ALL');
+    setCategoryFilter('ALL');
+    setPriorityFilter('ALL');
+  };
+
   // =========================================================================
   // Workflow: Create Complaint
   // =========================================================================
@@ -291,13 +377,13 @@ export default function AdminComplaintsPage() {
       await adminService.createComplaint(payload);
       setSuccessBanner('Complaint registered successfully.');
       setCreateModalOpen(false);
-      loadComplaintsData();
+      loadComplaintsData(true);
     } catch (err) {
       console.error('Failed to create complaint:', err);
       setFormError(
         err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        'Failed to log complaint.'
+          err?.response?.data?.message ||
+          'Failed to log complaint.'
       );
     } finally {
       setFormSubmitting(false);
@@ -335,15 +421,17 @@ export default function AdminComplaintsPage() {
       };
 
       await adminService.assignComplaint(selectedComplaint.id, payload);
-      setSuccessBanner(`Complaint #${selectedComplaint.complaint_number || selectedComplaint.id.slice(0, 8)} assigned successfully.`);
+      setSuccessBanner(
+        `Complaint #${selectedComplaint.complaint_number || selectedComplaint.id.slice(0, 8)} assigned successfully.`
+      );
       setAssignModalOpen(false);
-      loadComplaintsData();
+      loadComplaintsData(true);
     } catch (err) {
       console.error('Failed to assign complaint:', err);
       setFormError(
         err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        'Failed to assign complaint.'
+          err?.response?.data?.message ||
+          'Failed to assign complaint.'
       );
     } finally {
       setFormSubmitting(false);
@@ -381,15 +469,17 @@ export default function AdminComplaintsPage() {
       };
 
       await adminService.updateComplaintStatus(selectedComplaint.id, payload);
-      setSuccessBanner(`Complaint status transitioned to ${payload.status}.`);
+      setSuccessBanner(
+        `Complaint #${selectedComplaint.complaint_number || selectedComplaint.id.slice(0, 8)} status updated to ${payload.status}.`
+      );
       setStatusModalOpen(false);
-      loadComplaintsData();
+      loadComplaintsData(true);
     } catch (err) {
-      console.error('Failed to update status:', err);
+      console.error('Failed to update complaint status:', err);
       setFormError(
         err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        'Failed to transition complaint status.'
+          err?.response?.data?.message ||
+          'Failed to transition complaint status.'
       );
     } finally {
       setFormSubmitting(false);
@@ -402,7 +492,7 @@ export default function AdminComplaintsPage() {
   const handleOpenResolveModal = (complaint) => {
     setSelectedComplaint(complaint);
     setResolveFormData({
-      resolution: 'Work completed. Replacement parts installed and verified operational.',
+      resolution: '',
     });
     setFormError(null);
     setResolveModalOpen(true);
@@ -412,7 +502,7 @@ export default function AdminComplaintsPage() {
     e.preventDefault();
     if (!selectedComplaint) return;
     if (!resolveFormData.resolution.trim()) {
-      setFormError('Please enter a resolution description.');
+      setFormError('Please describe the corrective actions and resolution.');
       return;
     }
 
@@ -425,15 +515,17 @@ export default function AdminComplaintsPage() {
       };
 
       await adminService.resolveComplaint(selectedComplaint.id, payload);
-      setSuccessBanner(`Complaint resolved successfully.`);
+      setSuccessBanner(
+        `Complaint #${selectedComplaint.complaint_number || selectedComplaint.id.slice(0, 8)} successfully resolved.`
+      );
       setResolveModalOpen(false);
-      loadComplaintsData();
+      loadComplaintsData(true);
     } catch (err) {
       console.error('Failed to resolve complaint:', err);
       setFormError(
         err?.response?.data?.error?.message ||
-        err?.response?.data?.message ||
-        'Failed to mark complaint as resolved.'
+          err?.response?.data?.message ||
+          'Failed to resolve complaint.'
       );
     } finally {
       setFormSubmitting(false);
@@ -441,31 +533,101 @@ export default function AdminComplaintsPage() {
   };
 
   // =========================================================================
-  // Workflow: View Details & Timeline History
+  // Workflow: Inspect Complaint Updates in Slide-Out Drawer
   // =========================================================================
   const handleOpenDetailsDrawer = async (complaint) => {
     setSelectedComplaint(complaint);
     setDetailsDrawerOpen(true);
     setLoadingUpdates(true);
-    setComplaintUpdates([]);
+    setDrawerNewNote('');
 
     try {
-      const updatesRes = await adminService.getComplaintUpdates(complaint.id);
-      const rawUpdates = Array.isArray(updatesRes) ? updatesRes : updatesRes?.updates || [];
-      setComplaintUpdates(rawUpdates);
+      const res = await adminService.getComplaintUpdates(complaint.id);
+      const updates = Array.isArray(res) ? res : res?.updates || res?.data || [];
+      setComplaintUpdates(updates);
     } catch (err) {
-      console.warn('Could not load complaint updates:', err);
+      console.warn('Failed to load complaint updates:', err);
+      setComplaintUpdates([]);
     } finally {
       setLoadingUpdates(false);
     }
+  };
+
+  const handleAddDrawerNoteSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedComplaint || !drawerNewNote.trim()) return;
+
+    setSubmittingDrawerNote(true);
+    try {
+      await adminService.updateComplaintStatus(selectedComplaint.id, {
+        status: selectedComplaint.status,
+        message: drawerNewNote.trim(),
+      });
+      setDrawerNewNote('');
+      // Refresh updates
+      const res = await adminService.getComplaintUpdates(selectedComplaint.id);
+      const updates = Array.isArray(res) ? res : res?.updates || res?.data || [];
+      setComplaintUpdates(updates);
+      setSuccessBanner('Progress note logged to audit trail.');
+    } catch (err) {
+      console.error('Failed to add note:', err);
+    } finally {
+      setSubmittingDrawerNote(false);
+    }
+  };
+
+  // =========================================================================
+  // CSV Export
+  // =========================================================================
+  const handleExportCSV = () => {
+    const data = filteredComplaints.map((c) => {
+      const student = c.student_id ? studentMap.get(c.student_id) : null;
+      const studentName = student
+        ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
+        : 'General Campus Incident';
+      const staff = c.assigned_to ? staffMap.get(c.assigned_to) : null;
+      const staffName = staff
+        ? `${staff.first_name || ''} ${staff.last_name || ''}`.trim()
+        : 'Unassigned';
+
+      return {
+        ticket_no: c.complaint_number || c.id?.slice(0, 8),
+        category: c.category,
+        priority: c.priority,
+        status: c.status,
+        title: c.title,
+        student: studentName,
+        roll_number: student?.registration_number || student?.roll_number || 'N/A',
+        assigned_to: staffName,
+        date_reported: c.created_at ? new Date(c.created_at).toLocaleDateString() : 'N/A',
+        resolution: c.resolution || 'Pending',
+      };
+    });
+
+    exportToCSV(
+      data,
+      `complaints_ledger_${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        { label: 'Ticket #', key: 'ticket_no' },
+        { label: 'Category', key: 'category' },
+        { label: 'Priority', key: 'priority' },
+        { label: 'Status', key: 'status' },
+        { label: 'Issue Headline', key: 'title' },
+        { label: 'Resident Student', key: 'student' },
+        { label: 'Roll Number', key: 'roll_number' },
+        { label: 'Assigned Staff', key: 'assigned_to' },
+        { label: 'Date Reported', key: 'date_reported' },
+        { label: 'Resolution Summary', key: 'resolution' },
+      ]
+    );
   };
 
   // Status Badge Helper
   const renderStatusBadge = (status) => {
     const st = String(status || '').toUpperCase();
     if (st === 'OPEN') return <span className="badge-enterprise badge-amber">OPEN</span>;
-    if (st === 'ASSIGNED') return <span className="badge-enterprise badge-blue">ASSIGNED</span>;
-    if (st === 'IN_PROGRESS') return <span className="badge-enterprise badge-purple">IN PROGRESS</span>;
+    if (st === 'ASSIGNED') return <span className="badge-enterprise badge-purple">ASSIGNED</span>;
+    if (st === 'IN_PROGRESS') return <span className="badge-enterprise badge-blue">IN PROGRESS</span>;
     if (st === 'RESOLVED') return <span className="badge-enterprise badge-emerald">RESOLVED</span>;
     if (st === 'CLOSED') return <span className="badge-enterprise badge-slate">CLOSED</span>;
     if (st === 'REJECTED') return <span className="badge-enterprise badge-rose">REJECTED</span>;
@@ -481,45 +643,100 @@ export default function AdminComplaintsPage() {
     return <span className="badge-enterprise badge-slate">LOW</span>;
   };
 
+  // Category Avatar Icon & Class
+  const getCategoryAvatar = (category) => {
+    const cat = String(category || '').toUpperCase();
+    switch (cat) {
+      case 'ELECTRICITY':
+        return {
+          icon: <Zap size={20} />,
+          className: 'category-electricity',
+        };
+      case 'WATER':
+        return {
+          icon: <Droplets size={20} />,
+          className: 'category-water',
+        };
+      case 'ROOM':
+        return {
+          icon: <DoorClosed size={20} />,
+          className: 'category-hostel',
+        };
+      case 'FOOD':
+        return {
+          icon: <UtensilsCrossed size={20} />,
+          className: 'category-food',
+        };
+      case 'CLEANLINESS':
+        return {
+          icon: <Sparkles size={20} />,
+          className: 'category-cleanliness',
+        };
+      case 'SECURITY':
+        return {
+          icon: <Shield size={20} />,
+          className: 'category-security',
+        };
+      case 'MAINTENANCE':
+      case 'HOSTEL':
+        return {
+          icon: <Wrench size={20} />,
+          className: 'category-hostel',
+        };
+      default:
+        return {
+          icon: <MessageSquare size={20} />,
+          className: 'category-default',
+        };
+    }
+  };
+
+  const getCardBorderClass = (comp) => {
+    const isResolved = comp.status === 'RESOLVED' || comp.status === 'CLOSED';
+    if (isResolved) return 'status-resolved';
+    const p = String(comp.priority || '').toUpperCase();
+    if (p === 'URGENT') return 'priority-urgent';
+    if (p === 'HIGH') return 'priority-high';
+    if (p === 'NORMAL') return 'priority-normal';
+    return 'priority-low';
+  };
+
   return (
-    <div className="enterprise-module-page">
-      {/* Header Bar */}
-      <div className="enterprise-page-header">
-        <div className="header-text-group">
-          <div className="header-title-row">
-            <div className="header-icon-badge">
-              <Wrench size={22} />
-            </div>
-            <div>
-              <h1 className="header-title">Student Complaints & Maintenance</h1>
-              <p className="header-subtitle">
-                Facility work orders, resident repair requests, staff dispatch, and resolution tracking.
-              </p>
-            </div>
+    <div className="fade-in-up">
+      {/* Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <Wrench size={13} className="hero-category-icon" />
+            <span>Support &amp; Safety</span>
           </div>
+          <h1 className="hero-main-title">Student Complaints & Service Requests</h1>
+          <p className="hero-subtitle">
+            Resident maintenance tickets, facility work orders, technician assignments, resolution audits, and institutional service level agreements.
+          </p>
         </div>
 
-        <div className="header-actions-group">
+        <div className="hero-action-buttons">
           <button
             type="button"
-            className="action-btn-secondary"
+            className="btn-enterprise-secondary"
             onClick={() => loadComplaintsData(true)}
             disabled={isRefreshing || loading}
             title="Refresh Complaints Data"
           >
             <RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <span>Sync Ledger</span>
           </button>
 
           {canManageComplaints && (
             <button
               type="button"
-              className="action-btn-primary"
+              className="btn-enterprise-primary"
               onClick={handleOpenCreateModal}
               disabled={loading}
             >
               <Plus size={15} />
-              <span>Log Complaint</span>
+              <span>Log Service Ticket</span>
             </button>
           )}
         </div>
@@ -556,9 +773,10 @@ export default function AdminComplaintsPage() {
 
       {/* KPI Stats Bar */}
       <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
+        {/* Total Logged Tickets */}
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Total Logged</span>
+            <span className="stat-kpi-label">Total Logged Tickets</span>
             <div className="stat-kpi-icon-wrap blue">
               <MessageSquare size={17} />
             </div>
@@ -569,38 +787,47 @@ export default function AdminComplaintsPage() {
           </div>
         </div>
 
+        {/* Open & Escalated */}
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Open & In Progress</span>
+            <span className="stat-kpi-label">Open & Escalated</span>
             <div className="stat-kpi-icon-wrap orange">
               <AlertTriangle size={17} />
             </div>
           </div>
-          <div className="stat-kpi-value text-orange-600">
-            {kpis.open + kpis.inProgress}
-          </div>
+          <div className="stat-kpi-value text-orange-600">{kpis.open}</div>
           <div className="stat-kpi-footnote">
             <span className="status-dot amber" />
-            <span>{kpis.open} new • {kpis.inProgress} ongoing</span>
+            <span>
+              {kpis.urgent > 0 ? (
+                <strong style={{ color: '#e11d48' }}>{kpis.urgent} Urgent Escalations</strong>
+              ) : (
+                'Under initial triage'
+              )}
+            </span>
           </div>
         </div>
 
+        {/* Assigned & In Progress */}
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Assigned Work Orders</span>
+            <span className="stat-kpi-label">Active Work Orders</span>
             <div className="stat-kpi-icon-wrap purple">
               <Wrench size={17} />
             </div>
           </div>
-          <div className="stat-kpi-value text-purple-600">{kpis.assigned}</div>
+          <div className="stat-kpi-value text-purple-600">
+            {kpis.assigned + kpis.inProgress}
+          </div>
           <div className="stat-kpi-footnote">
-            <span>Dispatched to maintenance staff</span>
+            <span>{kpis.assigned} assigned • {kpis.inProgress} in progress</span>
           </div>
         </div>
 
+        {/* Resolved & Closed */}
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Resolved / Closed</span>
+            <span className="stat-kpi-label">Resolved & Closed</span>
             <div className="stat-kpi-icon-wrap emerald">
               <CheckCircle2 size={17} />
             </div>
@@ -608,14 +835,197 @@ export default function AdminComplaintsPage() {
           <div className="stat-kpi-value text-emerald-600">
             {kpis.resolved + kpis.closed}
           </div>
-          <div className="stat-kpi-footnote">
-            <span className="status-dot green" />
-            <span>Repairs completed successfully</span>
+          <div style={{ marginTop: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '0.72rem',
+                color: '#64748b',
+                fontWeight: 600,
+                marginBottom: '4px',
+              }}
+            >
+              <span>Resolution Rate</span>
+              <span>{kpis.resolutionRate}%</span>
+            </div>
+            <div
+              style={{
+                width: '100%',
+                height: '5px',
+                background: '#e2e8f0',
+                borderRadius: '3px',
+                overflow: 'hidden',
+              }}
+            >
+              <div
+                style={{
+                  width: `${kpis.resolutionRate}%`,
+                  height: '100%',
+                  background: '#10b981',
+                  borderRadius: '3px',
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Table Card */}
+      {/* Quick Filter Strip 1: Ticket Status */}
+      <div className="complaint-quick-filter-strip">
+        <span className="complaint-filter-label">
+          <Filter size={12} />
+          <span>Status:</span>
+        </span>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip ${statusFilter === 'ALL' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('ALL')}
+        >
+          <span>All Tickets</span>
+          <span className="complaint-chip-count">{statusCounts.ALL}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-amber ${statusFilter === 'OPEN' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('OPEN')}
+        >
+          <Clock size={12} />
+          <span>Open / New</span>
+          <span className="complaint-chip-count">{statusCounts.OPEN}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-purple ${statusFilter === 'ASSIGNED' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('ASSIGNED')}
+        >
+          <UserCheck size={12} />
+          <span>Assigned</span>
+          <span className="complaint-chip-count">{statusCounts.ASSIGNED}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip ${statusFilter === 'IN_PROGRESS' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('IN_PROGRESS')}
+        >
+          <Wrench size={12} />
+          <span>In Progress</span>
+          <span className="complaint-chip-count">{statusCounts.IN_PROGRESS}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-emerald ${statusFilter === 'RESOLVED' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('RESOLVED')}
+        >
+          <CheckCircle2 size={12} />
+          <span>Resolved</span>
+          <span className="complaint-chip-count">{statusCounts.RESOLVED}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-slate ${statusFilter === 'CLOSED' ? 'active' : ''}`}
+          onClick={() => setStatusFilter('CLOSED')}
+        >
+          <span>Closed</span>
+          <span className="complaint-chip-count">{statusCounts.CLOSED}</span>
+        </button>
+      </div>
+
+      {/* Quick Filter Strip 2: Issue Categories */}
+      <div className="complaint-quick-filter-strip" style={{ marginTop: '-8px' }}>
+        <span className="complaint-filter-label">
+          <Wrench size={12} />
+          <span>Category:</span>
+        </span>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip ${categoryFilter === 'ALL' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('ALL')}
+        >
+          <span>All Categories</span>
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-amber ${categoryFilter === 'ELECTRICITY' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('ELECTRICITY')}
+        >
+          <Zap size={12} />
+          <span>Electricity</span>
+          {categoryCounts.ELECTRICITY > 0 && (
+            <span className="complaint-chip-count">{categoryCounts.ELECTRICITY}</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-water ${categoryFilter === 'WATER' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('WATER')}
+        >
+          <Droplets size={12} />
+          <span>Water Supply</span>
+          {categoryCounts.WATER > 0 && (
+            <span className="complaint-chip-count">{categoryCounts.WATER}</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip ${categoryFilter === 'ROOM' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('ROOM')}
+        >
+          <DoorClosed size={12} />
+          <span>Room & Furniture</span>
+          {categoryCounts.ROOM > 0 && (
+            <span className="complaint-chip-count">{categoryCounts.ROOM}</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip ${categoryFilter === 'FOOD' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('FOOD')}
+        >
+          <UtensilsCrossed size={12} />
+          <span>Food / Mess</span>
+          {categoryCounts.FOOD > 0 && (
+            <span className="complaint-chip-count">{categoryCounts.FOOD}</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-emerald ${categoryFilter === 'CLEANLINESS' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('CLEANLINESS')}
+        >
+          <Sparkles size={12} />
+          <span>Cleanliness</span>
+          {categoryCounts.CLEANLINESS > 0 && (
+            <span className="complaint-chip-count">{categoryCounts.CLEANLINESS}</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`complaint-filter-chip chip-purple ${categoryFilter === 'SECURITY' ? 'active' : ''}`}
+          onClick={() => setCategoryFilter('SECURITY')}
+        >
+          <Shield size={12} />
+          <span>Security</span>
+          {categoryCounts.SECURITY > 0 && (
+            <span className="complaint-chip-count">{categoryCounts.SECURITY}</span>
+          )}
+        </button>
+      </div>
+
+      {/* Main Complaints Card */}
       <div className="enterprise-card">
         <div className="card-topbar">
           <div className="card-title-group">
@@ -624,9 +1034,41 @@ export default function AdminComplaintsPage() {
             </div>
             <h2 className="card-title-text">Service Ticket & Maintenance Registry</h2>
           </div>
-          <span className="badge-enterprise badge-emerald">
-            {filteredComplaints.length} of {complaints.length} Records Showing
-          </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              className="btn-enterprise-secondary"
+              style={{ padding: '6px 12px', fontSize: '12px' }}
+              onClick={handleExportCSV}
+              title="Export Complaints to CSV"
+            >
+              <Download size={13} />
+              <span>Export CSV</span>
+            </button>
+
+            {/* View Mode Switcher */}
+            <div className="view-toggle-group">
+              <button
+                type="button"
+                className={`view-toggle-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                onClick={() => handleSetDisplayMode('cards')}
+                title="Card Grid View"
+              >
+                <LayoutGrid size={15} />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${displayMode === 'table' ? 'active' : ''}`}
+                onClick={() => handleSetDisplayMode('table')}
+                title="Table View"
+              >
+                <List size={15} />
+                <span>Table</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Filter Toolbar */}
@@ -642,38 +1084,7 @@ export default function AdminComplaintsPage() {
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <select
-              className="filter-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="ALL">All Ticket Statuses</option>
-              <option value="OPEN">OPEN</option>
-              <option value="ASSIGNED">ASSIGNED</option>
-              <option value="IN_PROGRESS">IN PROGRESS</option>
-              <option value="RESOLVED">RESOLVED</option>
-              <option value="CLOSED">CLOSED</option>
-              <option value="REJECTED">REJECTED</option>
-            </select>
-
-            <select
-              className="filter-select"
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-            >
-              <option value="ALL">All Categories</option>
-              <option value="HOSTEL">HOSTEL</option>
-              <option value="ROOM">ROOM</option>
-              <option value="FOOD">FOOD</option>
-              <option value="WATER">WATER</option>
-              <option value="ELECTRICITY">ELECTRICITY</option>
-              <option value="CLEANLINESS">CLEANLINESS</option>
-              <option value="MAINTENANCE">MAINTENANCE</option>
-              <option value="SECURITY">SECURITY</option>
-              <option value="OTHER">OTHER</option>
-            </select>
-
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <select
               className="filter-select"
               value={priorityFilter}
@@ -685,129 +1096,288 @@ export default function AdminComplaintsPage() {
               <option value="NORMAL">NORMAL</option>
               <option value="LOW">LOW</option>
             </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="btn-enterprise-secondary"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={handleResetFilters}
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Complaints Table */}
-        <div className="enterprise-table-container">
-          <table className="enterprise-table">
-            <thead>
-              <tr>
-                <th>Ticket Reference</th>
-                <th>Issue Details</th>
-                <th>Resident Student</th>
-                <th>Priority</th>
-                <th>Status</th>
-                <th>Assigned Staff</th>
-                <th>Date Logged</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {/* Loading State */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <LoadingState message="Loading complaints ledger from institutional database..." />
+          </div>
+        ) : filteredComplaints.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <EmptyState
+              icon={Wrench}
+              title="No maintenance complaints found"
+              description={
+                hasActiveFilters
+                  ? 'Try clearing your search filters to view recorded tickets.'
+                  : 'No student maintenance or facility tickets currently logged.'
+              }
+              actionLabel={canManageComplaints ? 'Log Service Ticket' : undefined}
+              onAction={canManageComplaints ? handleOpenCreateModal : undefined}
+            />
+          </div>
+        ) : displayMode === 'cards' ? (
+          /* ========================================================================= */
+          /* CARDS VIEW MODE                                                           */
+          /* ========================================================================= */
+          <div style={{ padding: '18px 20px' }}>
+            <div className="complaints-grid-cards">
+              {filteredComplaints.map((comp) => {
+                const student = comp.student_id ? studentMap.get(comp.student_id) : null;
+                const studentName = student
+                  ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
+                  : 'Institutional Incident';
+                const regNumber = student?.registration_number || student?.roll_number || 'N/A';
+                const assignedStaff = comp.assigned_to ? staffMap.get(comp.assigned_to) : null;
+                const avatar = getCategoryAvatar(comp.category);
+
+                return (
+                  <div
+                    key={comp.id}
+                    className={`complaint-card-v2 ${getCardBorderClass(comp)}`}
+                  >
+                    {/* Top Row: Avatar Box + Header + Badges */}
+                    <div className="complaint-card-top">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                        <div className={`complaint-avatar-box ${avatar.className}`}>
+                          {avatar.icon}
+                        </div>
+                        <div style={{ minWidth: 0 }}>
+                          <h3 className="complaint-title-text" title={comp.title}>
+                            {comp.title}
+                          </h3>
+                          <div className="complaint-meta-sub">
+                            <code
+                              style={{
+                                background: '#f1f5f9',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 700,
+                                fontSize: '11px',
+                                color: '#0f172a',
+                              }}
+                            >
+                              #{comp.complaint_number || comp.id.slice(0, 8)}
+                            </code>
+                            <span>•</span>
+                            <span>{comp.category || 'GENERAL'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        {renderStatusBadge(comp.status)}
+                        {renderPriorityBadge(comp.priority)}
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="complaint-card-body">
+                      {/* Description Clamp */}
+                      <p className="complaint-desc-clamp" title={comp.description}>
+                        {comp.description}
+                      </p>
+
+                      {/* Information Stack */}
+                      <div className="complaint-info-stack">
+                        {/* Student Info */}
+                        <div className="complaint-info-row" title={`Resident: ${studentName}`}>
+                          <GraduationCap size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Resident:</span>
+                          <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {studentName} ({regNumber})
+                          </span>
+                        </div>
+
+                        {/* Assigned Technician */}
+                        <div className="complaint-info-row">
+                          <UserCheck size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Work Order:</span>
+                          {assignedStaff ? (
+                            <span style={{ color: '#059669', fontWeight: 600 }}>
+                              {assignedStaff.first_name} {assignedStaff.last_name}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                              Awaiting assignment
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Reported Time */}
+                        <div className="complaint-info-row">
+                          <Clock size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Reported:</span>
+                          <span style={{ color: '#64748b' }}>
+                            {comp.created_at ? new Date(comp.created_at).toLocaleDateString() : 'Recent'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card Footer Actions */}
+                    <div className="complaint-card-footer">
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-enterprise-secondary"
+                          style={{ padding: '6px 10px', fontSize: '11.5px' }}
+                          onClick={() => handleOpenDetailsDrawer(comp)}
+                        >
+                          <Eye size={12} />
+                          <span>Dossier</span>
+                        </button>
+
+                        {canManageComplaints && (
+                          <button
+                            type="button"
+                            className="btn-enterprise-secondary"
+                            style={{ padding: '6px 10px', fontSize: '11.5px' }}
+                            onClick={() => handleOpenAssignModal(comp)}
+                            title="Assign to Staff"
+                          >
+                            <UserCheck size={12} />
+                            <span>Assign</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {canManageComplaints && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-enterprise-secondary"
+                            style={{ padding: '6px 10px', fontSize: '11.5px' }}
+                            onClick={() => handleOpenStatusModal(comp)}
+                            title="Transition Status"
+                          >
+                            <SlidersHorizontal size={12} />
+                            <span>Status</span>
+                          </button>
+
+                          {comp.status !== 'RESOLVED' && comp.status !== 'CLOSED' && (
+                            <button
+                              type="button"
+                              className="btn-enterprise-primary"
+                              style={{
+                                padding: '6px 10px',
+                                fontSize: '11.5px',
+                                background: '#10b981',
+                                borderColor: '#10b981',
+                              }}
+                              onClick={() => handleOpenResolveModal(comp)}
+                              title="Mark as Resolved"
+                            >
+                              <Check size={12} />
+                              <span>Resolve</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* TABLE VIEW MODE                                                           */
+          /* ========================================================================= */
+          <div className="enterprise-table-container">
+            <table className="enterprise-table">
+              <thead>
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <LoadingState message="Loading complaints ledger..." />
-                  </td>
+                  <th>Ticket #</th>
+                  <th>Category</th>
+                  <th>Headline / Summary</th>
+                  <th>Resident Student</th>
+                  <th>Priority</th>
+                  <th>Status</th>
+                  <th>Assigned Technician</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ) : filteredComplaints.length === 0 ? (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <EmptyState
-                      icon={Wrench}
-                      title="No complaints or service requests found"
-                      description={
-                        searchTerm || statusFilter !== 'ALL' || categoryFilter !== 'ALL'
-                          ? 'Try adjusting your search query or filters.'
-                          : 'No student maintenance complaints have been reported yet.'
-                      }
-                      actionLabel={canManageComplaints ? 'Log Complaint' : undefined}
-                      onAction={canManageComplaints ? handleOpenCreateModal : undefined}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filteredComplaints.map((comp) => {
+              </thead>
+              <tbody>
+                {filteredComplaints.map((comp) => {
                   const student = comp.student_id ? studentMap.get(comp.student_id) : null;
                   const studentName = student
                     ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
-                    : 'Institutional Incident';
-                  const regNo = student?.registration_number || student?.admission_number || 'N/A';
-
-                  const staff = comp.assigned_to ? staffMap.get(comp.assigned_to) : null;
-                  const staffName = staff
-                    ? `${staff.first_name || ''} ${staff.last_name || ''}`.trim()
-                    : comp.assigned_to
-                    ? 'Staff #' + comp.assigned_to.slice(0, 8)
-                    : 'Unassigned';
-
-                  const formattedDate = comp.created_at
-                    ? new Date(comp.created_at).toLocaleDateString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })
-                    : '—';
-
-                  const isResolved = comp.status === 'RESOLVED' || comp.status === 'CLOSED';
+                    : 'Campus Incident';
+                  const assignedStaff = comp.assigned_to ? staffMap.get(comp.assigned_to) : null;
+                  const avatar = getCategoryAvatar(comp.category);
 
                   return (
                     <tr key={comp.id} className="enterprise-table-row">
-                      {/* Ticket Number */}
+                      {/* Ticket # */}
                       <td>
                         <code
                           style={{
                             background: '#f1f5f9',
                             padding: '3px 8px',
                             borderRadius: '4px',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             fontSize: '12px',
                             color: '#0f172a',
                           }}
                         >
-                          {comp.complaint_number || comp.id.slice(0, 8)}
+                          #{comp.complaint_number || comp.id.slice(0, 8)}
                         </code>
                       </td>
 
-                      {/* Issue Details */}
+                      {/* Category */}
                       <td>
-                        <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '13.5px' }}>
-                          {comp.title}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              color: '#64748b',
-                              textTransform: 'uppercase',
-                            }}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div
+                            className={`complaint-avatar-box ${avatar.className}`}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px' }}
                           >
-                            {comp.category}
-                          </span>
-                          <span style={{ color: '#cbd5e1' }}>•</span>
-                          <span
-                            style={{
-                              fontSize: '12px',
-                              color: '#64748b',
-                              maxWidth: '180px',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {comp.description}
+                            {React.cloneElement(avatar.icon, { size: 14 })}
+                          </div>
+                          <span style={{ fontSize: '12.5px', fontWeight: 600, color: '#334155' }}>
+                            {comp.category || 'GENERAL'}
                           </span>
                         </div>
                       </td>
 
-                      {/* Resident */}
+                      {/* Headline / Summary */}
+                      <td style={{ maxWidth: '280px' }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '13.5px' }}>
+                          {comp.title}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '12px',
+                            color: '#64748b',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {comp.description}
+                        </div>
+                      </td>
+
+                      {/* Student */}
                       <td>
-                        <div style={{ fontWeight: 600, color: '#334155', fontSize: '13px' }}>
+                        <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '13px' }}>
                           {studentName}
                         </div>
-                        <div style={{ fontSize: '11.5px', color: '#64748b' }}>
-                          Reg: {regNo}
+                        <div style={{ fontSize: '11px', color: '#64748b' }}>
+                          {student?.registration_number || 'N/A'}
                         </div>
                       </td>
 
@@ -817,24 +1387,17 @@ export default function AdminComplaintsPage() {
                       {/* Status */}
                       <td>{renderStatusBadge(comp.status)}</td>
 
-                      {/* Assigned Staff */}
+                      {/* Assigned Tech */}
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Users size={12} style={{ color: comp.assigned_to ? '#2563eb' : '#94a3b8' }} />
-                          <span style={{ fontSize: '12.5px', color: comp.assigned_to ? '#1e293b' : '#94a3b8' }}>
-                            {staffName}
+                        {assignedStaff ? (
+                          <div style={{ fontSize: '12.5px', fontWeight: 600, color: '#059669' }}>
+                            {assignedStaff.first_name} {assignedStaff.last_name}
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
+                            Unassigned
                           </span>
-                        </div>
-                      </td>
-
-                      {/* Date Logged */}
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Clock size={12} style={{ color: '#64748b' }} />
-                          <span style={{ fontSize: '12.5px', color: '#475569' }}>
-                            {formattedDate}
-                          </span>
-                        </div>
+                        )}
                       </td>
 
                       {/* Actions */}
@@ -850,51 +1413,44 @@ export default function AdminComplaintsPage() {
                           <button
                             type="button"
                             className="table-icon-btn"
-                            title="View Full Ticket & Audit History"
+                            title="Ticket Dossier"
                             onClick={() => handleOpenDetailsDrawer(comp)}
                           >
                             <Eye size={14} />
                           </button>
 
-                          {canManageComplaints && !isResolved && (
+                          {canManageComplaints && (
                             <>
                               <button
                                 type="button"
                                 className="table-icon-btn"
-                                title="Assign to Maintenance Staff"
+                                title="Assign Staff"
                                 onClick={() => handleOpenAssignModal(comp)}
                               >
                                 <UserCheck size={14} />
                               </button>
 
-                              <button
-                                type="button"
-                                className="table-icon-btn text-purple-600"
-                                title="Update Status Transition"
-                                onClick={() => handleOpenStatusModal(comp)}
-                              >
-                                <Send size={14} />
-                              </button>
-
-                              <button
-                                type="button"
-                                className="table-icon-btn text-emerald-600"
-                                title="Mark as Resolved"
-                                onClick={() => handleOpenResolveModal(comp)}
-                              >
-                                <Check size={14} />
-                              </button>
+                              {comp.status !== 'RESOLVED' && comp.status !== 'CLOSED' && (
+                                <button
+                                  type="button"
+                                  className="table-icon-btn text-emerald-600"
+                                  title="Mark Resolved"
+                                  onClick={() => handleOpenResolveModal(comp)}
+                                >
+                                  <Check size={14} />
+                                </button>
+                              )}
                             </>
                           )}
                         </div>
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* =================================================================== */}
@@ -1024,13 +1580,13 @@ export default function AdminComplaintsPage() {
             >
               <button
                 type="button"
-                className="action-btn-secondary"
+                className="btn-enterprise-secondary"
                 onClick={() => setCreateModalOpen(false)}
                 disabled={formSubmitting}
               >
                 Cancel
               </button>
-              <button type="submit" className="action-btn-primary" disabled={formSubmitting}>
+              <button type="submit" className="btn-enterprise-primary" disabled={formSubmitting}>
                 {formSubmitting ? 'Registering...' : 'Submit Complaint'}
               </button>
             </div>
@@ -1066,7 +1622,7 @@ export default function AdminComplaintsPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <FormField label="Assign to Maintenance / College Staff" required>
+              <FormField label="Assign to Maintenance / Hostel Staff" required>
                 <select
                   className="filter-select"
                   style={{ width: '100%', height: '38px' }}
@@ -1089,7 +1645,7 @@ export default function AdminComplaintsPage() {
                 <textarea
                   className="filter-search-input"
                   style={{ width: '100%', minHeight: '80px', padding: '8px 12px' }}
-                  placeholder="Instructions for the assigned staff member..."
+                  placeholder="Provide instructions for the technician..."
                   value={assignFormData.message}
                   onChange={(e) =>
                     setAssignFormData((prev) => ({ ...prev, message: e.target.value }))
@@ -1110,14 +1666,14 @@ export default function AdminComplaintsPage() {
             >
               <button
                 type="button"
-                className="action-btn-secondary"
+                className="btn-enterprise-secondary"
                 onClick={() => setAssignModalOpen(false)}
                 disabled={formSubmitting}
               >
                 Cancel
               </button>
-              <button type="submit" className="action-btn-primary" disabled={formSubmitting}>
-                {formSubmitting ? 'Assigning...' : 'Confirm Assignment'}
+              <button type="submit" className="btn-enterprise-primary" disabled={formSubmitting}>
+                {formSubmitting ? 'Assigning...' : 'Dispatch Ticket'}
               </button>
             </div>
           </form>
@@ -1125,7 +1681,7 @@ export default function AdminComplaintsPage() {
       )}
 
       {/* =================================================================== */}
-      {/* MODAL 3: Update Status Transition                                  */}
+      {/* MODAL 3: Update Complaint Status                                    */}
       {/* =================================================================== */}
       {statusModalOpen && selectedComplaint && (
         <Modal
@@ -1152,7 +1708,7 @@ export default function AdminComplaintsPage() {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <FormField label="Target Status" required>
+              <FormField label="New Operational Status" required>
                 <select
                   className="filter-select"
                   style={{ width: '100%', height: '38px' }}
@@ -1162,20 +1718,19 @@ export default function AdminComplaintsPage() {
                   }
                   required
                 >
-                  <option value="OPEN">OPEN</option>
-                  <option value="ASSIGNED">ASSIGNED</option>
-                  <option value="IN_PROGRESS">IN PROGRESS</option>
-                  <option value="RESOLVED">RESOLVED</option>
-                  <option value="CLOSED">CLOSED</option>
-                  <option value="REJECTED">REJECTED</option>
+                  <option value="OPEN">OPEN (Under review)</option>
+                  <option value="ASSIGNED">ASSIGNED (Technician dispatched)</option>
+                  <option value="IN_PROGRESS">IN PROGRESS (Work ongoing)</option>
+                  <option value="CLOSED">CLOSED (Archived without action)</option>
+                  <option value="REJECTED">REJECTED (Duplicate or out of scope)</option>
                 </select>
               </FormField>
 
-              <FormField label="Transition Audit Note / Message" required>
+              <FormField label="Status Transition Note" required>
                 <textarea
                   className="filter-search-input"
                   style={{ width: '100%', minHeight: '80px', padding: '8px 12px' }}
-                  placeholder="Explain the reason for this status change..."
+                  placeholder="Explain why this status transition is being recorded..."
                   value={statusFormData.message}
                   onChange={(e) =>
                     setStatusFormData((prev) => ({ ...prev, message: e.target.value }))
@@ -1197,13 +1752,13 @@ export default function AdminComplaintsPage() {
             >
               <button
                 type="button"
-                className="action-btn-secondary"
+                className="btn-enterprise-secondary"
                 onClick={() => setStatusModalOpen(false)}
                 disabled={formSubmitting}
               >
                 Cancel
               </button>
-              <button type="submit" className="action-btn-primary" disabled={formSubmitting}>
+              <button type="submit" className="btn-enterprise-primary" disabled={formSubmitting}>
                 {formSubmitting ? 'Updating...' : 'Save Status'}
               </button>
             </div>
@@ -1269,7 +1824,7 @@ export default function AdminComplaintsPage() {
             >
               <button
                 type="button"
-                className="action-btn-secondary"
+                className="btn-enterprise-secondary"
                 onClick={() => setResolveModalOpen(false)}
                 disabled={formSubmitting}
               >
@@ -1277,7 +1832,7 @@ export default function AdminComplaintsPage() {
               </button>
               <button
                 type="submit"
-                className="action-btn-primary"
+                className="btn-enterprise-primary"
                 style={{ background: '#10b981', borderColor: '#10b981' }}
                 disabled={formSubmitting}
               >
@@ -1292,33 +1847,8 @@ export default function AdminComplaintsPage() {
       {/* DRAWER: Complaint Details & Updates Timeline                        */}
       {/* =================================================================== */}
       {detailsDrawerOpen && selectedComplaint && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            background: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(2px)',
-          }}
-          onClick={() => setDetailsDrawerOpen(false)}
-        >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '480px',
-              height: '100%',
-              background: '#ffffff',
-              boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
-              padding: '28px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="complaint-drawer-overlay" onClick={() => setDetailsDrawerOpen(false)}>
+          <div className="complaint-drawer-content" onClick={(e) => e.stopPropagation()}>
             <div
               style={{
                 display: 'flex',
@@ -1330,14 +1860,25 @@ export default function AdminComplaintsPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Wrench size={20} style={{ color: '#2563eb' }} />
-                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: '#0f172a' }}>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
                   Ticket #{selectedComplaint.complaint_number || selectedComplaint.id.slice(0, 8)}
                 </h3>
               </div>
               <button
                 type="button"
-                className="table-icon-btn"
                 onClick={() => setDetailsDrawerOpen(false)}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                }}
               >
                 <X size={16} />
               </button>
@@ -1348,7 +1889,7 @@ export default function AdminComplaintsPage() {
               style={{
                 background: '#f8fafc',
                 border: '1px solid #e2e8f0',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 padding: '16px',
               }}
             >
@@ -1361,7 +1902,7 @@ export default function AdminComplaintsPage() {
               <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginTop: '6px' }}>
                 {selectedComplaint.title}
               </div>
-              <div style={{ fontSize: '13px', color: '#475569', marginTop: '4px', lineHeight: 1.5 }}>
+              <div style={{ fontSize: '13px', color: '#475569', marginTop: '6px', lineHeight: 1.5 }}>
                 {selectedComplaint.description}
               </div>
             </div>
@@ -1410,6 +1951,32 @@ export default function AdminComplaintsPage() {
               )}
             </div>
 
+            {/* Interactive Note Form in Drawer */}
+            <form onSubmit={handleAddDrawerNoteSubmit}>
+              <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '6px' }}>
+                Post Work Order Note
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  className="filter-search-input"
+                  style={{ flex: 1, height: '36px', fontSize: '12.5px' }}
+                  placeholder="Add progress note or audit remark..."
+                  value={drawerNewNote}
+                  onChange={(e) => setDrawerNewNote(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="btn-enterprise-primary"
+                  style={{ padding: '6px 12px', fontSize: '12px' }}
+                  disabled={submittingDrawerNote || !drawerNewNote.trim()}
+                >
+                  <Send size={12} />
+                  <span>Post</span>
+                </button>
+              </div>
+            </form>
+
             {/* Timeline History Section */}
             <div>
               <div style={{ fontSize: '12px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', marginBottom: '10px' }}>
@@ -1425,25 +1992,20 @@ export default function AdminComplaintsPage() {
                   No updates recorded yet.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="complaint-audit-timeline">
                   {complaintUpdates.map((upd, idx) => (
-                    <div
-                      key={upd.id || idx}
-                      style={{
-                        padding: '10px 14px',
-                        background: '#f8fafc',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        fontSize: '12.5px',
-                      }}
-                    >
+                    <div key={upd.id || idx} className="complaint-audit-node">
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: '#64748b', fontSize: '11.5px', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600, color: '#2563eb' }}>{upd.update_type}</span>
-                        <span>{upd.created_at ? new Date(upd.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                        <span style={{ fontWeight: 700, color: '#2563eb' }}>{upd.update_type}</span>
+                        <span>
+                          {upd.created_at
+                            ? new Date(upd.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                            : ''}
+                        </span>
                       </div>
-                      <div style={{ color: '#1e293b' }}>{upd.message || 'Status transition recorded.'}</div>
+                      <div style={{ color: '#1e293b', fontSize: '12.5px' }}>{upd.message || 'Status transition recorded.'}</div>
                       {upd.new_status && (
-                        <div style={{ marginTop: '4px', fontSize: '11.5px', color: '#475569' }}>
+                        <div style={{ marginTop: '4px', fontSize: '11px', color: '#475569' }}>
                           Status: <strong>{upd.new_status}</strong>
                         </div>
                       )}
@@ -1453,13 +2015,13 @@ export default function AdminComplaintsPage() {
               )}
             </div>
 
-            {/* Quick Actions in Drawer */}
+            {/* Quick Actions in Drawer Footer */}
             <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
               {canManageComplaints && selectedComplaint.status !== 'RESOLVED' && selectedComplaint.status !== 'CLOSED' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button
                     type="button"
-                    className="action-btn-secondary"
+                    className="btn-enterprise-secondary"
                     style={{ justifyContent: 'center' }}
                     onClick={() => {
                       setDetailsDrawerOpen(false);
@@ -1472,7 +2034,7 @@ export default function AdminComplaintsPage() {
 
                   <button
                     type="button"
-                    className="action-btn-primary"
+                    className="btn-enterprise-primary"
                     style={{ justifyContent: 'center', background: '#10b981', borderColor: '#10b981' }}
                     onClick={() => {
                       setDetailsDrawerOpen(false);
@@ -1491,4 +2053,3 @@ export default function AdminComplaintsPage() {
     </div>
   );
 }
-

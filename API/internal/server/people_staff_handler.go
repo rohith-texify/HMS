@@ -26,7 +26,11 @@ func NewPeopleStaffHandler(
 }
 
 type createStaffRequest struct {
-	UserID           string `json:"user_id" binding:"required"`
+	UserID           string `json:"user_id"`
+	Password         string `json:"password"`
+	ConfirmPassword  string `json:"confirm_password"`
+	RoleCode         string `json:"role_code"`
+	HostelID         string `json:"hostel_id"`
 	EmployeeNumber   string `json:"employee_number"`
 	FirstName        string `json:"first_name" binding:"required"`
 	MiddleName       string `json:"middle_name"`
@@ -181,16 +185,29 @@ func (h *PeopleStaffHandler) Create(c *gin.Context) {
 		return
 	}
 
-	userID, err := uuid.Parse(req.UserID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"message": "invalid user_id",
-		})
-		return
+	var userID uuid.UUID
+	if strings.TrimSpace(req.UserID) != "" {
+		parsedUID, err := uuid.Parse(strings.TrimSpace(req.UserID))
+		if err == nil {
+			userID = parsedUID
+		} else if strings.TrimSpace(req.Password) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "invalid user_id",
+			})
+			return
+		}
+	}
+
+	var hostelID *uuid.UUID
+	if strings.TrimSpace(req.HostelID) != "" {
+		if parsedHID, err := uuid.Parse(strings.TrimSpace(req.HostelID)); err == nil {
+			hostelID = &parsedHID
+		}
 	}
 
 	var departmentID *uuid.UUID
+	var err error
 
 	if strings.TrimSpace(req.DepartmentID) != "" {
 		departmentID, err = parseOptionalUUID(req.DepartmentID)
@@ -208,6 +225,10 @@ func (h *PeopleStaffHandler) Create(c *gin.Context) {
 		collegeID,
 		service.CreateStaffInput{
 			UserID:           userID,
+			Password:         strings.TrimSpace(req.Password),
+			ConfirmPassword:  strings.TrimSpace(req.ConfirmPassword),
+			RoleCode:         strings.TrimSpace(req.RoleCode),
+			HostelID:         hostelID,
 			EmployeeNumber:   strings.TrimSpace(req.EmployeeNumber),
 			FirstName:        strings.TrimSpace(req.FirstName),
 			MiddleName:       strings.TrimSpace(req.MiddleName),
@@ -340,4 +361,51 @@ func (h *PeopleStaffHandler) UpdateStatus(c *gin.Context) {
 	}
 
 	response.OK(c, item)
+}
+
+
+type resetStaffPasswordRequest struct {
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+func (h *PeopleStaffHandler) ResetPassword(c *gin.Context) {
+	collegeID, ok := h.tenantID(c)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "tenant context is missing",
+		})
+		return
+	}
+
+	staffID, err := uuid.Parse(c.Param("staff_id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": "invalid staff_id",
+		})
+		return
+	}
+
+	var req resetStaffPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	if err := h.service.ResetPassword(c.Request.Context(), collegeID, staffID, req.Password); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	response.OK(c, gin.H{
+		"message":  "password reset successfully",
+		"staff_id": staffID,
+	})
 }

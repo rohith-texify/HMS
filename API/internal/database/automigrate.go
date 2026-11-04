@@ -77,15 +77,31 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON platform.user_roles (user_id);
 		`)
 
-		// Ensure SUPER_ADMIN role exists in platform.roles
+		// Ensure SUPER_ADMIN, HOSTEL_INCHARGE, INCHARGE, and WARDEN roles exist in platform.roles
 		_, _ = pool.Exec(seedCtx, `
 			INSERT INTO platform.roles (role_id, role_code, role_name, scope, is_system_role)
 			VALUES (gen_random_uuid(), 'SUPER_ADMIN', 'Super Administrator', 'PLATFORM', true)
 			ON CONFLICT (role_code) DO NOTHING;
+
+			INSERT INTO platform.roles (role_id, role_code, role_name, scope, is_system_role)
+			VALUES 
+				(gen_random_uuid(), 'HOSTEL_INCHARGE', 'Hostel In-Charge', 'COLLEGE', true),
+				(gen_random_uuid(), 'INCHARGE', 'Hostel Incharge', 'COLLEGE', true),
+				(gen_random_uuid(), 'WARDEN', 'Hostel Warden', 'COLLEGE', true)
+			ON CONFLICT (role_code) DO NOTHING;
+
+			INSERT INTO platform.role_permissions (role_id, permission_id)
+			SELECT r.role_id, p.permission_id
+			FROM platform.roles r
+			CROSS JOIN platform.permissions p
+			JOIN platform.modules m ON m.module_id = p.module_id
+			WHERE r.role_code IN ('HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN')
+			  AND m.module_code IN ('HOSTEL', 'PEOPLE', 'MOVEMENT', 'REQUESTS', 'ATTENDANCE')
+			ON CONFLICT DO NOTHING;
 		`)
 
 		// Ensure platform Super Administrator accounts exist in app.users and platform.user_roles
-		rohithHash := "$2a$10$6sAZAT4w7qsF.Ur951IKKO4UT.FGMvHVuVcGBJaJb4AoKNK.MxlGm" // Rohith@acet
+		rohithHash := "$2a$10$6sAZAT4w7qsF.Ur951IKKO4UT.FGMvHVuVcGBJaJb4AoKNK.MxlGm"  // Rohith@acet
 		defaultHash := "$2a$10$B90DjDWozEnhYq7GiqDqPupzs0IFkz5hsd50TFzilTsVtTv4TNBXm" // Password@123
 
 		if _, err := pool.Exec(seedCtx, `

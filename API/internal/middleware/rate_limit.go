@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"os"
 	"fmt"
 	"net/http"
 	"strings"
@@ -76,6 +77,12 @@ func RateLimit(cfg config.RateLimitConfig, telegramClient *telegram.Client, logg
 		clientIP := c.ClientIP()
 		if clientIP == "" {
 			clientIP = "unknown"
+		}
+
+		// In development or loopback testing, bypass rate limit so local development and multi-tab workflows aren't blocked by 429
+		if clientIP == "127.0.0.1" || clientIP == "::1" || clientIP == "localhost" || os.Getenv("APP_ENV") == "development" || os.Getenv("ENVIRONMENT") == "development" {
+			c.Next()
+			return
 		}
 
 		path := c.Request.URL.Path

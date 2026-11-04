@@ -96,6 +96,39 @@ export const ROLE_ROUTE_MAP = {
   },
 };
 
+/**
+ * Safely resolves the authorized destination for a given user role and candidate path.
+ * Ensures users are never misrouted to unauthorized modules (e.g. Hostel In-Charge to /admin/*).
+ *
+ * @param {string} role - The user's role code
+ * @param {string} [candidatePath] - The attempted or target destination path
+ * @returns {string} The validated destination path
+ */
+export function getAuthorizedRedirectPath(role, candidatePath) {
+  const upperRole = (role || '').toUpperCase();
+  const roleCfg = ROLE_ROUTE_MAP[upperRole];
+  const fallbackPath = roleCfg?.path || '/login';
+
+  if (!candidatePath || candidatePath === '/' || candidatePath === '/login' || candidatePath === '/unauthorized') {
+    return fallbackPath;
+  }
+
+  // Validate candidatePath belongs to this role's module scope
+  if (['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'].includes(upperRole)) {
+    if (candidatePath.startsWith('/admin')) return candidatePath;
+  } else if (['HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN'].includes(upperRole)) {
+    if (candidatePath.startsWith('/hostel-incharge')) return candidatePath;
+  } else if (['SECURITY', 'SECURITY_GUARD'].includes(upperRole)) {
+    if (candidatePath.startsWith('/security')) return candidatePath;
+  } else if (upperRole === 'STUDENT') {
+    if (candidatePath.startsWith('/student')) return candidatePath;
+  } else if (upperRole === 'PARENT') {
+    if (candidatePath.startsWith('/parent')) return candidatePath;
+  }
+
+  return fallbackPath;
+}
+
 export const SUPER_ADMIN_URL = 'https://hms-frontend-9q6b.onrender.com';
 
 export const portalAuthService = {

@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP, portalAuthService } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP, portalAuthService, getAuthorizedRedirectPath } from '../shared/auth/portalAuthService';
 import {
   Shield,
+  ShieldCheck,
   Mail,
   Lock,
   Eye,
@@ -16,10 +17,94 @@ import {
   HelpCircle,
   X,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import '../shared/styles/portal.css';
 
-export default function SharedLoginPage() {
+const PERSONA_CONFIGS = {
+  HOSTEL_INCHARGE: {
+    id: 'HOSTEL_INCHARGE',
+    label: 'Hostel In-Charge',
+    icon: Building2,
+    badge: 'Hostel In-Charge Portal',
+    title: 'Hostel In-Charge Sign In',
+    subtitle: 'Sign in to access resident directory, room & bed allocations, daily attendance, and resident complaints.',
+    fieldLabel: 'Hostel In-Charge Email / Staff ID',
+    emailPlaceholder: 'e.g. incharge@college.edu or staff ID',
+    buttonText: 'Sign In as Hostel In-Charge',
+    quickEmail: '',
+    quickPassword: '',
+    quickRoleName: 'Hostel In-Charge',
+    routePath: '/hostel-incharge/login',
+  },
+  COLLEGE_ADMIN: {
+    id: 'COLLEGE_ADMIN',
+    label: 'College Admin',
+    icon: LayoutDashboard,
+    badge: 'Institutional Governance',
+    title: 'College Administrator Sign In',
+    subtitle: 'Sign in to manage institutional hostels, staff allocations, student admissions, and campus operations.',
+    fieldLabel: 'Administrator Email',
+    emailPlaceholder: 'e.g. admin@college.edu or institutional email',
+    buttonText: 'Sign In as College Administrator',
+    quickEmail: '',
+    quickPassword: '',
+    quickRoleName: 'College Administrator',
+    routePath: '/admin/login',
+  },
+  SECURITY: {
+    id: 'SECURITY',
+    label: 'Campus Security',
+    icon: ShieldCheck,
+    badge: 'Campus Security Post',
+    title: 'Campus Security Sign In',
+    subtitle: 'Sign in to manage entry/exit checkpoints, visitor digital slips, and student gate pass verifications.',
+    fieldLabel: 'Security Email / Guard ID',
+    emailPlaceholder: 'e.g. security@college.edu or guard ID',
+    buttonText: 'Sign In as Security Officer',
+    quickEmail: '',
+    quickPassword: '',
+    quickRoleName: 'Campus Security Personnel',
+    routePath: '/security/login',
+  },
+  STUDENT: {
+    id: 'STUDENT',
+    label: 'Student Portal',
+    icon: GraduationCap,
+    badge: 'Student Living Portal',
+    title: 'Student Living Portal Sign In',
+    subtitle: 'Sign in to view your room allotment, apply for hostel leaves, log maintenance complaints, and check mess menu.',
+    fieldLabel: 'Student Email / Register Number',
+    emailPlaceholder: 'e.g. student@college.edu or register number',
+    buttonText: 'Sign In to Student Portal',
+    quickEmail: '',
+    quickPassword: '',
+    quickRoleName: 'Residential Student',
+    routePath: '/student/login',
+  },
+  PARENT: {
+    id: 'PARENT',
+    label: 'Parent Portal',
+    icon: Users,
+    badge: 'Parent & Guardian Portal',
+    title: 'Parent & Guardian Sign In',
+    subtitle: 'Sign in to track your ward\'s attendance, review and approve gate exit requests, and access warden contacts.',
+    fieldLabel: 'Parent Login Email',
+    emailPlaceholder: 'e.g. parent.guardian@example.com',
+    buttonText: 'Sign In to Parent Portal',
+    quickEmail: '',
+    quickPassword: '',
+    quickRoleName: 'Registered Parent / Guardian',
+    routePath: '/parent/login',
+  },
+};
+
+export default function SharedLoginPage({ initialPersona = null }) {
+  const { login, isAuthenticated, user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [selectedPersona, setSelectedPersona] = useState(initialPersona);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -29,6 +114,29 @@ export default function SharedLoginPage() {
   const [showHelp, setShowHelp] = useState(false);
   const [colleges, setColleges] = useState([]);
   const [selectedCollege, setSelectedCollege] = useState(null);
+
+  // Initialize or detect persona from URL path or search parameters
+  useEffect(() => {
+    const path = location.pathname.toLowerCase();
+    const params = new URLSearchParams(location.search);
+    const personaParam = (params.get('persona') || params.get('role') || '').toUpperCase();
+
+    if (personaParam && PERSONA_CONFIGS[personaParam]) {
+      setSelectedPersona(personaParam);
+    } else if (path.includes('incharge')) {
+      setSelectedPersona('HOSTEL_INCHARGE');
+    } else if (path.includes('security')) {
+      setSelectedPersona('SECURITY');
+    } else if (path.includes('student')) {
+      setSelectedPersona('STUDENT');
+    } else if (path.includes('parent')) {
+      setSelectedPersona('PARENT');
+    } else if (path.includes('admin')) {
+      setSelectedPersona('COLLEGE_ADMIN');
+    } else if (initialPersona && PERSONA_CONFIGS[initialPersona]) {
+      setSelectedPersona(initialPersona);
+    }
+  }, [location.pathname, location.search, initialPersona]);
 
   useEffect(() => {
     portalAuthService.listPublicColleges().then((data) => {
@@ -70,19 +178,12 @@ export default function SharedLoginPage() {
     }
   };
 
-  const { login, isAuthenticated, user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // If already authenticated as an admin, redirect to admin dashboard
+  // If already authenticated with any valid institutional role, redirect to their role dashboard
   useEffect(() => {
     if (isAuthenticated && user?.role) {
-      const allowedAdminRoles = ['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'];
-      if (allowedAdminRoles.includes(user.role)) {
-        const fromPath = location.state?.from?.pathname;
-        const targetPath = fromPath || '/admin/dashboard';
-        navigate(targetPath, { replace: true });
-      }
+      const fromPath = location.state?.from?.pathname;
+      const targetPath = getAuthorizedRedirectPath(user.role, fromPath);
+      navigate(targetPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate, location]);
 
@@ -91,7 +192,7 @@ export default function SharedLoginPage() {
     setError(null);
 
     if (!email.trim()) {
-      setError('Please provide your college administrator email address.');
+      setError('Please provide your institutional email address or login ID.');
       return;
     }
     if (!password) {
@@ -105,33 +206,76 @@ export default function SharedLoginPage() {
 
       // Block Super Admin accounts from this portal
       if (result.isSuperAdmin) {
-        setError('Super Administrator accounts cannot access the College Admin portal. Please sign in with your College Administrator credentials.');
+        setError('Super Administrator accounts must sign in through the Central Super Admin Console. Please use your institutional college credentials.');
         setLoading(false);
         return;
       }
 
-      // Restrict access strictly to College Admin roles for current design phase
+      // Check role mapping across all supported institutional roles
       const role = result.user?.role || '';
-      const allowedAdminRoles = ['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'];
-      if (!allowedAdminRoles.includes(role)) {
-        setError('Access is currently limited to College Administrators while the Admin module is under active development.');
+      const roleConfig = ROLE_ROUTE_MAP[role];
+      if (!roleConfig) {
+        setError(`Your account role '${role}' is not configured for institutional portal access. Please contact your college administrator.`);
         setLoading(false);
         return;
       }
 
-      const targetPath = location.state?.from?.pathname || '/admin/dashboard';
+      // Route directly to the validated authorized destination or the role's designated portal dashboard
+      const candidate = location.state?.from?.pathname || result.redirectPath;
+      const targetPath = getAuthorizedRedirectPath(role, candidate);
       navigate(targetPath, { replace: true });
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your administrator credentials.');
+      setError(err.message || 'Authentication failed. Please verify your institutional login credentials.');
       setLoading(false);
     }
   };
 
-  const adminCapabilities = [
-    { label: 'Admin Dashboard', icon: LayoutDashboard, desc: 'Occupancy & campus KPIs' },
-    { label: 'Hostels & Blocks', icon: Building2, desc: 'Structures, wings & rooms' },
-    { label: 'College Staff', icon: Users, desc: 'Wardens & supervisors' },
-    { label: 'Student Directory', icon: GraduationCap, desc: 'Allotments & records' },
+  const handlePersonaClick = (personaId) => {
+    if (selectedPersona === personaId) {
+      // Toggle back to general unified login
+      setSelectedPersona(null);
+      setError(null);
+    } else {
+      setSelectedPersona(personaId);
+      setError(null);
+      const cfg = PERSONA_CONFIGS[personaId];
+      if (cfg?.quickEmail && !email) {
+        setEmail(cfg.quickEmail);
+      }
+    }
+  };
+
+  const handleApplyQuickFill = () => {
+    const activeCfg = selectedPersona ? PERSONA_CONFIGS[selectedPersona] : null;
+    if (activeCfg?.quickEmail) {
+      setEmail(activeCfg.quickEmail);
+      if (activeCfg.quickPassword) {
+        setPassword(activeCfg.quickPassword);
+      }
+    }
+  };
+
+  const activeCfg = selectedPersona ? PERSONA_CONFIGS[selectedPersona] : null;
+
+  const currentBadge = activeCfg?.badge || 'Unified Campus Access';
+  const currentTitle = activeCfg
+    ? (selectedCollege?.name ? `${selectedCollege.name} ${activeCfg.label} Sign In` : activeCfg.title)
+    : (selectedCollege?.name ? `${selectedCollege.name} Sign In` : 'Campus Living Portal Sign In');
+  const currentSubtitle = activeCfg
+    ? activeCfg.subtitle
+    : (selectedCollege?.name
+      ? `Official institutional portal for ${selectedCollege.name} (${selectedCollege.college_code}). Sign in with your assigned administrator, hostel in-charge, security, student, or parent credentials.`
+      : 'Sign in with your institutional credentials to access your administrative, hostel in-charge, security, student, or parent portal.');
+  const currentFieldLabel = activeCfg?.fieldLabel || 'Institutional Email / Login ID';
+  const currentPlaceholder = activeCfg?.emailPlaceholder || 'e.g. name@college.edu or registered email';
+  const currentButtonText = activeCfg?.buttonText || 'Sign In to Campus Portal';
+
+  const portalPersonas = [
+    { id: 'COLLEGE_ADMIN', label: 'College Admin', icon: LayoutDashboard, desc: 'Hostels, staff allocations & institutional governance' },
+    { id: 'HOSTEL_INCHARGE', label: 'Hostel In-Charge', icon: Building2, desc: 'Wardens, room inventory & resident welfare' },
+    { id: 'SECURITY', label: 'Campus Security', icon: ShieldCheck, desc: 'Gate posts, clearance checks & movements' },
+    { id: 'STUDENT', label: 'Student Portal', icon: GraduationCap, desc: 'Leaves, daily attendance, food & grievances' },
+    { id: 'PARENT', label: 'Parent Portal', icon: Users, desc: 'Ward activity oversight & gate exit approvals' },
   ];
 
   return (
@@ -173,27 +317,21 @@ export default function SharedLoginPage() {
                 {selectedCollege?.name || 'Texify HMS'}
               </span>
               <span className="portal-brand-caption">
-                {selectedCollege?.college_code ? `${selectedCollege.college_code} College Administration` : 'College Administration'}
+                {selectedCollege?.college_code ? `${selectedCollege.college_code} Institutional Portal` : 'Unified Campus Portal'}
               </span>
             </div>
           </div>
 
-          <div className="portal-badge-pill">
+          <div className="portal-badge-pill" title={currentBadge}>
             <span className="portal-live-indicator-dot" />
-            <span>Admin Module</span>
+            <span>{currentBadge}</span>
           </div>
         </div>
 
         {/* Title Block */}
         <div className="portal-header-titles">
-          <h1 className="portal-title">
-            {selectedCollege?.name ? `${selectedCollege.name} Sign In` : 'College Admin Sign In'}
-          </h1>
-          <p className="portal-subtitle">
-            {selectedCollege?.name
-              ? `Official Administrator portal for ${selectedCollege.name} (${selectedCollege.college_code}). Sign in with your assigned administrative credentials.`
-              : 'Sign in with your College Administrator credentials to manage campus hostels, staff, students, and operational allocations.'}
-          </p>
+          <h1 className="portal-title">{currentTitle}</h1>
+          <p className="portal-subtitle">{currentSubtitle}</p>
         </div>
 
         {/* Error Alert */}
@@ -203,6 +341,27 @@ export default function SharedLoginPage() {
             <div className="alert-banner-content">
               <span>{error}</span>
             </div>
+          </div>
+        )}
+
+        {/* Quick-fill helper notice for selected persona */}
+        {activeCfg?.quickEmail && (
+          <div className="portal-quick-card">
+            <div className="portal-quick-info">
+              <div className="portal-quick-title">
+                <Sparkles size={13} />
+                <span>{activeCfg.quickRoleName}</span>
+              </div>
+              <div className="portal-quick-sub">{activeCfg.quickEmail}</div>
+            </div>
+            <button
+              type="button"
+              className="btn-portal-quick-fill"
+              onClick={handleApplyQuickFill}
+              title="Click to fill credentials"
+            >
+              Fill Credentials
+            </button>
           </div>
         )}
 
@@ -221,19 +380,19 @@ export default function SharedLoginPage() {
               </button>
             </div>
             <p style={{ margin: 0 }}>
-              College Administrator accounts are provisioned during college onboarding. If you require credentials or password resets, contact your institutional IT department or platform onboarding representative.
+              Institutional accounts are provisioned for College Administrators, Hostel In-Charges, Security Officers, Students, and Parents. Enter your registered email address and password. If you forgot your password or need access, please contact your campus administrator.
             </p>
           </div>
         )}
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} noValidate className="portal-login-form">
-          {/* Administrator Email Field */}
+          {/* Email / ID Field */}
           <div className="form-field">
             <label className="field-label" htmlFor="portal-email">
               <span className="field-label-text">
                 <Mail size={14} className="field-label-icon" />
-                <span>Administrator Email</span>
+                <span>{currentFieldLabel}</span>
               </span>
             </label>
             <div className="input-with-action">
@@ -241,16 +400,13 @@ export default function SharedLoginPage() {
                 id="portal-email"
                 type="email"
                 className="field-input"
-                placeholder="admin@college.edu"
+                placeholder={currentPlaceholder}
                 value={email}
                 onChange={handleEmailChange}
                 disabled={loading}
                 autoComplete="username"
                 required
               />
-              <span className="input-leading-icon">
-                <Mail size={16} />
-              </span>
             </div>
           </div>
 
@@ -267,7 +423,7 @@ export default function SharedLoginPage() {
                 id="portal-password"
                 type={showPassword ? 'text' : 'password'}
                 className="field-input"
-                placeholder="Enter your administrator password"
+                placeholder="Enter your portal password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}
@@ -323,30 +479,51 @@ export default function SharedLoginPage() {
                 <span>Authenticating...</span>
               </span>
             ) : (
-              <span>Sign In to College Admin</span>
+              <span>{currentButtonText}</span>
             )}
           </button>
         </form>
 
-        {/* Admin Module Features Pill Grid */}
+        {/* All Supported Institutional Portals & Roles - Interactive Switcher */}
         <div className="portal-footer-roles">
-          <div className="roles-guide-title">
-            <span>Admin Module Management Scope</span>
+          <div className="roles-guide-title" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Unified Access Portals & Personas</span>
+            {selectedPersona && (
+              <button
+                type="button"
+                onClick={() => setSelectedPersona(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#2563eb',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Reset to All
+              </button>
+            )}
           </div>
           <div className="roles-pill-grid">
-            {adminCapabilities.map((cap) => {
+            {portalPersonas.map((cap) => {
               const IconComp = cap.icon;
+              const isSelected = selectedPersona === cap.id;
               return (
-                <div
-                  key={cap.label}
-                  className="role-chip-card"
-                  title={cap.desc}
+                <button
+                  type="button"
+                  key={cap.id}
+                  className={`role-chip-card ${isSelected ? 'active' : ''}`}
+                  onClick={() => handlePersonaClick(cap.id)}
+                  title={`Click to sign in as ${cap.label}: ${cap.desc}`}
                 >
                   <span className="role-chip-icon">
                     <IconComp size={13} />
                   </span>
                   <span>{cap.label}</span>
-                </div>
+                  {isSelected && <CheckCircle2 size={12} style={{ color: '#2563eb', marginLeft: '2px' }} />}
+                </button>
               );
             })}
           </div>
@@ -356,7 +533,7 @@ export default function SharedLoginPage() {
       {/* Outer Bottom Bar */}
       <footer className="portal-outer-footer">
         <span className="portal-outer-copyright">
-          © {new Date().getFullYear()} Texify Technologies Platform Engine • College Administration
+          © {new Date().getFullYear()} Texify Technologies Platform Engine • Unified Institutional Portal
         </span>
       </footer>
     </div>

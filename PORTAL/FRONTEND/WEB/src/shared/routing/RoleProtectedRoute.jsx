@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
+import { getAuthorizedRedirectPath } from '../auth/portalAuthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
@@ -51,6 +52,11 @@ export default function RoleProtectedRoute({
   const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
 
   if (normalizedAllowed.length > 0 && !normalizedAllowed.includes(userRole)) {
+    // Seamlessly redirect authenticated users to their own authorized portal dashboard
+    const authorizedDashboard = getAuthorizedRedirectPath(userRole, null);
+    if (authorizedDashboard && authorizedDashboard !== '/login' && authorizedDashboard !== location.pathname) {
+      return <Navigate to={authorizedDashboard} replace />;
+    }
     return (
       <Navigate
         to="/unauthorized"

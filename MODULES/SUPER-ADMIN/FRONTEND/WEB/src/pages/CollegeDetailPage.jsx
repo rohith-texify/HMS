@@ -433,166 +433,200 @@ export default function CollegeDetailPage() {
   const completedStepsCount = onboardingSteps.filter((s) => s.status === 'COMPLETED').length;
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* College Hero Card */}
-      <div className="college-detail-hero">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <Link
-            to="/colleges"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.82rem',
-              fontWeight: '600',
-              color: '#2563eb',
-              textDecoration: 'none',
-            }}
-          >
-            <ChevronLeft size={14} />
-            <span>Back to Institutions Directory</span>
-          </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#64748b' }}>
-            <span>Tenant UUID:</span>
-            <span style={{ fontFamily: 'monospace', color: '#0f172a' }}>{college.college_id}</span>
-            <button
-              type="button"
-              className={`copy-btn-inline ${copiedKey === 'top_id' ? 'copied' : ''}`}
-              onClick={() => handleCopy('top_id', college.college_id)}
-              title="Copy College UUID"
-            >
-              {copiedKey === 'top_id' ? <Check size={11} /> : <Copy size={11} />}
-              <span>{copiedKey === 'top_id' ? 'Copied' : 'Copy'}</span>
-            </button>
+    <div className="college-detail-container">
+      {/* College Hero Card - Enterprise Modern Spec */}
+      <div className="college-detail-hero-v2">
+        <div className="college-hero-header-bar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Link to="/colleges" className="college-hero-breadcrumb">
+              <ChevronLeft size={15} />
+              <span>Institutions Directory</span>
+            </Link>
+            <span style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>/</span>
+            <span style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.84rem' }}>
+              {college.name}
+            </span>
           </div>
-        </div>
 
-        <div className="college-hero-top">
-          <div className="college-hero-identity">
-            {college.logo_url && !logoError ? (
-              <img
-                src={college.logo_url}
-                alt={college.name}
-                className="college-hero-logo"
-                onError={() => setLogoError(true)}
-              />
-            ) : (
-              <div className="college-hero-monogram" title={college.name}>
-                {getInitials(college.name)}
-              </div>
-            )}
-            <div className="college-hero-text">
-              <div className="college-hero-title-row">
-                <h1 className="college-hero-title">{college.name}</h1>
-                <span className={`badge ${getStatusBadgeClass(college.status)}`}>
-                  <span className="badge-dot" />
-                  <span>{college.status}</span>
-                </span>
-              </div>
-              <div className="college-hero-meta">
-                <div className="college-hero-meta-item">
-                  <span style={{ fontWeight: 600, color: '#475569' }}>Tenant Code:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#1e40af', backgroundColor: '#eff6ff', padding: '2px 8px', borderRadius: '4px', border: '1px solid #bfdbfe' }}>
-                    {college.college_code}
-                  </span>
-                  <button
-                    type="button"
-                    className={`copy-btn-inline ${copiedKey === 'code' ? 'copied' : ''}`}
-                    onClick={() => handleCopy('code', college.college_code)}
-                    title="Copy tenant code"
-                  >
-                    {copiedKey === 'code' ? <Check size={11} /> : <Copy size={11} />}
-                    <span>{copiedKey === 'code' ? 'Copied' : 'Copy'}</span>
-                  </button>
-                </div>
+          <div className="college-hero-sync-cluster">
+            <span style={{ fontSize: '0.76rem', color: '#059669', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600, backgroundColor: '#ecfdf5', padding: '3px 10px', borderRadius: '9999px', border: '1px solid #a7f3d0' }}>
+              <span className="badge-dot" style={{ backgroundColor: '#10b981' }} />
+              <span>Live DB Sync</span>
+            </span>
 
-                {(college.city || college.state) && (
-                  <div className="college-hero-meta-item">
-                    <MapPin size={14} style={{ color: '#64748b' }} />
-                    <span>{[college.city, college.state].filter(Boolean).join(', ')}</span>
-                  </div>
-                )}
-
-                {college.created_at && (
-                  <div className="college-hero-meta-item">
-                    <Calendar size={14} style={{ color: '#64748b' }} />
-                    <span>Registered {new Date(college.created_at).toLocaleDateString()}</span>
-                  </div>
-                )}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ color: '#64748b' }}>UUID:</span>
+              <span style={{ fontFamily: 'monospace', color: '#0f172a', fontWeight: 600 }}>
+                {college.college_id ? `${college.college_id.slice(0, 13)}...` : '—'}
+              </span>
+              <button
+                type="button"
+                className={`copy-btn-inline ${copiedKey === 'top_id' ? 'copied' : ''}`}
+                onClick={() => handleCopy('top_id', college.college_id)}
+                title="Copy Full College UUID"
+              >
+                {copiedKey === 'top_id' ? <Check size={11} /> : <Copy size={11} />}
+                <span>{copiedKey === 'top_id' ? 'Copied' : 'Copy'}</span>
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions Cluster */}
-        <div className="college-hero-actions">
+        <div className="college-hero-profile-row">
+          <div className="college-hero-avatar-frame">
+            {college.logo_url && !logoError ? (
+              <img
+                src={college.logo_url}
+                alt={college.name}
+                className="college-hero-avatar-img"
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <div className="college-hero-monogram-avatar" title={college.name}>
+                {getInitials(college.name)}
+              </div>
+            )}
+          </div>
+
+          <div className="college-hero-text-block">
+            <h1 className="college-hero-name-heading">
+              <span>{college.name}</span>
+              <span className={`badge ${getStatusBadgeClass(college.status)}`}>
+                <span className="badge-dot" />
+                <span>{college.status}</span>
+              </span>
+            </h1>
+
+            <div className="college-hero-chips-bar">
+              <div className="hero-chip hero-chip-code">
+                <span>Tenant Code:</span>
+                <strong>{college.college_code}</strong>
+                <button
+                  type="button"
+                  className={`copy-btn-inline ${copiedKey === 'code' ? 'copied' : ''}`}
+                  onClick={() => handleCopy('code', college.college_code)}
+                  title="Copy Tenant Code"
+                  style={{ marginLeft: '4px', padding: '1px 6px' }}
+                >
+                  {copiedKey === 'code' ? <Check size={10} /> : <Copy size={10} />}
+                  <span>{copiedKey === 'code' ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+
+              {(college.city || college.state) && (
+                <div className="hero-chip hero-chip-location">
+                  <MapPin size={13} style={{ color: '#dc2626' }} />
+                  <span>{[college.city, college.state].filter(Boolean).join(', ')}</span>
+                </div>
+              )}
+
+              <div className="hero-chip hero-chip-timezone">
+                <Globe size={13} style={{ color: '#4f46e5' }} />
+                <span>IST (Asia/Kolkata, UTC+05:30)</span>
+              </div>
+
+              {college.contact_email && (
+                <div className="hero-chip hero-chip-email">
+                  <Mail size={13} style={{ color: '#2563eb' }} />
+                  <span>{college.contact_email}</span>
+                  <button
+                    type="button"
+                    className={`copy-btn-inline ${copiedKey === 'top_email' ? 'copied' : ''}`}
+                    onClick={() => handleCopy('top_email', college.contact_email)}
+                    title="Copy Contact Email"
+                    style={{ marginLeft: '4px', padding: '1px 6px' }}
+                  >
+                    {copiedKey === 'top_email' ? <Check size={10} /> : <Copy size={10} />}
+                    <span>{copiedKey === 'top_email' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              )}
+
+              {college.created_at && (
+                <div className="hero-chip hero-chip-date">
+                  <Calendar size={13} style={{ color: '#64748b' }} />
+                  <span>Registered {new Date(college.created_at).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Hub Toolbar */}
+        <div className="college-hero-toolbar">
           {college.status === 'ONBOARDING' ? (
             <Link
               to={`/colleges/${college.college_id}/onboarding`}
-              className="btn-enterprise btn-primary-blue"
+              className="hero-cta-btn"
               id="btn-onboarding-wizard"
             >
-              <Rocket size={14} />
-              <span>Resume Onboarding</span>
+              <Rocket size={15} />
+              <span>Resume Onboarding Checklist</span>
             </Link>
           ) : (
             <Link
               to={`/colleges/${college.college_id}/onboarding`}
-              className="btn-enterprise btn-outline-soft"
+              className="hero-nav-btn"
               id="btn-onboarding-wizard"
               title="View onboarding workspace and setup checklist"
             >
               <Rocket size={14} />
-              <span>Onboarding Wizard</span>
+              <span>Onboarding Workspace</span>
             </Link>
           )}
+
           <Link
             to={`/colleges/${college.college_id}/configuration`}
-            className="btn-enterprise btn-outline-soft"
+            className="hero-nav-btn"
             id="btn-college-configuration"
             title="Manage platform tenant configuration, security floors, and policies"
           >
             <SlidersHorizontal size={14} />
-            <span>Configuration</span>
+            <span>Configuration &amp; Policies</span>
           </Link>
+
           <Link
             to={`/colleges/${college.college_id}/modules`}
-            className="btn-enterprise btn-outline-soft"
+            className="hero-nav-btn"
             id="btn-college-modules"
             title="Manage college module entitlements, dependencies, and matrix"
           >
             <Boxes size={14} />
-            <span>Modules</span>
+            <span>Module Entitlements</span>
           </Link>
+
           <Link
             to={`/colleges/${college.college_id}/applications`}
-            className="btn-enterprise btn-outline-soft"
+            className="hero-nav-btn"
             id="btn-college-applications"
             title="Manage mobile and portal application access, version policy, and force-updates"
           >
             <AppWindow size={14} />
-            <span>Applications</span>
+            <span>Applications Access</span>
           </Link>
+
           <Link
             to={`/colleges/${college.college_id}/hostel-structure`}
-            className="btn-enterprise btn-outline-soft"
+            className="hero-nav-btn"
             id="btn-college-hostel-structure"
             title="Manage physical hostel facilities, buildings, floors, rooms, and beds"
           >
             <Building2 size={14} />
             <span>Hostel Structure</span>
           </Link>
+
           <Link
             to={`/colleges/${college.college_id}/admins`}
-            className="btn-enterprise btn-outline-soft"
+            className="hero-nav-btn"
             id="btn-college-admins"
             title="Manage all college administrator accounts, status, unlock, and login history"
           >
             <Key size={14} />
-            <span>Admins</span>
+            <span>Administrator Accounts</span>
           </Link>
+
           <button
-            className="btn-enterprise btn-outline-soft"
+            className="hero-nav-btn"
             onClick={() => setShowEditModal(true)}
             disabled={isDeactivated}
             title={isDeactivated ? 'Cannot edit profile while deactivated' : 'Edit college details'}
@@ -614,14 +648,14 @@ export default function CollegeDetailPage() {
             <div className="college-onboarding-content">
               <div className="college-onboarding-title-wrap">
                 <h3 className="college-onboarding-heading">
-                  Institution Onboarding in Progress
+                  Institution Tenant Onboarding in Progress
                 </h3>
                 <span className="badge badge-blue">
-                  {completedStepsCount} of {onboardingSteps.length || 6} Steps Completed ({Math.round((completedStepsCount / (onboardingSteps.length || 6)) * 100)}%)
+                  {completedStepsCount} of {onboardingSteps.length || 6} Stages Completed ({Math.round((completedStepsCount / (onboardingSteps.length || 6)) * 100)}%)
                 </span>
               </div>
               <p className="college-onboarding-sub">
-                This institution tenant has not completed go-live activation. Complete the canonical checklist stages in the wizard to promote to Active operational status.
+                This institution tenant is undergoing phased onboarding. Complete canonical checklist stages (Hostel Structure, Entitlements, Room Inventory, Bed Allocations) to promote this tenant to Active operational status.
               </p>
               <div className="college-onboarding-progress-bar">
                 <div
@@ -635,15 +669,104 @@ export default function CollegeDetailPage() {
           </div>
           <Link
             to={`/colleges/${college.college_id}/onboarding`}
-            className="btn-enterprise btn-primary-blue"
+            className="hero-cta-btn"
             id="btn-banner-resume-wizard"
             style={{ padding: '10px 18px', fontSize: '0.85rem' }}
           >
-            <span>Open Onboarding Wizard</span>
+            <span>Open Onboarding Workspace</span>
             <span>→</span>
           </Link>
         </div>
       )}
+
+      {/* Executive 4-KPI Overview Strip */}
+      <div className="college-kpi-grid">
+        <div className="college-kpi-card">
+          <div className="kpi-icon-squircle blue">
+            <Hash size={20} />
+          </div>
+          <div className="kpi-content">
+            <div className="kpi-label">Tenant Login Code</div>
+            <div className="kpi-val" style={{ fontFamily: 'monospace', color: '#1e40af' }}>
+              {college.college_code}
+            </div>
+            <div className="kpi-sub">Multi-tenant Authentication Key</div>
+          </div>
+          <button
+            type="button"
+            className={`copy-btn-inline ${copiedKey === 'kpi_code' ? 'copied' : ''}`}
+            onClick={() => handleCopy('kpi_code', college.college_code)}
+            title="Copy tenant code"
+          >
+            {copiedKey === 'kpi_code' ? <Check size={11} /> : <Copy size={11} />}
+          </button>
+        </div>
+
+        <div className="college-kpi-card">
+          <div className={`kpi-icon-squircle ${college.status === 'ACTIVE' ? 'emerald' : college.status === 'ONBOARDING' ? 'blue' : 'amber'}`}>
+            <ShieldCheck size={20} />
+          </div>
+          <div className="kpi-content">
+            <div className="kpi-label">Operational Status</div>
+            <div className="kpi-val" style={{ fontSize: '1.1rem' }}>
+              <span className={`badge ${getStatusBadgeClass(college.status)}`}>
+                <span className="badge-dot" />
+                <span>{college.status}</span>
+              </span>
+            </div>
+            <div className="kpi-sub">{completedStepsCount} of {onboardingSteps.length || 6} Stages Completed</div>
+          </div>
+        </div>
+
+        <div className="college-kpi-card">
+          <div className="kpi-icon-squircle purple">
+            <UserCheck size={20} />
+          </div>
+          <div className="kpi-content">
+            <div className="kpi-label">Primary Administrator</div>
+            <div className="kpi-val" style={{ fontSize: '0.98rem' }} title={adminAccount?.email || 'No account'}>
+              {adminAccount ? adminAccount.email.split('@')[0] : 'Unassigned'}
+            </div>
+            <div className="kpi-sub" style={{ fontSize: '0.74rem' }}>
+              {adminAccount ? adminAccount.email : 'Credentials pending setup'}
+            </div>
+          </div>
+          {adminAccount?.email && (
+            <button
+              type="button"
+              className={`copy-btn-inline ${copiedKey === 'kpi_admin' ? 'copied' : ''}`}
+              onClick={() => handleCopy('kpi_admin', adminAccount.email)}
+              title="Copy admin email"
+            >
+              {copiedKey === 'kpi_admin' ? <Check size={11} /> : <Copy size={11} />}
+            </button>
+          )}
+        </div>
+
+        <div className="college-kpi-card">
+          <div className="kpi-icon-squircle emerald">
+            <Lock size={20} />
+          </div>
+          <div className="kpi-content">
+            <div className="kpi-label">Security &amp; Passwords</div>
+            <div className="kpi-val" style={{ fontSize: '1.05rem', color: adminAccount?.has_password ? '#059669' : '#dc2626' }}>
+              {adminAccount?.has_password ? 'Configured' : 'Pending'}
+            </div>
+            <div className="kpi-sub">
+              {adminAccount?.has_password ? 'Active (bcrypt encrypted)' : 'Action required'}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="copy-btn-inline"
+            onClick={openPasswordModal}
+            title="Update Admin Password"
+          >
+            <Key size={11} />
+            <span>Reset</span>
+          </button>
+        </div>
+      </div>
 
       {/* Success Notification */}
       {actionSuccessNotice && (
@@ -757,149 +880,203 @@ export default function CollegeDetailPage() {
           </span>
         </div>
 
-        <div className="detail-grid">
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <Hash size={13} style={{ color: '#2563eb' }} />
-              <span>College Code (Tenant Code)</span>
+        <div className="parameter-cards-grid">
+          <div className="param-tile">
+            <div className="param-tile-icon blue">
+              <Hash size={18} />
             </div>
-            <div className="detail-value">
-              <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem', color: '#1e40af' }}>
-                {college.college_code}
-              </span>
-              <button
-                type="button"
-                className={`copy-btn-inline ${copiedKey === 'code_param' ? 'copied' : ''}`}
-                onClick={() => handleCopy('code_param', college.college_code)}
-                title="Copy code"
-              >
-                {copiedKey === 'code_param' ? <Check size={11} /> : <Copy size={11} />}
-                <span>{copiedKey === 'code_param' ? 'Copied' : 'Copy'}</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <ShieldCheck size={13} style={{ color: '#059669' }} />
-              <span>Operational Status</span>
-            </div>
-            <div className="detail-value">
-              <span className={`badge ${getStatusBadgeClass(college.status)}`}>
-                <span className="badge-dot" />
-                <span>{college.status}</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <Globe size={13} style={{ color: '#4f46e5' }} />
-              <span>Operational Timezone</span>
-            </div>
-            <div className="detail-value" style={{ fontSize: '0.84rem' }}>
-              IST (Asia/Kolkata, UTC+05:30)
-            </div>
-          </div>
-
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <Mail size={13} style={{ color: '#2563eb' }} />
-              <span>Primary Contact Email</span>
-            </div>
-            <div className="detail-value">
-              <span style={{ fontSize: '0.84rem', wordBreak: 'break-all' }}>
-                {college.contact_email || '—'}
-              </span>
-              {college.contact_email && (
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>College Code (Tenant Code)</span>
+              </div>
+              <div className="param-tile-value">
+                <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.05rem', color: '#1e40af' }}>
+                  {college.college_code}
+                </span>
                 <button
                   type="button"
-                  className={`copy-btn-inline ${copiedKey === 'contact_email' ? 'copied' : ''}`}
-                  onClick={() => handleCopy('contact_email', college.contact_email)}
-                  title="Copy contact email"
+                  className={`copy-btn-inline ${copiedKey === 'code_param' ? 'copied' : ''}`}
+                  onClick={() => handleCopy('code_param', college.college_code)}
+                  title="Copy code"
                 >
-                  {copiedKey === 'contact_email' ? <Check size={11} /> : <Copy size={11} />}
-                  <span>{copiedKey === 'contact_email' ? 'Copied' : 'Copy'}</span>
+                  {copiedKey === 'code_param' ? <Check size={11} /> : <Copy size={11} />}
+                  <span>{copiedKey === 'code_param' ? 'Copied' : 'Copy'}</span>
                 </button>
-              )}
+              </div>
             </div>
           </div>
 
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <MapPin size={13} style={{ color: '#dc2626' }} />
-              <span>Campus Location</span>
+          <div className="param-tile">
+            <div className="param-tile-icon emerald">
+              <ShieldCheck size={18} />
             </div>
-            <div className="detail-value" style={{ fontSize: '0.84rem' }}>
-              {college.city || college.state
-                ? [college.city, college.state].filter(Boolean).join(', ')
-                : '—'}
-            </div>
-          </div>
-
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <Key size={13} style={{ color: '#64748b' }} />
-              <span>Tenant UUID</span>
-            </div>
-            <div className="detail-value">
-              <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#64748b' }}>
-                {college.college_id?.slice(0, 18)}...
-              </span>
-              <button
-                type="button"
-                className={`copy-btn-inline ${copiedKey === 'uuid' ? 'copied' : ''}`}
-                onClick={() => handleCopy('uuid', college.college_id)}
-                title="Copy full UUID"
-              >
-                {copiedKey === 'uuid' ? <Check size={11} /> : <Copy size={11} />}
-                <span>{copiedKey === 'uuid' ? 'Copied' : 'Copy'}</span>
-              </button>
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Operational Status</span>
+              </div>
+              <div className="param-tile-value">
+                <span className={`badge ${getStatusBadgeClass(college.status)}`}>
+                  <span className="badge-dot" />
+                  <span>{college.status}</span>
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="detail-item-box">
-            <div className="detail-label">
-              <Calendar size={13} style={{ color: '#64748b' }} />
-              <span>Created Date</span>
+          <div className="param-tile">
+            <div className="param-tile-icon purple">
+              <Globe size={18} />
             </div>
-            <div className="detail-value" style={{ fontSize: '0.84rem' }}>
-              {college.created_at ? new Date(college.created_at).toLocaleString() : '—'}
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Operational Timezone</span>
+              </div>
+              <div className="param-tile-value" style={{ fontSize: '0.84rem' }}>
+                IST (Asia/Kolkata, UTC+05:30)
+              </div>
+            </div>
+          </div>
+
+          <div className="param-tile">
+            <div className="param-tile-icon amber">
+              <Mail size={18} />
+            </div>
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Primary Contact Email</span>
+              </div>
+              <div className="param-tile-value">
+                <span style={{ fontSize: '0.84rem', wordBreak: 'break-all' }}>
+                  {college.contact_email || '—'}
+                </span>
+                {college.contact_email && (
+                  <button
+                    type="button"
+                    className={`copy-btn-inline ${copiedKey === 'contact_email' ? 'copied' : ''}`}
+                    onClick={() => handleCopy('contact_email', college.contact_email)}
+                    title="Copy contact email"
+                  >
+                    {copiedKey === 'contact_email' ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{copiedKey === 'contact_email' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="param-tile">
+            <div className="param-tile-icon rose">
+              <MapPin size={18} />
+            </div>
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Campus Location</span>
+              </div>
+              <div className="param-tile-value" style={{ fontSize: '0.84rem' }}>
+                {college.city || college.state
+                  ? [college.city, college.state].filter(Boolean).join(', ')
+                  : '—'}
+              </div>
+            </div>
+          </div>
+
+          <div className="param-tile">
+            <div className="param-tile-icon slate">
+              <Key size={18} />
+            </div>
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Tenant UUID</span>
+              </div>
+              <div className="param-tile-value">
+                <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#64748b' }}>
+                  {college.college_id ? `${college.college_id.slice(0, 16)}...` : '—'}
+                </span>
+                <button
+                  type="button"
+                  className={`copy-btn-inline ${copiedKey === 'uuid' ? 'copied' : ''}`}
+                  onClick={() => handleCopy('uuid', college.college_id)}
+                  title="Copy full UUID"
+                >
+                  {copiedKey === 'uuid' ? <Check size={11} /> : <Copy size={11} />}
+                  <span>{copiedKey === 'uuid' ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="param-tile">
+            <div className="param-tile-icon slate">
+              <Calendar size={18} />
+            </div>
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Registered Timestamp</span>
+              </div>
+              <div className="param-tile-value" style={{ fontSize: '0.84rem' }}>
+                {college.created_at ? new Date(college.created_at).toLocaleString() : '—'}
+              </div>
+            </div>
+          </div>
+
+          <div className="param-tile">
+            <div className="param-tile-icon blue">
+              <Clock size={18} />
+            </div>
+            <div className="param-tile-body">
+              <div className="param-tile-label">
+                <span>Last Modified</span>
+              </div>
+              <div className="param-tile-value" style={{ fontSize: '0.84rem' }}>
+                {college.updated_at ? new Date(college.updated_at).toLocaleString() : '—'}
+              </div>
             </div>
           </div>
 
           {college.activated_at && (
-            <div className="detail-item-box" style={{ borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' }}>
-              <div className="detail-label" style={{ color: '#047857' }}>
-                <CheckCircle2 size={13} style={{ color: '#059669' }} />
-                <span>Activated At</span>
+            <div className="param-tile" style={{ borderColor: '#a7f3d0', backgroundColor: '#f0fdf4' }}>
+              <div className="param-tile-icon emerald">
+                <CheckCircle2 size={18} />
               </div>
-              <div className="detail-value" style={{ fontSize: '0.84rem', color: '#047857' }}>
-                {new Date(college.activated_at).toLocaleString()}
+              <div className="param-tile-body">
+                <div className="param-tile-label" style={{ color: '#047857' }}>
+                  <span>Activated Timestamp</span>
+                </div>
+                <div className="param-tile-value" style={{ fontSize: '0.84rem', color: '#047857' }}>
+                  {new Date(college.activated_at).toLocaleString()}
+                </div>
               </div>
             </div>
           )}
 
           {college.suspended_at && (
-            <div className="detail-item-box" style={{ borderColor: 'var(--danger-border)', backgroundColor: '#fef2f2' }}>
-              <div className="detail-label" style={{ color: 'var(--danger-text)' }}>
-                <AlertTriangle size={13} style={{ color: '#dc2626' }} />
-                <span>Suspended At</span>
+            <div className="param-tile" style={{ borderColor: 'var(--danger-border)', backgroundColor: '#fef2f2' }}>
+              <div className="param-tile-icon rose">
+                <AlertTriangle size={18} />
               </div>
-              <div className="detail-value" style={{ fontSize: '0.84rem', color: 'var(--danger-text)' }}>
-                {new Date(college.suspended_at).toLocaleString()}
+              <div className="param-tile-body">
+                <div className="param-tile-label" style={{ color: 'var(--danger-text)' }}>
+                  <span>Suspended At</span>
+                </div>
+                <div className="param-tile-value" style={{ fontSize: '0.84rem', color: 'var(--danger-text)' }}>
+                  {new Date(college.suspended_at).toLocaleString()}
+                </div>
               </div>
             </div>
           )}
 
           {college.deactivated_at && (
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <Clock size={13} />
-                <span>Deactivated At</span>
+            <div className="param-tile">
+              <div className="param-tile-icon slate">
+                <Clock size={18} />
               </div>
-              <div className="detail-value" style={{ fontSize: '0.84rem' }}>
-                {new Date(college.deactivated_at).toLocaleString()}
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Deactivated At</span>
+                </div>
+                <div className="param-tile-value" style={{ fontSize: '0.84rem' }}>
+                  {new Date(college.deactivated_at).toLocaleString()}
+                </div>
               </div>
             </div>
           )}
@@ -966,111 +1143,161 @@ export default function CollegeDetailPage() {
         </div>
 
         <div style={{
-          backgroundColor: '#f8fafc',
-          border: '1px solid #edf2f7',
-          borderRadius: '8px',
-          padding: '12px 16px',
+          backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '10px',
+          padding: '14px 18px',
           marginBottom: '16px',
           fontSize: '0.84rem',
-          color: '#475569',
-          lineHeight: '1.5',
+          color: '#1e40af',
+          lineHeight: '1.55',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '16px',
+          flexWrap: 'wrap',
         }}>
-          Credentials utilized by the institutional administrator to sign in and govern the <strong>Admin Module</strong> (<a href="http://localhost:5173/admin/login" target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600 }}>http://localhost:5173/admin/login</a>). The administrator can authenticate using either the <strong>Tenant Login Code ({college.college_code})</strong> or their <strong>Admin Email</strong>.
+          <div>
+            Credentials used by the institutional administrator to log into and run the <strong>Admin Module</strong>. The administrator can authenticate using either the <strong>Tenant Login Code ({college.college_code})</strong> or their <strong>Admin Email ({adminAccount?.email || college.contact_email})</strong>.
+            <div style={{ marginTop: '6px', display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.78rem' }}>
+              <span>🚀 <strong>Portal Login:</strong> <a href="http://localhost:5173/admin/login" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8', fontWeight: 600 }}>http://localhost:5173/admin/login</a></span>
+              <span>🏢 <strong>Dedicated Web:</strong> <a href="http://localhost:3002/admin/login" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8', fontWeight: 600 }}>http://localhost:3002/admin/login</a></span>
+            </div>
+          </div>
+
+          {adminAccount && (
+            <button
+              type="button"
+              className="btn-enterprise btn-outline-soft"
+              onClick={() => {
+                const packageText = `HMS College Administrator Access\nInstitution: ${college.name}\nTenant Login Code: ${college.college_code}\nAdmin Email: ${adminAccount.email}\nPortal URL: http://localhost:5173/admin/login\nDedicated Admin URL: http://localhost:3002/admin/login`;
+                handleCopy('admin_pkg', packageText);
+              }}
+              style={{ flexShrink: 0 }}
+            >
+              {copiedKey === 'admin_pkg' ? <Check size={13} /> : <Copy size={13} />}
+              <span>{copiedKey === 'admin_pkg' ? 'Copied Full Package!' : 'Copy Access Package'}</span>
+            </button>
+          )}
         </div>
 
         {adminAccount ? (
-          <div className="detail-grid">
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <Mail size={13} style={{ color: '#2563eb' }} />
-                <span>Admin Login Email / ID</span>
+          <div className="parameter-cards-grid">
+            <div className="param-tile">
+              <div className="param-tile-icon blue">
+                <Mail size={18} />
               </div>
-              <div className="detail-value">
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.85rem' }}>
-                  {adminAccount.email}
-                </span>
-                <button
-                  type="button"
-                  className={`copy-btn-inline ${copiedKey === 'admin_email' ? 'copied' : ''}`}
-                  onClick={() => handleCopy('admin_email', adminAccount.email)}
-                  title="Copy email"
-                >
-                  {copiedKey === 'admin_email' ? <Check size={11} /> : <Copy size={11} />}
-                  <span>{copiedKey === 'admin_email' ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <Hash size={13} style={{ color: '#2563eb' }} />
-                <span>Tenant Login Code</span>
-              </div>
-              <div className="detail-value">
-                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem', color: '#1e40af' }}>
-                  {college.college_code}
-                </span>
-                <button
-                  type="button"
-                  className={`copy-btn-inline ${copiedKey === 'admin_code' ? 'copied' : ''}`}
-                  onClick={() => handleCopy('admin_code', college.college_code)}
-                  title="Copy tenant code"
-                >
-                  {copiedKey === 'admin_code' ? <Check size={11} /> : <Copy size={11} />}
-                  <span>{copiedKey === 'admin_code' ? 'Copied' : 'Copy'}</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <UserCheck size={13} style={{ color: '#6d28d9' }} />
-                <span>Assigned Platform Role</span>
-              </div>
-              <div className="detail-value">
-                <span className="badge badge-purple">
-                  {adminAccount.role_name || adminAccount.role_code}
-                </span>
-              </div>
-            </div>
-
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <ShieldCheck size={13} style={{ color: '#059669' }} />
-                <span>Account Status</span>
-              </div>
-              <div className="detail-value">
-                <span className={`badge ${adminAccount.status === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
-                  <span className="badge-dot" />
-                  <span>{adminAccount.status}</span>
-                </span>
-              </div>
-            </div>
-
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <Lock size={13} style={{ color: '#059669' }} />
-                <span>Password Status</span>
-              </div>
-              <div className="detail-value">
-                {adminAccount.has_password ? (
-                  <span className="badge badge-success">
-                    <Check size={12} />
-                    <span>Active (Hashed &amp; Salted)</span>
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Admin Login Email / ID</span>
+                </div>
+                <div className="param-tile-value">
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.88rem' }}>
+                    {adminAccount.email}
                   </span>
-                ) : (
-                  <span className="badge badge-danger">Not Configured</span>
-                )}
+                  <button
+                    type="button"
+                    className={`copy-btn-inline ${copiedKey === 'admin_email' ? 'copied' : ''}`}
+                    onClick={() => handleCopy('admin_email', adminAccount.email)}
+                    title="Copy email"
+                  >
+                    {copiedKey === 'admin_email' ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{copiedKey === 'admin_email' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="detail-item-box">
-              <div className="detail-label">
-                <Clock size={13} style={{ color: '#64748b' }} />
-                <span>Last Successful Login</span>
+            <div className="param-tile">
+              <div className="param-tile-icon blue">
+                <Hash size={18} />
               </div>
-              <div className="detail-value" style={{ fontSize: '0.82rem', color: adminAccount.last_login_at ? '#0f172a' : '#64748b' }}>
-                {adminAccount.last_login_at ? new Date(adminAccount.last_login_at).toLocaleString() : 'Never logged in yet'}
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Tenant Login Code</span>
+                </div>
+                <div className="param-tile-value">
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1.05rem', color: '#1e40af' }}>
+                    {college.college_code}
+                  </span>
+                  <button
+                    type="button"
+                    className={`copy-btn-inline ${copiedKey === 'admin_code' ? 'copied' : ''}`}
+                    onClick={() => handleCopy('admin_code', college.college_code)}
+                    title="Copy tenant code"
+                  >
+                    {copiedKey === 'admin_code' ? <Check size={11} /> : <Copy size={11} />}
+                    <span>{copiedKey === 'admin_code' ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="param-tile">
+              <div className="param-tile-icon purple">
+                <UserCheck size={18} />
+              </div>
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Assigned Platform Role</span>
+                </div>
+                <div className="param-tile-value">
+                  <span className="badge badge-purple">
+                    {adminAccount.role_name || adminAccount.role_code}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="param-tile">
+              <div className="param-tile-icon emerald">
+                <ShieldCheck size={18} />
+              </div>
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Account Status</span>
+                </div>
+                <div className="param-tile-value">
+                  <span className={`badge ${adminAccount.status === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`}>
+                    <span className="badge-dot" />
+                    <span>{adminAccount.status}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="param-tile">
+              <div className="param-tile-icon emerald">
+                <Lock size={18} />
+              </div>
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Password Security</span>
+                </div>
+                <div className="param-tile-value">
+                  {adminAccount.has_password ? (
+                    <span className="badge badge-success">
+                      <Check size={12} />
+                      <span>Active (Hashed &amp; Salted)</span>
+                    </span>
+                  ) : (
+                    <span className="badge badge-danger">Not Configured</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="param-tile">
+              <div className="param-tile-icon slate">
+                <Clock size={18} />
+              </div>
+              <div className="param-tile-body">
+                <div className="param-tile-label">
+                  <span>Last Successful Login</span>
+                </div>
+                <div className="param-tile-value" style={{ fontSize: '0.82rem', color: adminAccount.last_login_at ? '#0f172a' : '#64748b' }}>
+                  {adminAccount.last_login_at ? new Date(adminAccount.last_login_at).toLocaleString() : 'Never logged in yet'}
+                </div>
               </div>
             </div>
           </div>
@@ -1268,10 +1495,10 @@ export default function CollegeDetailPage() {
                     <td style={{ padding: '12px 16px' }}>
                       <span
                         className={`badge ${step.status === 'COMPLETED'
-                            ? 'badge-success'
-                            : step.status === 'IN_PROGRESS'
-                              ? 'badge-warning'
-                              : 'badge-muted'
+                          ? 'badge-success'
+                          : step.status === 'IN_PROGRESS'
+                            ? 'badge-warning'
+                            : 'badge-muted'
                           }`}
                       >
                         <span className="badge-dot" />
@@ -1292,31 +1519,92 @@ export default function CollegeDetailPage() {
         )}
       </div>
 
-      {/* Related Platform Navigation */}
+      {/* Fast Platform Governance Navigation Hub */}
       <div className="card enterprise-card">
         <div className="card-header">
           <div className="card-title">
             <Sparkles size={18} style={{ color: '#2563eb' }} />
-            <span>Related Platform Governance &amp; Tooling</span>
+            <span>Platform Governance &amp; Institutional Tooling</span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Link to={`/colleges/${college.college_id}/configuration`} className="btn-enterprise btn-outline-soft">
-            <SlidersHorizontal size={14} />
-            <span>Tenant Configuration &amp; Policies →</span>
+        <div className="platform-links-grid">
+          <Link to={`/colleges/${college.college_id}/configuration`} className="platform-link-card">
+            <div className="platform-link-icon-box">
+              <SlidersHorizontal size={20} />
+            </div>
+            <div className="platform-link-info">
+              <div className="platform-link-title">
+                <span>Tenant Configuration</span>
+                <span>→</span>
+              </div>
+              <p className="platform-link-desc">Manage institutional security floors, policies, and parameters</p>
+            </div>
           </Link>
-          <Link to={`/colleges/${college.college_id}/modules`} className="btn-enterprise btn-outline-soft">
-            <Boxes size={14} />
-            <span>Module Entitlements Catalogue →</span>
+
+          <Link to={`/colleges/${college.college_id}/modules`} className="platform-link-card">
+            <div className="platform-link-icon-box">
+              <Boxes size={20} />
+            </div>
+            <div className="platform-link-info">
+              <div className="platform-link-title">
+                <span>Module Entitlements</span>
+                <span>→</span>
+              </div>
+              <p className="platform-link-desc">Configure module subscriptions, licensing, and feature flags</p>
+            </div>
           </Link>
-          <Link to="/approvals" className="btn-enterprise btn-outline-soft">
-            <ShieldCheck size={14} />
-            <span>Pending Approvals Workflow →</span>
+
+          <Link to={`/colleges/${college.college_id}/hostel-structure`} className="platform-link-card">
+            <div className="platform-link-icon-box">
+              <Building2 size={20} />
+            </div>
+            <div className="platform-link-info">
+              <div className="platform-link-title">
+                <span>Hostel Facilities Master</span>
+                <span>→</span>
+              </div>
+              <p className="platform-link-desc">Physical campus blocks, floors, rooms, and bed capacity</p>
+            </div>
           </Link>
-          <Link to="/audit-logs" className="btn-enterprise btn-outline-soft">
-            <Clock size={14} />
-            <span>Platform Audit Logs →</span>
+
+          <Link to={`/colleges/${college.college_id}/applications`} className="platform-link-card">
+            <div className="platform-link-icon-box">
+              <AppWindow size={20} />
+            </div>
+            <div className="platform-link-info">
+              <div className="platform-link-title">
+                <span>Applications &amp; Portal</span>
+                <span>→</span>
+              </div>
+              <p className="platform-link-desc">App versions, mobile rollout, and release channels</p>
+            </div>
+          </Link>
+
+          <Link to="/approvals" className="platform-link-card">
+            <div className="platform-link-icon-box">
+              <ShieldCheck size={20} />
+            </div>
+            <div className="platform-link-info">
+              <div className="platform-link-title">
+                <span>Approvals Workflow</span>
+                <span>→</span>
+              </div>
+              <p className="platform-link-desc">Maker-checker requests and pending administrative changes</p>
+            </div>
+          </Link>
+
+          <Link to="/audit-logs" className="platform-link-card">
+            <div className="platform-link-icon-box">
+              <Clock size={20} />
+            </div>
+            <div className="platform-link-info">
+              <div className="platform-link-title">
+                <span>Platform Audit Logs</span>
+                <span>→</span>
+              </div>
+              <p className="platform-link-desc">Cryptographically secured operational and compliance history</p>
+            </div>
           </Link>
         </div>
       </div>

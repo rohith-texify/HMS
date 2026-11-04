@@ -162,7 +162,7 @@ func Load() (*Config, error) {
 		return nil, err
 	}
 
-	generalRateLimit, err := getIntEnv("RATE_LIMIT_GENERAL_PER_MINUTE", 100)
+	generalRateLimit, err := getIntEnv("RATE_LIMIT_GENERAL_PER_MINUTE", 3000)
 	if err != nil {
 		return nil, err
 	}

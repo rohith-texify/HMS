@@ -73,7 +73,7 @@ func (m *TenantStatusMiddleware) RequireActiveTenant() gin.HandlerFunc {
 			return
 		}
 
-		if status != "ACTIVE" {
+		if status != "ACTIVE" && status != "ONBOARDING" {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"success": false,
 				"error": gin.H{

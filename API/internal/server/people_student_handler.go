@@ -66,6 +66,9 @@ type createStudentRequest struct {
 	StudentStatus *string `json:"student_status"`
 	HostelStatus  *string `json:"hostel_status"`
 
+	Password        *string `json:"password"`
+	ConfirmPassword *string `json:"confirm_password"`
+
 	Metadata map[string]interface{} `json:"metadata"`
 }
 
@@ -215,6 +218,8 @@ func (h *StudentHandler) CreateStudent(c *gin.Context) {
 		BloodGroup:         request.BloodGroup,
 		Phone:              request.Phone,
 		Email:              request.Email,
+		Password:           request.Password,
+		ConfirmPassword:    request.ConfirmPassword,
 		AddressLine1:       request.AddressLine1,
 		AddressLine2:       request.AddressLine2,
 		City:               request.City,

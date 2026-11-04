@@ -498,7 +498,7 @@ export default function AdminDashboardPage() {
         {/* KPI 4: Staff & In-Charges */}
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-title">College Staff</span>
+            <span className="stat-kpi-title">Hostel Staff</span>
             <div className="stat-kpi-icon-box" style={{ backgroundColor: '#faf5ff', color: '#9333ea' }}>
               <Users size={20} />
             </div>
@@ -804,7 +804,7 @@ export default function AdminDashboardPage() {
             <Link to="/admin/staff" className="quick-action-link-item">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Users size={15} />
-                <span>Wardens & College Staff</span>
+                <span>Wardens & Hostel Staff</span>
               </div>
               <ArrowRight size={13} />
             </Link>

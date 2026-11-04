@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
@@ -117,4 +115,3 @@ func (h *StudentHandler) ListStudentParents(c *gin.Context) {
 
 	response.OK(c, gin.H{"parents": parents})
 }
-

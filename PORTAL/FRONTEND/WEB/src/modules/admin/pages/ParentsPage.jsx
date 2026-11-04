@@ -12,6 +12,9 @@ import {
   Edit2,
   Trash2,
   Eye,
+  EyeOff,
+  Lock,
+  Key,
   Briefcase,
   MapPin,
   HeartHandshake,
@@ -21,6 +24,8 @@ import {
   Clock,
   ArrowRight,
   ExternalLink,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   PageHeader,
@@ -45,6 +50,9 @@ export default function AdminParentsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
+  // View & Display Mode: CARDS (visual grid) or TABLE (tabular list)
+  const [displayMode, setDisplayMode] = useState('CARDS');
+
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [relationshipFilter, setRelationshipFilter] = useState('ALL');
@@ -65,6 +73,8 @@ export default function AdminParentsPage() {
   // Form State
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     first_name: '',
     middle_name: '',
@@ -73,6 +83,8 @@ export default function AdminParentsPage() {
     phone: '',
     alternate_phone: '',
     email: '',
+    password: '',
+    confirm_password: '',
     occupation: '',
     address_line1: '',
     address_line2: '',
@@ -196,6 +208,8 @@ export default function AdminParentsPage() {
   // Open Create Modal
   const handleOpenCreate = () => {
     setFormError(null);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setFormData({
       first_name: '',
       middle_name: '',
@@ -204,6 +218,8 @@ export default function AdminParentsPage() {
       phone: '',
       alternate_phone: '',
       email: '',
+      password: '',
+      confirm_password: '',
       occupation: '',
       address_line1: '',
       address_line2: '',
@@ -225,6 +241,21 @@ export default function AdminParentsPage() {
       return;
     }
 
+    if (formData.password?.trim()) {
+      if (!formData.email?.trim()) {
+        setFormError('Parent ID (Email address) is required to set up Parent Portal access.');
+        return;
+      }
+      if (formData.password.trim().length < 8) {
+        setFormError('Parent Portal password must be at least 8 characters.');
+        return;
+      }
+      if (formData.password !== formData.confirm_password) {
+        setFormError('Passwords do not match. Please re-enter.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -235,6 +266,8 @@ export default function AdminParentsPage() {
         phone: formData.phone?.trim() || null,
         alternate_phone: formData.alternate_phone?.trim() || null,
         email: formData.email?.trim() || null,
+        password: formData.password?.trim() || null,
+        confirm_password: formData.confirm_password?.trim() || null,
         occupation: formData.occupation?.trim() || null,
         address_line1: formData.address_line1?.trim() || null,
         address_line2: formData.address_line2?.trim() || null,
@@ -416,7 +449,7 @@ export default function AdminParentsPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.84rem' }}>
             <Phone size={12} style={{ color: 'var(--text-muted)' }} />
-            <span>{p.phone || '—'}</span>
+            <span>{p.phone || 'N/A'}</span>
           </div>
           {p.alternate_phone && (
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -427,12 +460,21 @@ export default function AdminParentsPage() {
       ),
     },
     {
-      header: 'Email Address',
+      header: 'Email / Portal Login',
       key: 'email',
       render: (p) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          <Mail size={12} style={{ color: 'var(--text-muted)' }} />
-          <span>{p.email || '—'}</span>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+            <Mail size={12} style={{ color: 'var(--text-muted)' }} />
+            <span>{p.email || 'N/A'}</span>
+          </div>
+          {p.user_id && (
+            <div style={{ marginTop: '2px' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.66rem', fontWeight: 600, color: '#15803d', backgroundColor: '#dcfce7', padding: '1px 6px', borderRadius: '4px' }}>
+                <UserCheck size={10} /> Portal Active
+              </span>
+            </div>
+          )}
         </div>
       ),
     },
@@ -468,34 +510,39 @@ export default function AdminParentsPage() {
 
   return (
     <div className="fade-in-up">
-      {/* 1. Page Header */}
-      <PageHeader
-        category="Community Management"
-        categoryIcon={Users}
-        title="Parents & Guardians Directory"
-        subtitle="Manage verified family contacts, residential student links, and emergency guardian records."
-        actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              className="btn-enterprise-secondary"
-              onClick={() => loadData(true)}
-              disabled={isRefreshing}
-            >
-              <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-            <button
-              type="button"
-              className="btn-enterprise-primary"
-              onClick={handleOpenCreate}
-            >
-              <Plus size={15} />
-              <span>Register Parent</span>
-            </button>
+      {/* 1. Modern Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <Users size={13} />
+            <span>Family & Guardian Liaison</span>
           </div>
-        }
-      />
+          <h1 className="hero-main-title">Parents & Guardians Directory</h1>
+          <p className="hero-subtitle">
+            Manage verified family contacts, residential student linkages, primary emergency guardians, and gate pickup permissions.
+          </p>
+        </div>
+
+        <div className="hero-action-buttons">
+          <button
+            type="button"
+            className="btn-enterprise-secondary"
+            onClick={() => loadData(true)}
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Directory'}</span>
+          </button>
+          <button
+            type="button"
+            className="btn-enterprise-primary"
+            onClick={handleOpenCreate}
+          >
+            <Plus size={15} />
+            <span>Register Parent</span>
+          </button>
+        </div>
+      </div>
 
       {/* 2. Executive KPI Cards */}
       <div className="kpi-cards-grid" style={{ marginBottom: '20px' }}>
@@ -518,7 +565,7 @@ export default function AdminParentsPage() {
             </div>
           </div>
           <div className="stat-kpi-value">{fatherCount}</div>
-          <div className="stat-kpi-subtext">Registered parent profiles</div>
+          <div className="stat-kpi-subtext">Registered father profiles</div>
         </div>
 
         <div className="stat-kpi-card">
@@ -529,7 +576,7 @@ export default function AdminParentsPage() {
             </div>
           </div>
           <div className="stat-kpi-value">{motherCount}</div>
-          <div className="stat-kpi-subtext">Registered parent profiles</div>
+          <div className="stat-kpi-subtext">Registered mother profiles</div>
         </div>
 
         <div className="stat-kpi-card">
@@ -544,7 +591,7 @@ export default function AdminParentsPage() {
         </div>
       </div>
 
-      {/* 3. Filter Controls */}
+      {/* 3. Filter Controls Toolbar */}
       <FilterControls
         totalRecords={filteredParents.length}
         onReset={() => {
@@ -556,7 +603,7 @@ export default function AdminParentsPage() {
           placeholder="Search by name, phone, email, occupation..."
           value={searchTerm}
           onChange={setSearchTerm}
-          width={300}
+          width={320}
         />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -574,26 +621,218 @@ export default function AdminParentsPage() {
             <option value="OTHER">Other</option>
           </select>
         </div>
+
+        {/* View Switcher: Cards vs Table */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="view-mode-toggle">
+            <button
+              type="button"
+              className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('CARDS')}
+              title="Card Grid View"
+            >
+              <LayoutGrid size={13} />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('TABLE')}
+              title="Table View"
+            >
+              <List size={13} />
+              <span>Table</span>
+            </button>
+          </div>
+        </div>
       </FilterControls>
 
-      {/* 4. Data Table */}
-      {error ? (
-        <ErrorState title="Failed to load parents" message={error} onRetry={() => loadData(true)} />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredParents}
-          rowKey="id"
-          loading={loading}
-          emptyTitle="No parent profiles found"
-          emptyMessage="No parents or guardians match your filter criteria."
-          footer={
-            <span>
-              Showing <strong>{filteredParents.length}</strong> of <strong>{parents.length}</strong> registered guardians
+      {/* 4. Enterprise Card Container */}
+      <div className="enterprise-card" style={{ marginTop: '16px' }}>
+        <div className="card-topbar">
+          <div className="card-title-group">
+            <div className="card-title-icon-wrap" style={{ backgroundColor: '#faf5ff', color: '#9333ea' }}>
+              <Users size={16} />
+            </div>
+            <div>
+              <h2 className="card-title-text">Registered Family & Guardians</h2>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Showing {filteredParents.length} of {parents.length} registered profiles
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="badge-enterprise badge-purple">
+              <span className="live-pulse" />
+              {totalCount} Guardians
             </span>
-          }
-        />
-      )}
+            <span className="badge-enterprise badge-blue">
+              {fatherCount} Fathers
+            </span>
+            <span className="badge-enterprise badge-pink">
+              {motherCount} Mothers
+            </span>
+            {guardianCount > 0 && (
+              <span className="badge-enterprise badge-emerald">
+                {guardianCount} Guardians
+              </span>
+            )}
+          </div>
+        </div>
+
+        {error ? (
+          <div style={{ padding: '24px' }}>
+            <ErrorState title="Failed to load parents" message={error} onRetry={() => loadData(true)} />
+          </div>
+        ) : loading ? (
+          <div style={{ padding: '40px' }}>
+            <LoadingState message="Loading parents & guardians directory..." />
+          </div>
+        ) : filteredParents.length === 0 ? (
+          <div style={{ padding: '40px' }}>
+            <EmptyState
+              title="No parent profiles found"
+              message="No parents or guardians match your search query or filter criteria."
+            />
+          </div>
+        ) : displayMode === 'CARDS' ? (
+          <div style={{ padding: '20px' }}>
+            <div className="parents-grid-cards">
+              {filteredParents.map((p) => {
+                const initials = `${p.first_name?.[0] || 'P'}${p.last_name?.[0] || ''}`.toUpperCase();
+                const rel = (p.relationship || 'GUARDIAN').toUpperCase();
+                const relClass = rel === 'FATHER' ? 'father' : rel === 'MOTHER' ? 'mother' : rel === 'GUARDIAN' ? 'guardian' : 'other';
+                const relBadgeColor = rel === 'FATHER' ? 'badge-blue' : rel === 'MOTHER' ? 'badge-pink' : rel === 'GUARDIAN' ? 'badge-emerald' : 'badge-purple';
+
+                return (
+                  <div key={p.id} className={`parent-card-v2 ${relClass}`}>
+                    {/* Card Top: Avatar, Name, Relationship */}
+                    <div className="parent-card-top">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                        <div className={`parent-avatar-box ${relClass}`}>
+                          {initials}
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h3 className="parent-name-title" title={`${p.first_name} ${p.last_name || ''}`}>
+                            {p.first_name} {p.last_name || ''}
+                          </h3>
+                          <div className="parent-occupation-sub">
+                            <Briefcase size={11} style={{ flexShrink: 0 }} />
+                            <span>{p.occupation || 'Occupation Unspecified'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        <span
+                          className={`badge-enterprise ${relBadgeColor}`}
+                          style={{ fontSize: '0.68rem', textTransform: 'uppercase' }}
+                        >
+                          {rel}
+                        </span>
+                        {p.user_id && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.65rem',
+                              fontWeight: 600,
+                              color: '#15803d',
+                              backgroundColor: '#dcfce7',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            <UserCheck size={10} /> Portal Active
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Body: Contact Stack, City/State */}
+                    <div className="parent-card-body">
+                      <div className="parent-contacts-stack">
+                        <div className="parent-contact-row" title={p.phone || 'No phone registered'}>
+                          <Phone size={12} style={{ color: '#10b981', flexShrink: 0 }} />
+                          <span>{p.phone || 'No phone registered'}</span>
+                          {p.alternate_phone && (
+                            <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                              (Alt: {p.alternate_phone})
+                            </span>
+                          )}
+                        </div>
+                        <div className="parent-contact-row" title={p.email || 'No email registered'}>
+                          <Mail size={12} style={{ color: '#6366f1', flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {p.email || 'No email registered'}
+                          </span>
+                        </div>
+                        {(p.city || p.state) && (
+                          <div className="parent-contact-row" title={`${p.city || ''}, ${p.state || ''}`}>
+                            <MapPin size={12} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                            <span>
+                              {p.city || ''}{p.city && p.state ? ', ' : ''}{p.state || ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Location or Address snippet if available */}
+                      {p.address_line1 && (
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontWeight: 600 }}>Address:</span> {p.address_line1}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Footer: Action Buttons */}
+                    <div className="parent-card-footer">
+                      <button
+                        type="button"
+                        className="btn-enterprise-secondary"
+                        style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }}
+                        onClick={() => handleOpenProfile(p)}
+                        title="View Full Profile & Linked Student Wards"
+                      >
+                        <Eye size={13} />
+                        <span>Dossier & Wards</span>
+                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-enterprise-secondary"
+                          style={{ padding: '5px 8px' }}
+                          onClick={() => handleOpenEdit(p)}
+                          title="Edit Parent Details"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '0' }}>
+            <DataTable
+              columns={columns}
+              data={filteredParents}
+              rowKey="id"
+              loading={loading}
+              emptyTitle="No parent profiles found"
+              emptyMessage="No parents or guardians match your filter criteria."
+              footer={
+                <span>
+                  Showing <strong>{filteredParents.length}</strong> of <strong>{parents.length}</strong> registered guardians
+                </span>
+              }
+            />
+          </div>
+        )}
+      </div>
 
       {/* ========================================================================= */}
       {/* 5. MODAL: Detailed Parent Profile Drawer                                   */}
@@ -635,25 +874,30 @@ export default function AdminParentsPage() {
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Primary Telephone</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Phone size={13} style={{ color: 'var(--text-muted)' }} />
-                  <span>{selectedParent.phone || '—'}</span>
+                  <span>{selectedParent.phone || 'N/A'}</span>
                 </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Alternate Telephone</span>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{selectedParent.alternate_phone || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{selectedParent.alternate_phone || 'N/A'}</div>
               </div>
               <div>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Email Address</span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Email / Portal Login</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Mail size={13} style={{ color: 'var(--text-muted)' }} />
-                  <span>{selectedParent.email || '—'}</span>
+                  <span>{selectedParent.email || 'N/A'}</span>
+                  {selectedParent.user_id && (
+                    <span style={{ fontSize: '0.65rem', backgroundColor: '#dcfce7', color: '#15803d', padding: '1px 6px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <UserCheck size={10} /> Active
+                    </span>
+                  )}
                 </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Occupation</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Briefcase size={13} style={{ color: 'var(--text-muted)' }} />
-                  <span>{selectedParent.occupation || '—'}</span>
+                  <span>{selectedParent.occupation || 'N/A'}</span>
                 </div>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
@@ -716,7 +960,7 @@ export default function AdminParentsPage() {
                           <div style={{ fontWeight: 600, fontSize: '0.86rem' }}>
                             {st ? `${st.first_name} ${st.last_name || ''}` : `Student (${rel.student_id.slice(0, 8)})`}
                             <span className="badge-enterprise badge-blue" style={{ marginLeft: '8px', fontSize: '0.68rem' }}>
-                              Adm: {st?.admission_number || '—'}
+                              Adm: {st?.admission_number || 'N/A'}
                             </span>
                             {rel.is_primary && (
                               <span className="badge-enterprise badge-green" style={{ marginLeft: '4px', fontSize: '0.68rem' }}>
@@ -779,14 +1023,14 @@ export default function AdminParentsPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 6. MODAL: Create Parent Form                                             */}
+      {/* 6. MODAL: Create Parent Form with Portal Credentials                     */}
       {/* ========================================================================= */}
       <Modal
         isOpen={createModalOpen}
         onClose={() => setCreateModalOpen(false)}
         title="Register Parent or Guardian"
-        subtitle="Add parent contact information to the institutional directory"
-        maxWidth="600px"
+        subtitle="Add parent contact information and credentials to the institutional directory"
+        maxWidth="640px"
         footer={
           <>
             <button
@@ -886,17 +1130,6 @@ export default function AdminParentsPage() {
               />
             </FormField>
 
-            <FormField label="Email Address">
-              <input
-                type="email"
-                className="filter-search-input"
-                style={{ width: '100%' }}
-                placeholder="parent@example.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </FormField>
-
             <FormField label="City / State">
               <input
                 type="text"
@@ -907,6 +1140,150 @@ export default function AdminParentsPage() {
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
               />
             </FormField>
+
+            <FormField label="Street Address">
+              <input
+                type="text"
+                className="filter-search-input"
+                style={{ width: '100%' }}
+                placeholder="Street address / locality"
+                value={formData.address_line1}
+                onChange={(e) => setFormData({ ...formData, address_line1: e.target.value })}
+              />
+            </FormField>
+          </div>
+
+          {/* Parent Portal Access & Credentials (Parent ID & Password) */}
+          <div
+            style={{
+              marginTop: '16px',
+              padding: '16px',
+              borderRadius: '10px',
+              border: '1px solid #e0e7ff',
+              backgroundColor: '#f8faff',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  backgroundColor: '#e0e7ff',
+                  color: '#4338ca',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Lock size={15} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Parent Portal Access & Credentials
+                </div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Set up Parent ID (login email) and password to enable direct Parent Portal access.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+              <FormField label="Parent Login ID / Email Address" required={Boolean(formData.password?.trim())}>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="email"
+                    className="filter-search-input"
+                    style={{ width: '100%', paddingLeft: '34px' }}
+                    placeholder="e.g. parent.guardian@example.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required={Boolean(formData.password?.trim())}
+                  />
+                  <Mail
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)',
+                      pointerEvents: 'none',
+                    }}
+                  />
+                </div>
+              </FormField>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <FormField label="Parent Portal Password" required={Boolean(formData.email?.trim())}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="filter-search-input"
+                      style={{ width: '100%', paddingRight: '36px' }}
+                      placeholder="Min 8 characters"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '4px',
+                      }}
+                      tabIndex={-1}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </FormField>
+
+                <FormField label="Retype Password" required={Boolean(formData.password?.trim())}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="filter-search-input"
+                      style={{ width: '100%', paddingRight: '36px' }}
+                      placeholder="Confirm password"
+                      value={formData.confirm_password}
+                      onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '4px',
+                      }}
+                      tabIndex={-1}
+                      title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </FormField>
+              </div>
+            </div>
           </div>
         </form>
       </Modal>

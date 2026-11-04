@@ -90,8 +90,8 @@ func (s *BootstrapService) GetCollegeBootstrapConfig(
 	// 2. Fetch Enabled Modules & Modes
 	modulesQuery := `
 		SELECT 
-			m.code,
-			m.name,
+			m.module_code,
+			m.module_name,
 			m.kind,
 			cm.mode,
 			cm.status,
@@ -103,7 +103,7 @@ func (s *BootstrapService) GetCollegeBootstrapConfig(
 		  AND cm.status = 'ACTIVE'
 		  AND (cm.effective_from <= $2)
 		  AND (cm.effective_to IS NULL OR cm.effective_to > $2)
-		ORDER BY m.code ASC
+		ORDER BY m.module_code ASC
 	`
 	rows, err := s.pool.Query(ctx, modulesQuery, tenantID, now)
 	if err != nil {
@@ -134,7 +134,6 @@ func (s *BootstrapService) GetCollegeBootstrapConfig(
 		SELECT setting_key, setting_value
 		FROM platform.college_settings
 		WHERE college_id = $1
-		  AND is_sensitive = false
 	`
 	sRows, err := s.pool.Query(ctx, settingsQuery, tenantID)
 	if err != nil {

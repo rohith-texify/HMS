@@ -13,7 +13,17 @@ export default function NotificationDisplay({ className = '' }) {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  const fetchUnread = async () => {
+    const fetchUnread = async () => {
+    const token =
+      localStorage.getItem('token') ||
+      localStorage.getItem('hms_college_token') ||
+      localStorage.getItem('hms_student_token') ||
+      localStorage.getItem('hms_parent_token') ||
+      localStorage.getItem('hms_incharge_token') ||
+      localStorage.getItem('hms_security_token') ||
+      sessionStorage.getItem('token');
+    if (!token) return;
+
     try {
       const res = await api.get('/college/notifications/unread-count');
       const d = res.data || res;

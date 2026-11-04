@@ -48,6 +48,8 @@ type CreateParentParams struct {
 	Phone          *string
 	AlternatePhone *string
 	Email          *string
+	Password       *string
+	ConfirmPassword *string
 	Occupation     *string
 	AddressLine1   *string
 	AddressLine2   *string

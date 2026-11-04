@@ -218,7 +218,7 @@ export const adminService = {
     return api.patch(`/college/bed-allocations/${allocationId}/transfer`, payload);
   },
 
-  // College Staff & Incharges
+  // Hostel Staff & Incharges
   async getStaff() {
     const res = await api.get('/college/staff');
     return res.data || res;
@@ -258,6 +258,23 @@ export const adminService = {
   async deleteInchargeAssignment(hostelId, assignmentId) {
     return api.delete(`/college/hostels/${hostelId}/incharges/${assignmentId}`);
   },
+  async getMyHostel() {
+    const res = await api.get('/college/incharges/my-hostel');
+    return res.data || res;
+  },
+  async getHostelResidents(hostelId) {
+    const res = await api.get('/college/incharges/my-hostel/residents', { params: hostelId ? { hostel_id: hostelId } : {} });
+    return res.data || res;
+  },
+  async getHostelVacantBeds(hostelId) {
+    const res = await api.get('/college/incharges/my-hostel/vacant-beds', { params: hostelId ? { hostel_id: hostelId } : {} });
+    return res.data || res;
+  },
+  async getUnallocatedStudents() {
+    const res = await api.get('/college/incharges/unallocated-students');
+    return res.data || res;
+  },
+
 
   // Security Gates & Assignments
   async getGates() {

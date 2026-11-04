@@ -21,17 +21,14 @@ import {
   ChevronRight,
   Info,
   Sparkles,
+  LayoutGrid,
+  List,
+  CheckCheck,
 } from 'lucide-react';
 import {
-  PageHeader,
-  DataTable,
-  SearchInput,
-  FilterControls,
   Modal,
-  FormField,
   LoadingState,
   EmptyState,
-  ErrorState,
 } from '../../../shared/components';
 
 export default function AdminAnnouncementsPage() {
@@ -62,15 +59,16 @@ export default function AdminAnnouncementsPage() {
   const [errorMessage, setErrorMessage] = useState(null);
   const [successBanner, setSuccessBanner] = useState(null);
 
-  // Search & Filters
+  // Search, Filters & View Mode
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [readFilter, setReadFilter] = useState('ALL'); // 'ALL' | 'UNREAD' | 'READ'
+  const [displayMode, setDisplayMode] = useState('CARDS'); // 'CARDS' | 'TABLE'
 
   // Modals Visibility
   const [composeModalOpen, setComposeModalOpen] = useState(false);
-  const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -85,9 +83,10 @@ export default function AdminAnnouncementsPage() {
   });
 
   // Load Notifications & Recipients Directory
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isManual = false) => {
     try {
-      setLoading(true);
+      if (isManual) setIsRefreshing(true);
+      else setLoading(true);
       setErrorMessage(null);
 
       const [notifsRes, unreadRes, studentsRes, staffRes] = await Promise.allSettled([
@@ -98,29 +97,30 @@ export default function AdminAnnouncementsPage() {
       ]);
 
       const notifList = notifsRes.status === 'fulfilled'
-        ? (Array.isArray(notifsRes.value) ? notifsRes.value : notifsRes.value?.data || [])
+        ? (Array.isArray(notifsRes.value) ? notifsRes.value : notifsRes.value?.notifications || notifsRes.value?.data || [])
         : [];
       setNotifications(notifList);
 
-      const count = unreadRes.status === 'fulfilled'
-        ? (unreadRes.value?.unread_count ?? unreadRes.value?.count ?? 0)
+      const uCount = unreadRes.status === 'fulfilled'
+        ? (typeof unreadRes.value === 'number' ? unreadRes.value : unreadRes.value?.count || unreadRes.value?.data?.count || 0)
         : 0;
-      setUnreadCount(count);
+      setUnreadCount(uCount);
 
-      const studList = studentsRes.status === 'fulfilled'
+      const sList = studentsRes.status === 'fulfilled'
         ? (Array.isArray(studentsRes.value) ? studentsRes.value : studentsRes.value?.students || studentsRes.value?.data || [])
         : [];
-      setStudents(studList);
+      setStudents(sList);
 
-      const stList = staffRes.status === 'fulfilled'
+      const staffArray = staffRes.status === 'fulfilled'
         ? (Array.isArray(staffRes.value) ? staffRes.value : staffRes.value?.staff || staffRes.value?.data || [])
         : [];
-      setStaffList(stList);
+      setStaffList(staffArray);
     } catch (err) {
-      console.error('Failed to load notifications:', err);
+      console.error('Failed to load announcements:', err);
       setErrorMessage(err?.response?.data?.error?.message || err.message || 'Unable to load announcements.');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -234,520 +234,659 @@ export default function AdminAnnouncementsPage() {
   };
 
   // Badge helpers
-  const getPriorityBadge = (priority) => {
+  const getPriorityBadgeClass = (priority) => {
     switch (priority) {
       case 'URGENT':
-        return 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950 dark:text-rose-300';
+        return 'badge-enterprise badge-rose';
       case 'HIGH':
-        return 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300';
-      case 'NORMAL':
-        return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950 dark:text-blue-300';
-      case 'LOW':
-        return 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300';
+        return 'badge-enterprise badge-orange';
       default:
-        return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+        return 'badge-enterprise badge-blue';
     }
   };
 
-  const getTypeBadge = (type) => {
+  const getTypeBadgeClass = (type) => {
     switch (type) {
-      case 'ANNOUNCEMENT':
-        return 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300';
-      case 'SYSTEM':
-        return 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950 dark:text-indigo-300';
-      case 'LEAVE':
-        return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-300';
-      case 'COMPLAINT':
-        return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300';
+      case 'EMERGENCY':
+        return 'badge-enterprise badge-rose';
+      case 'ALERT':
+        return 'badge-enterprise badge-amber';
+      case 'NOTICE':
+        return 'badge-enterprise badge-purple';
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300';
+        return 'badge-enterprise badge-blue';
     }
   };
 
-  // Filtered Notifications
+  // Filtered Notifications List
   const filteredNotifications = useMemo(() => {
-    return notifications.filter((n) => {
+    return notifications.filter((notif) => {
       const matchesSearch =
         !searchTerm ||
-        (n.title && n.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (n.message && n.message.toLowerCase().includes(searchTerm.toLowerCase()));
+        (notif.title && notif.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (notif.message && notif.message.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      const matchesType = typeFilter === 'ALL' || n.notification_type === typeFilter;
-      const matchesPriority = priorityFilter === 'ALL' || n.priority === priorityFilter;
-      const isUnread = n.delivery_status !== 'READ' && !n.read_at;
+      const matchesType = typeFilter === 'ALL' || notif.type === typeFilter;
+      const matchesPriority = priorityFilter === 'ALL' || notif.priority === priorityFilter;
+
+      const isRead = notif.delivery_status === 'READ';
       const matchesRead =
         readFilter === 'ALL' ||
-        (readFilter === 'UNREAD' && isUnread) ||
-        (readFilter === 'READ' && !isUnread);
+        (readFilter === 'READ' && isRead) ||
+        (readFilter === 'UNREAD' && !isRead);
 
       return matchesSearch && matchesType && matchesPriority && matchesRead;
     });
   }, [notifications, searchTerm, typeFilter, priorityFilter, readFilter]);
 
-  // Table Columns
-  const columns = [
-    {
-      key: 'title',
-      title: 'Announcement & Details',
-      render: (row) => {
-        const isUnread = row.delivery_status !== 'READ' && !row.read_at;
-        return (
-          <div className="flex items-start gap-3 max-w-lg">
-            <div className={`mt-1 w-2.5 h-2.5 rounded-full shrink-0 ${isUnread ? 'bg-indigo-600' : 'bg-transparent'}`} />
-            <div>
-              <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <span>{row.title}</span>
-                {isUnread && (
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 uppercase">
-                    New
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500 line-clamp-1 mt-0.5 font-normal">
-                {row.message}
-              </p>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'notification_type',
-      title: 'Category',
-      render: (row) => (
-        <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${getTypeBadge(row.notification_type)}`}>
-          {row.notification_type}
-        </span>
-      ),
-    },
-    {
-      key: 'priority',
-      title: 'Priority',
-      render: (row) => (
-        <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${getPriorityBadge(row.priority)}`}>
-          {row.priority}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      title: 'Delivery',
-      render: (row) => {
-        const isRead = row.delivery_status === 'READ' || !!row.read_at;
-        return (
-          <span
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-              isRead
-                ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-            }`}
-          >
-            {isRead ? <Check className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-            {isRead ? 'Read' : 'Delivered'}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'created_at',
-      title: 'Broadcast Time',
-      render: (row) => (
-        <span className="text-xs text-slate-500 whitespace-nowrap">
-          {row.created_at ? new Date(row.created_at).toLocaleString() : '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'actions',
-      title: 'Actions',
-      render: (row) => {
-        const isUnread = row.delivery_status !== 'READ' && !row.read_at;
-        return (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setSelectedNotification(row);
-                setDetailsDrawerOpen(true);
-                if (isUnread) {
-                  handleMarkAsRead(row.id);
-                }
-              }}
-              className="p-1.5 text-slate-500 hover:text-indigo-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-              title="View full announcement"
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-            {isUnread && (
-              <button
-                onClick={() => handleMarkAsRead(row.id)}
-                className="p-1.5 text-slate-500 hover:text-emerald-600 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                title="Mark as read"
-              >
-                <Check className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        );
-      },
-    },
-  ];
+  const urgentCount = useMemo(() => {
+    return notifications.filter((n) => n.priority === 'HIGH' || n.priority === 'URGENT').length;
+  }, [notifications]);
 
   if (loading && notifications.length === 0) {
-    return <LoadingState message="Connecting to institutional broadcast channels..." />;
+    return (
+      <div className="fade-in-up" style={{ padding: '32px' }}>
+        <LoadingState message="Connecting to institutional broadcast network..." />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <PageHeader
-        title="Notice & Broadcast Announcements"
-        subtitle="Broadcast administrative circulars, hostel bulletins, maintenance notices, and emergency alerts."
-        icon={Megaphone}
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={loadData}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-750 transition"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllAsRead}
-                disabled={isRefreshing}
-                className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-750 transition"
-              >
-                <Check className="w-4 h-4 text-emerald-600" />
-                Mark All Read
-              </button>
-            )}
-
-            {canBroadcast && (
-              <button
-                onClick={() => setComposeModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition shadow-sm"
-              >
-                <Plus className="w-4 h-4" />
-                New Broadcast
-              </button>
-            )}
+    <div className="fade-in-up">
+      {/* Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <Megaphone size={13} />
+            <span>Campus Living &amp; Welfare</span>
           </div>
-        }
-      />
-
-      {/* Success Banner */}
-      {successBanner && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-sm font-medium">{successBanner}</span>
-          </div>
-          <button
-            onClick={() => setSuccessBanner(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Error Banner */}
-      {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-            <span className="text-sm font-medium">{errorMessage}</span>
-          </div>
-          <button
-            onClick={() => setErrorMessage(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-lg">
-            <Megaphone className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {notifications.length}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Total Bulletins & Notices
-            </div>
-          </div>
+          <h1 className="hero-main-title">Notice &amp; Broadcasts</h1>
+          <p className="hero-subtitle">
+            Publish campus notices, emergency bulletins, resident broadcasts, and monitor notification delivery across facilities.
+          </p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-lg">
-            <Bell className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {unreadCount}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Unread Bulletins
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-lg">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {notifications.filter((n) => n.priority === 'URGENT' || n.priority === 'HIGH').length}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              High / Urgent Bulletins
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-lg">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {students.length + staffList.length}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Connected Campus Recipients
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex-1 min-w-[240px] max-w-md">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search announcement titles or content..."
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-          >
-            <option value="ALL">All Categories</option>
-            <option value="ANNOUNCEMENT">Announcement</option>
-            <option value="GENERAL">General</option>
-            <option value="SYSTEM">System</option>
-            <option value="LEAVE">Leave</option>
-            <option value="COMPLAINT">Complaint</option>
-          </select>
-
-          <select
-            value={priorityFilter}
-            onChange={(e) => setPriorityFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-          >
-            <option value="ALL">All Priorities</option>
-            <option value="URGENT">Urgent</option>
-            <option value="HIGH">High</option>
-            <option value="NORMAL">Normal</option>
-            <option value="LOW">Low</option>
-          </select>
-
-          <select
-            value={readFilter}
-            onChange={(e) => setReadFilter(e.target.value)}
-            className="px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-          >
-            <option value="ALL">All Read States</option>
-            <option value="UNREAD">Unread Only</option>
-            <option value="READ">Read Only</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Notifications Table */}
-      <DataTable
-        columns={columns}
-        data={filteredNotifications}
-        loading={isRefreshing}
-        emptyMessage={
-          <EmptyState
-            icon={Megaphone}
-            title="No Announcements Found"
-            message="No bulletins match your current filter parameters or no broadcasts have been transmitted yet."
-            action={
-              canBroadcast && (
-                <button
-                  onClick={() => setComposeModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
-                >
-                  <Plus className="w-4 h-4" />
-                  Compose Broadcast
-                </button>
-              )
-            }
-          />
-        }
-      />
-
-      {/* MODAL: BROADCAST COMPOSER */}
-      <Modal
-        isOpen={composeModalOpen}
-        onClose={() => !submitting && setComposeModalOpen(false)}
-        title="Compose Official Campus Broadcast"
-      >
-        <form onSubmit={handleBroadcastSubmit} className="space-y-4">
-          <FormField label="Announcement Title" required>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              placeholder="e.g. Scheduled Power Outage & Water Supply Maintenance"
-              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            />
-          </FormField>
-
-          <div className="grid grid-cols-2 gap-4">
-            <FormField label="Category Type" required>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-                required
-              >
-                <option value="ANNOUNCEMENT">Official Announcement</option>
-                <option value="GENERAL">General Notice</option>
-                <option value="SYSTEM">System Broadcast</option>
-                <option value="LEAVE">Leave Notice</option>
-                <option value="COMPLAINT">Complaint Update</option>
-              </select>
-            </FormField>
-
-            <FormField label="Priority Level" required>
-              <select
-                value={formData.priority}
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200"
-                required
-              >
-                <option value="LOW">Low</option>
-                <option value="NORMAL">Normal</option>
-                <option value="HIGH">High Priority</option>
-                <option value="URGENT">Urgent Action Required</option>
-              </select>
-            </FormField>
-          </div>
-
-          <FormField
-            label="Target Audience"
-            required
-            helper="Select community groups who will receive this broadcast."
-          >
-            <select
-              value={formData.target_audience}
-              onChange={(e) => setFormData({ ...formData, target_audience: e.target.value })}
-              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 font-medium"
-              required
-            >
-              <option value="ALL_STUDENTS">All Enrolled Students ({students.length} recipients)</option>
-              <option value="ALL_STAFF">All Hostel & Institutional Staff ({staffList.length} recipients)</option>
-              <option value="EVERYONE">Complete Campus Community ({students.length + staffList.length} recipients)</option>
-            </select>
-          </FormField>
-
-          <FormField label="Message Body" required>
-            <textarea
-              rows={5}
-              value={formData.message}
-              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-              placeholder="Provide complete instructions, schedules, affected wings, and contact details..."
-              className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 leading-relaxed"
-              required
-            />
-          </FormField>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+        <div className="hero-action-buttons">
+          {unreadCount > 0 && (
             <button
               type="button"
-              disabled={submitting}
-              onClick={() => setComposeModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 rounded-lg"
+              onClick={handleMarkAllAsRead}
+              className="btn-enterprise-secondary"
+              title="Mark all notifications as read"
             >
-              Cancel
+              <CheckCheck size={14} />
+              <span>Mark All Read</span>
             </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow flex items-center gap-2"
-            >
-              {submitting && <RefreshCw className="w-4 h-4 animate-spin" />}
-              <Send className="w-4 h-4" />
-              Broadcast Now
-            </button>
-          </div>
-        </form>
-      </Modal>
+          )}
 
-      {/* DRAWER / MODAL: VIEW DETAILS */}
-      {detailsDrawerOpen && selectedNotification && (
-        <Modal
-          isOpen={detailsDrawerOpen}
-          onClose={() => setDetailsDrawerOpen(false)}
-          title="Announcement Details"
+          <button
+            type="button"
+            onClick={() => loadData(true)}
+            disabled={isRefreshing}
+            className="btn-enterprise-secondary"
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Data'}</span>
+          </button>
+
+          {canBroadcast && (
+            <button
+              type="button"
+              onClick={() => setComposeModalOpen(true)}
+              className="btn-enterprise-primary"
+            >
+              <Plus size={15} />
+              <span>Compose Broadcast</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Success Notification Banner */}
+      {successBanner && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
         >
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getTypeBadge(selectedNotification.notification_type)}`}>
-                {selectedNotification.notification_type}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} style={{ color: '#10b981' }} />
+            <span>{successBanner}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessBanner(null)}
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Error Notification Banner */}
+      {errorMessage && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+            <span>{errorMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Top Level KPI Cards */}
+      <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Total Broadcasts</span>
+            <div className="stat-kpi-icon-wrap blue">
+              <Megaphone size={17} />
+            </div>
+          </div>
+          <div className="stat-kpi-value text-blue-600">{notifications.length}</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot blue" />
+            <span>Published notices &amp; alerts</span>
+          </div>
+        </div>
+
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Unread Alerts</span>
+            <div className="stat-kpi-icon-wrap amber">
+              <Bell size={17} />
+            </div>
+          </div>
+          <div className="stat-kpi-value text-amber-600">{unreadCount}</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot amber" />
+            <span>Pending resident attention</span>
+          </div>
+        </div>
+
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">High / Urgent Notices</span>
+            <div className="stat-kpi-icon-wrap rose">
+              <AlertTriangle size={17} />
+            </div>
+          </div>
+          <div className="stat-kpi-value text-rose-600">{urgentCount}</div>
+          <div className="stat-kpi-footnote">
+            <span>High-priority campus notices</span>
+          </div>
+        </div>
+
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Recipient Directory</span>
+            <div className="stat-kpi-icon-wrap emerald">
+              <Users size={17} />
+            </div>
+          </div>
+          <div className="stat-kpi-value text-emerald-600">{students.length + staffList.length}</div>
+          <div className="stat-kpi-footnote">
+            <span>Enrolled students &amp; staff</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Broadcasts Card */}
+      <div className="enterprise-card">
+        <div className="card-topbar">
+          <div className="card-title-group">
+            <div className="card-title-icon-wrap">
+              <Megaphone size={16} />
+            </div>
+            <h2 className="card-title-text">Broadcast Announcements &amp; Bulletins</h2>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="stats-tally-pill" style={{ color: '#1d4ed8', background: '#dbeafe', borderColor: '#bfdbfe' }}>
+              <Bell size={12} />
+              <span>{filteredNotifications.length} Bulletins Listed</span>
+            </span>
+
+            <div className="view-mode-toggle">
+              <button
+                type="button"
+                className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+                onClick={() => setDisplayMode('CARDS')}
+                title="Card Grid View"
+              >
+                <LayoutGrid size={13} />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+                onClick={() => setDisplayMode('TABLE')}
+                title="Table View"
+              >
+                <List size={13} />
+                <span>Table</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Enterprise Filter Bar */}
+        <div className="enterprise-filter-bar">
+          <div className="filter-search-field">
+            <Search size={14} className="filter-search-icon" />
+            <input
+              type="text"
+              className="filter-search-input"
+              placeholder="Search by title, keywords, or announcement body..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <select
+              className="filter-select"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="ALL">All Bulletin Types</option>
+              <option value="ANNOUNCEMENT">ANNOUNCEMENT</option>
+              <option value="NOTICE">NOTICE</option>
+              <option value="ALERT">ALERT</option>
+              <option value="EMERGENCY">EMERGENCY</option>
+            </select>
+
+            <select
+              className="filter-select"
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+            >
+              <option value="ALL">All Priorities</option>
+              <option value="NORMAL">NORMAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="URGENT">URGENT</option>
+            </select>
+
+            <select
+              className="filter-select"
+              value={readFilter}
+              onChange={(e) => setReadFilter(e.target.value)}
+            >
+              <option value="ALL">All Read States</option>
+              <option value="UNREAD">Unread Only</option>
+              <option value="READ">Read Only</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Notifications Content */}
+        {filteredNotifications.length === 0 ? (
+          <div style={{ padding: '36px', textAlign: 'center' }}>
+            <EmptyState
+              title="No announcements found"
+              message="No notices match the selected search or filter criteria."
+            />
+          </div>
+        ) : displayMode === 'CARDS' ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', marginTop: '12px' }}>
+            {filteredNotifications.map((notif) => {
+              const isUnread = notif.delivery_status !== 'READ';
+
+              return (
+                <div
+                  key={notif.id}
+                  style={{
+                    border: isUnread ? '1.5px solid #818cf8' : '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: isUnread ? '#faf5ff' : '#ffffff',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    position: 'relative',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {isUnread && (
+                          <span
+                            style={{
+                              width: '8px',
+                              height: '8px',
+                              borderRadius: '50%',
+                              backgroundColor: '#6366f1',
+                              display: 'inline-block',
+                            }}
+                          />
+                        )}
+                        <span className={getTypeBadgeClass(notif.type)}>
+                          {notif.type || 'ANNOUNCEMENT'}
+                        </span>
+                        <span className={getPriorityBadgeClass(notif.priority)}>
+                          {notif.priority || 'NORMAL'}
+                        </span>
+                      </div>
+
+                      <span style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                        <Clock size={11} />
+                        <span>{notif.created_at ? new Date(notif.created_at).toLocaleDateString() : 'Recent'}</span>
+                      </span>
+                    </div>
+
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', marginBottom: '6px', lineHeight: '1.4' }}>
+                      {notif.title}
+                    </h3>
+
+                    <p style={{ fontSize: '12.5px', color: '#475569', lineHeight: '1.5', minHeight: '44px', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                      {notif.message}
+                    </p>
+                  </div>
+
+                  <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: isUnread ? '#6366f1' : '#059669' }}>
+                      {isUnread ? '• Unread' : '✓ Read'}
+                    </span>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      {isUnread && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsRead(notif.id)}
+                          className="btn-enterprise-secondary"
+                          style={{ padding: '3px 8px', fontSize: '11px' }}
+                          title="Mark as read"
+                        >
+                          <Check size={11} />
+                          <span>Mark Read</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedNotification(notif);
+                          setDetailsModalOpen(true);
+                        }}
+                        className="btn-enterprise-primary"
+                        style={{ padding: '3px 10px', fontSize: '11px' }}
+                      >
+                        <Eye size={11} />
+                        <span>View</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto', marginTop: '12px' }}>
+            <table className="enterprise-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left', fontSize: '12px', color: '#64748b' }}>
+                  <th style={{ padding: '10px 14px' }}>Title &amp; Notice Summary</th>
+                  <th style={{ padding: '10px 14px' }}>Type</th>
+                  <th style={{ padding: '10px 14px' }}>Priority</th>
+                  <th style={{ padding: '10px 14px' }}>Date</th>
+                  <th style={{ padding: '10px 14px' }}>Status</th>
+                  <th style={{ padding: '10px 14px', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredNotifications.map((notif) => {
+                  const isUnread = notif.delivery_status !== 'READ';
+
+                  return (
+                    <tr key={notif.id} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '13px', background: isUnread ? '#faf5ff' : 'transparent' }}>
+                      <td style={{ padding: '12px 14px', maxWidth: '340px' }}>
+                        <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '2px' }}>
+                          {notif.title}
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {notif.message}
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span className={getTypeBadgeClass(notif.type)}>
+                          {notif.type || 'ANNOUNCEMENT'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span className={getPriorityBadgeClass(notif.priority)}>
+                          {notif.priority || 'NORMAL'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px', fontSize: '12px', color: '#475569' }}>
+                        {notif.created_at ? new Date(notif.created_at).toLocaleDateString() : 'Recent'}
+                      </td>
+                      <td style={{ padding: '12px 14px' }}>
+                        <span className={isUnread ? 'badge-enterprise badge-purple' : 'badge-enterprise badge-green'} style={{ fontSize: '10px' }}>
+                          {isUnread ? 'UNREAD' : 'READ'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                          {isUnread && (
+                            <button
+                              type="button"
+                              onClick={() => handleMarkAsRead(notif.id)}
+                              className="btn-enterprise-secondary"
+                              style={{ padding: '3px 8px', fontSize: '11px' }}
+                              title="Mark as read"
+                            >
+                              <Check size={11} />
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedNotification(notif);
+                              setDetailsModalOpen(true);
+                            }}
+                            className="btn-enterprise-primary"
+                            style={{ padding: '3px 10px', fontSize: '11px' }}
+                          >
+                            <Eye size={11} />
+                            <span>View</span>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* =================================================================== */}
+      {/* MODAL: Compose Institutional Broadcast                              */}
+      {/* =================================================================== */}
+      {composeModalOpen && (
+        <Modal
+          isOpen={composeModalOpen}
+          onClose={() => setComposeModalOpen(false)}
+          title="Compose Institutional Broadcast"
+        >
+          <form onSubmit={handleBroadcastSubmit}>
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                Broadcast Title *
+              </label>
+              <input
+                type="text"
+                className="filter-search-input"
+                style={{ width: '100%', fontSize: '13px' }}
+                placeholder="e.g. Scheduled Power Outage & Maintenance Notice"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Target Audience *
+                </label>
+                <select
+                  className="filter-select"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  value={formData.target_audience}
+                  onChange={(e) => setFormData({ ...formData, target_audience: e.target.value })}
+                >
+                  <option value="ALL_STUDENTS">All Resident Students ({students.length})</option>
+                  <option value="ALL_STAFF">All Hostel Staff ({staffList.length})</option>
+                  <option value="EVERYONE">Everyone (All Campus)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                  Bulletin Category *
+                </label>
+                <select
+                  className="filter-select"
+                  style={{ width: '100%', fontSize: '13px' }}
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                >
+                  <option value="ANNOUNCEMENT">ANNOUNCEMENT</option>
+                  <option value="NOTICE">NOTICE</option>
+                  <option value="ALERT">ALERT</option>
+                  <option value="EMERGENCY">EMERGENCY</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '14px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                Priority Level *
+              </label>
+              <select
+                className="filter-select"
+                style={{ width: '100%', fontSize: '13px' }}
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+              >
+                <option value="NORMAL">NORMAL (Standard Information)</option>
+                <option value="HIGH">HIGH (Important Campus Update)</option>
+                <option value="URGENT">URGENT (Immediate Alert)</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '18px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
+                Announcement Message Body *
+              </label>
+              <textarea
+                className="filter-search-input"
+                style={{ width: '100%', minHeight: '120px', fontSize: '13px', padding: '10px', lineHeight: '1.5' }}
+                placeholder="Write the full broadcast message content for recipients..."
+                value={formData.message}
+                onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                required
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-enterprise-secondary"
+                onClick={() => setComposeModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn-enterprise-primary"
+                disabled={submitting}
+              >
+                <Send size={14} />
+                <span>{submitting ? 'Dispatching...' : 'Dispatch Broadcast'}</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* =================================================================== */}
+      {/* MODAL: View Bulletin Details                                        */}
+      {/* =================================================================== */}
+      {detailsModalOpen && selectedNotification && (
+        <Modal
+          isOpen={detailsModalOpen}
+          onClose={() => setDetailsModalOpen(false)}
+          title="Bulletin Details"
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <span className={getTypeBadgeClass(selectedNotification.type)}>
+                {selectedNotification.type || 'ANNOUNCEMENT'}
               </span>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getPriorityBadge(selectedNotification.priority)}`}>
-                {selectedNotification.priority} Priority
+              <span className={getPriorityBadgeClass(selectedNotification.priority)}>
+                {selectedNotification.priority || 'NORMAL'}
+              </span>
+              <span style={{ fontSize: '11.5px', color: '#64748b', marginLeft: 'auto' }}>
+                {selectedNotification.created_at ? new Date(selectedNotification.created_at).toLocaleString() : 'Recent'}
               </span>
             </div>
 
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '12px' }}>
               {selectedNotification.title}
-            </h3>
+            </h2>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-medium text-slate-800 dark:text-slate-200 whitespace-pre-line leading-relaxed">
+            <div style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '13.5px', color: '#334155', lineHeight: '1.6', whiteSpace: 'pre-line', marginBottom: '18px' }}>
               {selectedNotification.message}
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 pt-2 border-t border-slate-200 dark:border-slate-700">
-              <div>
-                <span className="font-semibold text-slate-700 dark:text-slate-300 block">
-                  Broadcast Date:
-                </span>
-                {selectedNotification.created_at
-                  ? new Date(selectedNotification.created_at).toLocaleString()
-                  : '—'}
-              </div>
-              <div>
-                <span className="font-semibold text-slate-700 dark:text-slate-300 block">
-                  Channel:
-                </span>
-                {selectedNotification.channel || 'IN_APP'}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3">
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              {selectedNotification.delivery_status !== 'READ' && (
+                <button
+                  type="button"
+                  className="btn-enterprise-secondary"
+                  onClick={() => handleMarkAsRead(selectedNotification.id)}
+                >
+                  <Check size={14} />
+                  <span>Mark as Read</span>
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => setDetailsDrawerOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 rounded-lg"
+                className="btn-enterprise-primary"
+                onClick={() => setDetailsModalOpen(false)}
               >
                 Close
               </button>
@@ -758,4 +897,3 @@ export default function AdminAnnouncementsPage() {
     </div>
   );
 }
-

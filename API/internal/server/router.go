@@ -18,6 +18,7 @@ import (
 	"github.com/yourusername/hostel-management-system/API/internal/repository"
 	"github.com/yourusername/hostel-management-system/API/internal/service"
 	superadminroutes "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/routes"
+	adminroutes "github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/routes"
 )
 
 func NewRouter(
@@ -180,7 +181,7 @@ func NewRouter(
 	permissionMiddleware :=
 		middleware.NewPermissionMiddleware(permissionService)
 
-	studentService := service.NewStudentService(repository)
+	studentService := service.NewStudentService(db, repository)
 	studentHandler := NewStudentHandler(studentService)
 
 	emergencyContactService := service.NewEmergencyContactService(
@@ -189,7 +190,7 @@ func NewRouter(
 	)
 	emergencyContactHandler := NewEmergencyContactHandler(emergencyContactService)
 
-	staffService := service.NewStaffService(repository)
+	staffService := service.NewStaffService(db, repository)
 	staffHandler := NewPeopleStaffHandler(staffService)
 
 	inchargeHostelService := service.NewInchargeHostelService(db, repository)
@@ -207,7 +208,7 @@ func NewRouter(
 	studentParentService := service.NewStudentParentService(repository)
 	studentParentHandler := NewStudentParentHandler(studentParentService)
 
-	parentService := service.NewParentService(repository)
+	parentService := service.NewParentService(db, repository)
 	parentHandler := NewParentHandler(parentService)
 
 	hostelService := service.NewHostelService(repository)
@@ -415,6 +416,7 @@ func NewRouter(
 
 			cfg, err := bootstrapService.GetCollegeBootstrapConfig(c.Request.Context(), tenantID)
 			if err != nil {
+				logger.Error("failed to retrieve college bootstrap configuration", zap.Error(err), zap.String("tenant_id", tenantID.String()))
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
 					"error": gin.H{
@@ -608,6 +610,12 @@ func NewRouter(
 			"/staff/:staff_id/status",
 			permissionMiddleware.RequirePermission("people.manage"),
 			staffHandler.UpdateStatus,
+		)
+
+		collegeProtected.POST(
+			"/staff/:staff_id/reset-password",
+			permissionMiddleware.RequirePermission("people.manage"),
+			staffHandler.ResetPassword,
 		)
 
 		collegeProtected.GET(
@@ -860,6 +868,30 @@ func NewRouter(
 			"/hostels/:hostel_id/incharges/:assignment_id",
 			permissionMiddleware.RequirePermission("people.manage"),
 			inchargeHostelHandler.Delete,
+		)
+
+		collegeProtected.GET(
+			"/incharges/my-hostel",
+			permissionMiddleware.RequirePermission("people.view"),
+			inchargeHostelHandler.GetMyHostel,
+		)
+
+		collegeProtected.GET(
+			"/incharges/my-hostel/residents",
+			permissionMiddleware.RequirePermission("people.view"),
+			inchargeHostelHandler.ListResidents,
+		)
+
+		collegeProtected.GET(
+			"/incharges/my-hostel/vacant-beds",
+			permissionMiddleware.RequirePermission("people.view"),
+			inchargeHostelHandler.ListVacantBeds,
+		)
+
+		collegeProtected.GET(
+			"/incharges/unallocated-students",
+			permissionMiddleware.RequirePermission("people.view"),
+			inchargeHostelHandler.ListUnallocatedStudents,
 		)
 
 		collegeProtected.GET(
@@ -1144,6 +1176,14 @@ func NewRouter(
 			"/reports/staff",
 			permissionMiddleware.RequirePermission("reports.view"),
 			reportHandler.GetStaff,
+		)
+
+		// Dedicated College Admin module routes
+		adminroutes.RegisterCollegeAdminRoutes(
+			collegeProtected,
+			db,
+			permissionMiddleware.RequirePermission("people.view"),
+			permissionMiddleware.RequirePermission("people.manage"),
 		)
 	}
 

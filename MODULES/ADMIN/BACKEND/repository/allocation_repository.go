@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/models"
@@ -70,4 +69,3 @@ func (r *Repository) GetCurrentAllocation(ctx context.Context, collegeID, studen
 	}
 	return &a, nil
 }
-

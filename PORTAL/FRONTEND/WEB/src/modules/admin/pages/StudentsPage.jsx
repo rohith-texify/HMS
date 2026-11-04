@@ -11,6 +11,9 @@ import {
   Edit2,
   Trash2,
   Eye,
+  EyeOff,
+  Lock,
+  Key,
   ShieldAlert,
   UserX,
   Users,
@@ -25,6 +28,8 @@ import {
   HeartHandshake,
   Calendar,
   FileText,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import {
   PageHeader,
@@ -46,6 +51,9 @@ export default function AdminStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
+
+  // View & Display Mode: CARDS (visual grid) or TABLE (tabular list)
+  const [displayMode, setDisplayMode] = useState('CARDS');
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -73,6 +81,8 @@ export default function AdminStudentsPage() {
   // Form State
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
     admission_number: '',
     registration_number: '',
@@ -84,6 +94,8 @@ export default function AdminStudentsPage() {
     blood_group: 'O+',
     phone: '',
     email: '',
+    password: '',
+    confirm_password: '',
     date_of_birth: '',
     address_line1: '',
     address_line2: '',
@@ -92,7 +104,7 @@ export default function AdminStudentsPage() {
     postal_code: '',
     country: 'India',
     student_status: 'ACTIVE',
-    hostel_status: 'UNALLOCATED',
+    hostel_status: 'NOT_ALLOCATED',
   });
 
   // Link Parent Form State
@@ -215,6 +227,8 @@ export default function AdminStudentsPage() {
   // Open Create Modal
   const handleOpenCreate = () => {
     setFormError(null);
+    setShowPassword(false);
+    setShowConfirmPassword(false);
     setFormData({
       admission_number: '',
       registration_number: '',
@@ -226,6 +240,8 @@ export default function AdminStudentsPage() {
       blood_group: 'O+',
       phone: '',
       email: '',
+      password: '',
+      confirm_password: '',
       date_of_birth: '',
       address_line1: '',
       address_line2: '',
@@ -234,7 +250,7 @@ export default function AdminStudentsPage() {
       postal_code: '',
       country: 'India',
       student_status: 'ACTIVE',
-      hostel_status: 'UNALLOCATED',
+      hostel_status: 'NOT_ALLOCATED',
     });
     setCreateModalOpen(true);
   };
@@ -256,19 +272,36 @@ export default function AdminStudentsPage() {
       return;
     }
 
+    if (formData.password?.trim()) {
+      if (formData.password.trim().length < 8) {
+        setFormError('Password must be at least 8 characters long.');
+        return;
+      }
+      if (formData.password !== formData.confirm_password) {
+        setFormError('Password and Confirm Password do not match.');
+        return;
+      }
+      if (!formData.email?.trim()) {
+        setFormError('Institutional Email Address is required when creating portal login access.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
         admission_number: formData.admission_number.trim(),
+        registration_number: formData.registration_number?.trim() || null,
+        roll_number: formData.roll_number?.trim() || null,
         first_name: formData.first_name.trim(),
         middle_name: formData.middle_name?.trim() || null,
         last_name: formData.last_name?.trim() || null,
-        registration_number: formData.registration_number?.trim() || null,
-        roll_number: formData.roll_number?.trim() || null,
         gender: formData.gender || null,
         blood_group: formData.blood_group || null,
         phone: formData.phone?.trim() || null,
         email: formData.email?.trim() || null,
+        password: formData.password?.trim() || null,
+        confirm_password: formData.confirm_password?.trim() || null,
         date_of_birth: formData.date_of_birth ? new Date(formData.date_of_birth).toISOString() : null,
         address_line1: formData.address_line1?.trim() || null,
         address_line2: formData.address_line2?.trim() || null,
@@ -277,7 +310,7 @@ export default function AdminStudentsPage() {
         postal_code: formData.postal_code?.trim() || null,
         country: formData.country?.trim() || null,
         student_status: formData.student_status || 'ACTIVE',
-        hostel_status: formData.hostel_status || 'UNALLOCATED',
+        hostel_status: (formData.hostel_status === 'UNALLOCATED' || !formData.hostel_status) ? 'NOT_ALLOCATED' : formData.hostel_status,
       };
 
       await adminService.createStudent(payload);
@@ -419,17 +452,20 @@ export default function AdminStudentsPage() {
       const q = searchTerm.toLowerCase();
       const fullName = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
       const adm = (s.admission_number || '').toLowerCase();
+      const reg = (s.registration_number || '').toLowerCase();
       const roll = (s.roll_number || '').toLowerCase();
       const email = (s.email || '').toLowerCase();
       const phone = (s.phone || '').toLowerCase();
 
-      const matchesSearch = !q || fullName.includes(q) || adm.includes(q) || roll.includes(q) || email.includes(q) || phone.includes(q);
+      const matchesSearch = !q || fullName.includes(q) || adm.includes(q) || reg.includes(q) || roll.includes(q) || email.includes(q) || phone.includes(q);
 
       const status = (s.student_status || 'ACTIVE').toUpperCase();
       const matchesStatus = statusFilter === 'ALL' || status === statusFilter;
 
-      const hostelStatus = (s.hostel_status || 'UNALLOCATED').toUpperCase();
-      const matchesHostelStatus = hostelStatusFilter === 'ALL' || hostelStatus === hostelStatusFilter;
+      const hStatus = (s.hostel_status || 'NOT_ALLOCATED').toUpperCase();
+      const normalizedHStatus = hStatus === 'UNALLOCATED' ? 'NOT_ALLOCATED' : hStatus;
+      const normalizedFilter = hostelStatusFilter === 'UNALLOCATED' ? 'NOT_ALLOCATED' : hostelStatusFilter;
+      const matchesHostelStatus = normalizedFilter === 'ALL' || normalizedHStatus === normalizedFilter;
 
       return matchesSearch && matchesStatus && matchesHostelStatus;
     });
@@ -439,7 +475,7 @@ export default function AdminStudentsPage() {
   const totalCount = students.length;
   const activeCount = students.filter((s) => (s.student_status || '').toUpperCase() === 'ACTIVE').length;
   const allocatedCount = students.filter((s) => (s.hostel_status || '').toUpperCase() === 'ALLOCATED').length;
-  const unallocatedCount = totalCount - allocatedCount;
+  const unallocatedCount = students.filter((s) => (s.hostel_status || '').toUpperCase() !== 'ALLOCATED').length;
 
   // Table Columns Definition
   const columns = [
@@ -480,13 +516,31 @@ export default function AdminStudentsPage() {
       },
     },
     {
-      header: 'Admission / Roll',
+      header: 'Admission / Reg / Roll',
       key: 'admission_number',
       render: (s) => (
         <div>
-          <span className="code-pill">{s.admission_number}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span className="code-pill" title="Admission Number">{s.admission_number}</span>
+            {s.registration_number && (
+              <span
+                style={{
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  color: '#4f46e5',
+                  backgroundColor: '#eef2ff',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  border: '1px solid #c7d2fe',
+                }}
+                title="Registration Number"
+              >
+                Reg: {s.registration_number}
+              </span>
+            )}
+          </div>
           {s.roll_number && (
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '3px' }}>
               Roll: {s.roll_number}
             </div>
           )}
@@ -561,34 +615,39 @@ export default function AdminStudentsPage() {
 
   return (
     <div className="fade-in-up">
-      {/* 1. Header & Actions */}
-      <PageHeader
-        category="Admissions & Residents"
-        categoryIcon={GraduationCap}
-        title="Student Management"
-        subtitle="Comprehensive residential directory, guardian linkages, bed allocation records, and status oversight."
-        actions={
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button
-              type="button"
-              className="btn-enterprise-secondary"
-              onClick={() => loadData(true)}
-              disabled={isRefreshing}
-            >
-              <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-            <button
-              type="button"
-              className="btn-enterprise-primary"
-              onClick={handleOpenCreate}
-            >
-              <Plus size={15} />
-              <span>Enroll Student</span>
-            </button>
+      {/* 1. Modern Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <GraduationCap size={13} />
+            <span>Admissions & Campus Residents</span>
           </div>
-        }
-      />
+          <h1 className="hero-main-title">Resident Students Directory</h1>
+          <p className="hero-subtitle">
+            Comprehensive residential student records, guardian linkages, bed allocation tracking, and status management.
+          </p>
+        </div>
+
+        <div className="hero-action-buttons">
+          <button
+            type="button"
+            className="btn-enterprise-secondary"
+            onClick={() => loadData(true)}
+            disabled={isRefreshing}
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Directory'}</span>
+          </button>
+          <button
+            type="button"
+            className="btn-enterprise-primary"
+            onClick={handleOpenCreate}
+          >
+            <Plus size={15} />
+            <span>Enroll Student</span>
+          </button>
+        </div>
+      </div>
 
       {/* 2. Executive KPI Cards */}
       <div className="kpi-cards-grid" style={{ marginBottom: '20px' }}>
@@ -683,26 +742,264 @@ export default function AdminStudentsPage() {
             <option value="UNALLOCATED">Unallocated</option>
           </select>
         </div>
+
+        {/* View Switcher: Cards vs Table */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="view-mode-toggle">
+            <button
+              type="button"
+              className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('CARDS')}
+              title="Card Grid View"
+            >
+              <LayoutGrid size={13} />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('TABLE')}
+              title="Table View"
+            >
+              <List size={13} />
+              <span>Table</span>
+            </button>
+          </div>
+        </div>
       </FilterControls>
 
-      {/* 4. Main Data Table */}
-      {error ? (
-        <ErrorState title="Failed to load students" message={error} onRetry={() => loadData(true)} />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={filteredStudents}
-          rowKey="id"
-          loading={loading}
-          emptyTitle="No student records found"
-          emptyMessage="No residents match your search query or filter selection."
-          footer={
-            <span>
-              Showing <strong>{filteredStudents.length}</strong> of <strong>{students.length}</strong> registered students
+      {/* 4. Enterprise Card Container */}
+      <div className="enterprise-card" style={{ marginTop: '16px' }}>
+        <div className="card-topbar">
+          <div className="card-title-group">
+            <div className="card-title-icon-wrap" style={{ backgroundColor: '#eff6ff', color: '#2563eb' }}>
+              <GraduationCap size={16} />
+            </div>
+            <div>
+              <h2 className="card-title-text">Enrolled Resident Students</h2>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Showing {filteredStudents.length} of {students.length} registered students
+              </span>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="badge-enterprise badge-emerald">
+              <span className="live-pulse" />
+              {activeCount} Active
             </span>
-          }
-        />
-      )}
+            <span className="badge-enterprise badge-blue">
+              {allocatedCount} Allocated
+            </span>
+            {unallocatedCount > 0 && (
+              <span className="badge-enterprise badge-amber">
+                {unallocatedCount} Awaiting Bed
+              </span>
+            )}
+          </div>
+        </div>
+
+        {error ? (
+          <div style={{ padding: '24px' }}>
+            <ErrorState title="Failed to load students" message={error} onRetry={() => loadData(true)} />
+          </div>
+        ) : loading ? (
+          <div style={{ padding: '40px' }}>
+            <LoadingState message="Loading resident directory..." />
+          </div>
+        ) : filteredStudents.length === 0 ? (
+          <div style={{ padding: '40px' }}>
+            <EmptyState
+              title="No student records found"
+              message="No residents match your search query or filter selection."
+            />
+          </div>
+        ) : displayMode === 'CARDS' ? (
+          <div style={{ padding: '20px' }}>
+            <div className="students-grid-cards">
+              {filteredStudents.map((s) => {
+                const initials = `${s.first_name?.[0] || 'S'}${s.last_name?.[0] || ''}`.toUpperCase();
+                const status = (s.student_status || 'ACTIVE').toLowerCase();
+                const isAllocated = (s.hostel_status || '').toUpperCase() === 'ALLOCATED';
+
+                return (
+                  <div
+                    key={s.id}
+                    className={`student-card-v2 ${isAllocated ? 'allocated' : 'unallocated'}`}
+                  >
+                    {/* Card Top: Avatar, Name, Admission, Status Dot */}
+                    <div className="student-card-top">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
+                        <div className="student-avatar-box">
+                          {initials}
+                          <span
+                            className={`student-status-dot ${
+                              status === 'active' ? 'active' : status === 'suspended' ? 'suspended' : 'inactive'
+                            }`}
+                            title={`Status: ${s.student_status || 'ACTIVE'}`}
+                          />
+                        </div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <h3 className="student-name-title" title={`${s.first_name} ${s.last_name || ''}`}>
+                            {s.first_name} {s.last_name || ''}
+                          </h3>
+                          <div className="student-adm-sub" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span className="code-pill" style={{ fontSize: '0.7rem', padding: '2px 6px' }} title="Admission Number">
+                              {s.admission_number || 'NO-ADM'}
+                            </span>
+                            {s.registration_number && (
+                              <span
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600,
+                                  color: '#4f46e5',
+                                  backgroundColor: '#eef2ff',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #c7d2fe',
+                                }}
+                                title="Registration Number"
+                              >
+                                Reg: {s.registration_number}
+                              </span>
+                            )}
+                            {s.roll_number && (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem' }}>Roll: {s.roll_number}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`badge-enterprise ${
+                          status === 'active'
+                            ? 'badge-green'
+                            : status === 'suspended'
+                            ? 'badge-purple'
+                            : 'badge-amber'
+                        }`}
+                        style={{ fontSize: '0.68rem', textTransform: 'uppercase' }}
+                      >
+                        {s.student_status || 'ACTIVE'}
+                      </span>
+                    </div>
+
+                    {/* Card Body: Allocation pill, Contact Stack, Demographic chips */}
+                    <div className="student-card-body">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <div
+                          className={`student-allocation-pill ${isAllocated ? 'allocated' : 'unallocated'}`}
+                        >
+                          <BedDouble size={12} />
+                          <span>{isAllocated ? 'Allocated to Bed' : 'Awaiting Bed Allotment'}</span>
+                        </div>
+                      </div>
+
+                      <div className="student-contacts-stack">
+                        <div className="student-contact-row" title={s.email || 'No email registered'}>
+                          <Mail size={12} style={{ color: '#6366f1', flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {s.email || 'No email registered'}
+                          </span>
+                        </div>
+                        <div className="student-contact-row" title={s.phone || 'No phone registered'}>
+                          <Phone size={12} style={{ color: '#10b981', flexShrink: 0 }} />
+                          <span>{s.phone || 'No phone registered'}</span>
+                        </div>
+                        {(s.city || s.state) && (
+                          <div className="student-contact-row" title={`${s.city || ''}, ${s.state || ''}`}>
+                            <MapPin size={12} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                            <span>
+                              {s.city || ''}{s.city && s.state ? ', ' : ''}{s.state || ''}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Demographics / Quick chips */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        {s.gender && (
+                          <span
+                            className="badge-enterprise badge-gray"
+                            style={{ fontSize: '0.68rem', padding: '2px 7px' }}
+                          >
+                            {s.gender}
+                          </span>
+                        )}
+                        {s.blood_group && (
+                          <span
+                            className="badge-enterprise badge-amber"
+                            style={{ fontSize: '0.68rem', padding: '2px 7px' }}
+                          >
+                            Blood: {s.blood_group}
+                          </span>
+                        )}
+                        {s.date_of_birth && (
+                          <span
+                            className="badge-enterprise badge-blue"
+                            style={{ fontSize: '0.68rem', padding: '2px 7px' }}
+                          >
+                            DOB: {new Date(s.date_of_birth).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Action Buttons */}
+                    <div className="student-card-footer">
+                      <button
+                        type="button"
+                        className="btn-enterprise-secondary"
+                        style={{ padding: '5px 10px', fontSize: '0.76rem', gap: '5px' }}
+                        onClick={() => handleOpenProfile(s)}
+                        title="View Full Profile & Guardians"
+                      >
+                        <Eye size={13} />
+                        <span>Dossier & Guardians</span>
+                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <button
+                          type="button"
+                          className="btn-enterprise-secondary"
+                          style={{ padding: '5px 8px' }}
+                          onClick={() => handleOpenEdit(s)}
+                          title="Edit Student Profile"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-enterprise-secondary"
+                          style={{ padding: '5px 8px' }}
+                          onClick={() => handleOpenStatusModal(s)}
+                          title="Manage Account Standing & Status"
+                        >
+                          <ShieldAlert size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '0' }}>
+            <DataTable
+              columns={columns}
+              data={filteredStudents}
+              rowKey="id"
+              loading={loading}
+              emptyTitle="No student records found"
+              emptyMessage="No residents match your search query or filter selection."
+              footer={
+                <span>
+                  Showing <strong>{filteredStudents.length}</strong> of <strong>{students.length}</strong> registered students
+                </span>
+              }
+            />
+          </div>
+        )}
+      </div>
 
       {/* ========================================================================= */}
       {/* 5. MODAL: Student Detailed Profile Drawer & View                          */}
@@ -771,36 +1068,36 @@ export default function AdminStudentsPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Roll Number</span>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{selectedStudent.roll_number || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{selectedStudent.roll_number || 'N/A'}</div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Registration Number</span>
-                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{selectedStudent.registration_number || '—'}</div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>{selectedStudent.registration_number || 'N/A'}</div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Primary Phone</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Phone size={13} style={{ color: 'var(--text-muted)' }} />
-                  <span>{selectedStudent.phone || '—'}</span>
+                  <span>{selectedStudent.phone || 'N/A'}</span>
                 </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Institutional Email</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Mail size={13} style={{ color: 'var(--text-muted)' }} />
-                  <span>{selectedStudent.email || '—'}</span>
+                  <span>{selectedStudent.email || 'N/A'}</span>
                 </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Date of Birth</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>
-                  {selectedStudent.date_of_birth ? new Date(selectedStudent.date_of_birth).toLocaleDateString() : '—'}
+                  {selectedStudent.date_of_birth ? new Date(selectedStudent.date_of_birth).toLocaleDateString() : 'N/A'}
                 </div>
               </div>
               <div>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Residential City / State</span>
                 <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>
-                  {selectedStudent.city || '—'}, {selectedStudent.state || ''}
+                  {selectedStudent.city || 'N/A'}, {selectedStudent.state || ''}
                 </div>
               </div>
             </div>
@@ -1012,10 +1309,20 @@ export default function AdminStudentsPage() {
                 type="text"
                 className="filter-search-input"
                 style={{ width: '100%' }}
-                placeholder="e.g. ADM-2026-001"
                 value={formData.admission_number}
                 onChange={(e) => setFormData({ ...formData, admission_number: e.target.value })}
                 required
+              />
+            </FormField>
+
+            <FormField label="Registration Number / Register No">
+              <input
+                type="text"
+                className="filter-search-input"
+                style={{ width: '100%' }}
+                placeholder="e.g. 720321104001"
+                value={formData.registration_number}
+                onChange={(e) => setFormData({ ...formData, registration_number: e.target.value })}
               />
             </FormField>
 
@@ -1050,17 +1357,6 @@ export default function AdminStudentsPage() {
                 placeholder="Last name"
                 value={formData.last_name}
                 onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-              />
-            </FormField>
-
-            <FormField label="Email Address">
-              <input
-                type="email"
-                className="filter-search-input"
-                style={{ width: '100%' }}
-                placeholder="student@college.edu"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
             </FormField>
 
@@ -1105,6 +1401,124 @@ export default function AdminStudentsPage() {
                 <option value="AB-">AB-</option>
               </select>
             </FormField>
+          </div>
+
+          {/* Student Portal Account & Login Access */}
+          <div
+            style={{
+              marginTop: '18px',
+              padding: '16px',
+              borderRadius: '10px',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <div
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '6px',
+                  backgroundColor: '#e0e7ff',
+                  color: '#4338ca',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Lock size={15} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Student Portal Access & Credentials
+                </div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                  Create the student's institutional login credentials to enable direct student portal access.
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px', marginTop: '12px' }}>
+              <FormField label="Institutional College Email" required={Boolean(formData.password?.trim())}>
+                <input
+                  type="email"
+                  className="filter-search-input"
+                  style={{ width: '100%' }}
+                  placeholder="e.g. student.regno@college.edu"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required={Boolean(formData.password?.trim())}
+                />
+              </FormField>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <FormField label="Portal Password" required={Boolean(formData.email?.trim())}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="filter-search-input"
+                      style={{ width: '100%', paddingRight: '36px' }}
+                      placeholder="Min 8 characters"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '4px',
+                      }}
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </FormField>
+
+                <FormField label="Retype Password" required={Boolean(formData.password?.trim())}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      className="filter-search-input"
+                      style={{ width: '100%', paddingRight: '36px' }}
+                      placeholder="Confirm password"
+                      value={formData.confirm_password}
+                      onChange={(e) => setFormData({ ...formData, confirm_password: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '4px',
+                      }}
+                      tabIndex={-1}
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </FormField>
+              </div>
+            </div>
           </div>
         </form>
       </Modal>

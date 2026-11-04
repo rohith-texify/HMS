@@ -22,7 +22,6 @@ import {
   Package,
   ShieldAlert,
   Megaphone,
-  CreditCard,
   BarChart3,
   Sliders,
 } from 'lucide-react';
@@ -84,18 +83,18 @@ export const ROLE_NAVIGATION = {
         group: 'Community Management',
         items: [
           {
-            label: 'College Staff',
+            label: 'Hostel Staff',
             path: '/admin/staff',
             icon: Users,
             permission: 'people.view',
             description: 'Manage wardens, hostel in-charges, security guards, and staff roles',
           },
           {
-            label: 'Hostel In-Charges',
+            label: 'Hostel Staff Allocation',
             path: '/admin/incharges',
             icon: BedDouble,
             permission: 'people.view',
-            description: 'Manage residential primary and backup warden hostel assignments',
+            description: 'Manage residential primary and backup warden hostel staff assignments',
           },
           {
             label: 'Security Personnel',
@@ -210,13 +209,6 @@ export const ROLE_NAVIGATION = {
             permission: 'hostel.view',
             description: 'Administrative circulars, hostel notices, and emergency broadcast dispatch',
           },
-          {
-            label: 'Hostel Fees & Invoicing',
-            path: '/admin/fees',
-            icon: CreditCard,
-            permission: 'people.view',
-            description: 'Institutional fee tier schedules, caution deposit rules, and resident billing records',
-          },
         ],
       },
       {
@@ -272,8 +264,8 @@ export const ROLE_NAVIGATION = {
       {
         group: 'Community Management',
         items: [
-          { label: 'College Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
-          { label: 'Hostel In-Charges', path: '/admin/incharges', icon: BedDouble, permission: 'people.view' },
+          { label: 'Hostel Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
+          { label: 'Hostel Staff Allocation', path: '/admin/incharges', icon: BedDouble, permission: 'people.view' },
           { label: 'Security Personnel', path: '/admin/security-assignments', icon: ShieldCheck, permission: 'people.view' },
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
           { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
@@ -303,7 +295,6 @@ export const ROLE_NAVIGATION = {
         items: [
           { label: 'Hostel Mess & Food', path: '/admin/food', icon: Utensils, permission: 'hostel.view' },
           { label: 'Notice & Broadcasts', path: '/admin/announcements', icon: Megaphone, permission: 'hostel.view' },
-          { label: 'Hostel Fees & Invoicing', path: '/admin/fees', icon: CreditCard, permission: 'people.view' },
         ],
       },
       {
@@ -341,8 +332,8 @@ export const ROLE_NAVIGATION = {
       {
         group: 'Community Management',
         items: [
-          { label: 'College Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
-          { label: 'Hostel In-Charges', path: '/admin/incharges', icon: BedDouble, permission: 'people.view' },
+          { label: 'Hostel Staff', path: '/admin/staff', icon: Users, permission: 'people.view' },
+          { label: 'Hostel Staff Allocation', path: '/admin/incharges', icon: BedDouble, permission: 'people.view' },
           { label: 'Security Personnel', path: '/admin/security-assignments', icon: ShieldCheck, permission: 'people.view' },
           { label: 'Students Directory', path: '/admin/students', icon: GraduationCap, permission: 'people.view' },
           { label: 'Parents & Guardians', path: '/admin/parents', icon: Users, permission: 'people.view' },
@@ -372,7 +363,6 @@ export const ROLE_NAVIGATION = {
         items: [
           { label: 'Hostel Mess & Food', path: '/admin/food', icon: Utensils, permission: 'hostel.view' },
           { label: 'Notice & Broadcasts', path: '/admin/announcements', icon: Megaphone, permission: 'hostel.view' },
-          { label: 'Hostel Fees & Invoicing', path: '/admin/fees', icon: CreditCard, permission: 'people.view' },
         ],
       },
       {
@@ -441,6 +431,7 @@ export const ROLE_NAVIGATION = {
         group: 'Floor Management',
         items: [
           { label: 'Dashboard', path: '/hostel-incharge/dashboard', icon: LayoutDashboard },
+          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
           { label: 'Rooms & Beds', path: '/hostel-incharge/rooms', icon: BedDouble },
           { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
           { label: 'Student Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
@@ -459,6 +450,7 @@ export const ROLE_NAVIGATION = {
         group: 'Floor Management',
         items: [
           { label: 'Dashboard', path: '/hostel-incharge/dashboard', icon: LayoutDashboard },
+          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
           { label: 'Rooms & Beds', path: '/hostel-incharge/rooms', icon: BedDouble },
           { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
           { label: 'Student Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
@@ -477,6 +469,7 @@ export const ROLE_NAVIGATION = {
         group: 'Floor Management',
         items: [
           { label: 'Dashboard', path: '/hostel-incharge/dashboard', icon: LayoutDashboard },
+          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
           { label: 'Rooms & Beds', path: '/hostel-incharge/rooms', icon: BedDouble },
           { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
           { label: 'Student Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
@@ -578,8 +571,8 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/hostels': { group: 'Facility & Inventory', title: 'Hostels & Blocks' },
     '/admin/rooms': { group: 'Facility & Inventory', title: 'Rooms & Beds' },
     '/admin/allocations': { group: 'Facility & Inventory', title: 'Room Allocations' },
-    '/admin/staff': { group: 'Community Management', title: 'College Staff' },
-    '/admin/incharges': { group: 'Community Management', title: 'Hostel In-Charges' },
+    '/admin/staff': { group: 'Community Management', title: 'Hostel Staff' },
+    '/admin/incharges': { group: 'Community Management', title: 'Hostel Staff Allocation' },
     '/admin/security-assignments': { group: 'Community Management', title: 'Security Personnel' },
     '/admin/students': { group: 'Community Management', title: 'Students Directory' },
     '/admin/parents': { group: 'Community Management', title: 'Parents & Guardians' },
@@ -594,7 +587,6 @@ export function resolveBreadcrumb(pathname, roleConfig) {
     '/admin/sos': { group: 'Support & Safety', title: 'SOS & Emergency' },
     '/admin/food': { group: 'Campus Living & Welfare', title: 'Hostel Mess & Food' },
     '/admin/announcements': { group: 'Campus Living & Welfare', title: 'Notice & Broadcasts' },
-    '/admin/fees': { group: 'Campus Living & Welfare', title: 'Hostel Fees & Invoicing' },
     '/admin/reports': { group: 'Administration & Governance', title: 'Reports & Analytics' },
     '/admin/settings': { group: 'Administration & Governance', title: 'Institution Settings' },
     '/admin/audit-logs': { group: 'Administration & Governance', title: 'Audit & Activity Log' },

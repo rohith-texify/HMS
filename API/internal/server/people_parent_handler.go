@@ -35,6 +35,8 @@ type parentRequest struct {
 	Phone          *string    `json:"phone,omitempty"`
 	AlternatePhone *string    `json:"alternate_phone,omitempty"`
 	Email          *string    `json:"email,omitempty"`
+	Password       *string    `json:"password,omitempty"`
+	ConfirmPassword *string    `json:"confirm_password,omitempty"`
 	Occupation     *string    `json:"occupation,omitempty"`
 	AddressLine1   *string    `json:"address_line1,omitempty"`
 	AddressLine2   *string    `json:"address_line2,omitempty"`
@@ -132,6 +134,8 @@ func (h *ParentHandler) CreateParent(c *gin.Context) {
 			Phone:          request.Phone,
 			AlternatePhone: request.AlternatePhone,
 			Email:          request.Email,
+			Password:       request.Password,
+			ConfirmPassword: request.ConfirmPassword,
 			Occupation:     request.Occupation,
 			AddressLine1:   request.AddressLine1,
 			AddressLine2:   request.AddressLine2,

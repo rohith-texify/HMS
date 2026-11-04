@@ -25,15 +25,14 @@ import {
   Search,
   Sparkles,
   ClipboardCheck,
+  Clock,
+  Layers,
+  Check,
+  X,
 } from 'lucide-react';
 import {
-  PageHeader,
-  DataTable,
-  SearchInput,
   LoadingState,
   EmptyState,
-  ErrorState,
-  Modal,
 } from '../../../shared/components';
 
 export default function AdminReportsPage() {
@@ -65,11 +64,7 @@ export default function AdminReportsPage() {
 
   // Search & Filter
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedHostel, setSelectedHostel] = useState('ALL');
-
-  // Column Selector State for active report table
-  const [columnConfigModalOpen, setColumnConfigModalOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   // 1. Load All 9 Authoritative Reports from Backend
   const loadReportsData = useCallback(async () => {
@@ -171,7 +166,7 @@ export default function AdminReportsPage() {
     },
     {
       id: 'ATTENDANCE',
-      title: 'Nightly Curfew & Attendance Summary',
+      title: 'Curfew & Nightly Attendance Summary',
       category: 'Operations',
       icon: ClipboardCheck,
       description: 'Aggregated roll-call presence, absence, late check-in, and approved outpass counts.',
@@ -214,89 +209,76 @@ export default function AdminReportsPage() {
   // Current active report meta
   const currentReport = reportCatalogue.find((r) => r.id === activeReportId) || reportCatalogue[0];
 
+  // Filtered catalogue based on category & search
+  const filteredCatalogue = useMemo(() => {
+    return reportCatalogue.filter((item) => {
+      const matchCat = selectedCategory === 'ALL' || item.category === selectedCategory;
+      const matchSearch = !searchTerm || item.title.toLowerCase().includes(searchTerm.toLowerCase()) || item.description.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchCat && matchSearch;
+    });
+  }, [reportCatalogue, selectedCategory, searchTerm]);
+
   // Helper for Exporting Current Report to CSV
   const handleExportCSV = () => {
     let filename = `HMS_${activeReportId}_Report`;
     let columns = [];
     let rows = [];
 
-    if (activeReportId === 'OCCUPANCY') {
+    if (activeReportId === 'OVERVIEW' && overviewData) {
       columns = [
-        { key: 'hostel_name', title: 'Hostel Name' },
-        { key: 'total_capacity', title: 'Total Bed Capacity' },
-        { key: 'occupied_beds', title: 'Occupied Beds' },
-        { key: 'available_capacity', title: 'Available Beds' },
-        { key: 'occupancy_percentage', title: 'Occupancy Rate (%)' },
-      ];
-      rows = occupancyData.map((o) => ({
-        ...o,
-        occupancy_percentage: `${Number(o.occupancy_percentage || 0).toFixed(1)}%`,
-      }));
-    } else if (activeReportId === 'OVERVIEW' && overviewData) {
-      columns = [
-        { key: 'metric', title: 'Institutional KPI Metric' },
+        { key: 'metric', title: 'Metric Name' },
         { key: 'value', title: 'Value' },
       ];
-      rows = [
-        { metric: 'Total Students', value: overviewData.total_students },
-        { metric: 'Active Students', value: overviewData.active_students },
-        { metric: 'Total Staff', value: overviewData.total_staff },
-        { metric: 'Total Hostels', value: overviewData.total_hostels },
-        { metric: 'Total Beds', value: overviewData.total_beds },
-        { metric: 'Occupied Beds', value: overviewData.occupied_beds },
-        { metric: 'Open Complaints', value: overviewData.open_complaints },
-        { metric: 'Open Maintenance Orders', value: overviewData.open_maintenance },
-        { metric: 'Unread Bulletins', value: overviewData.unread_notifications },
+      rows = Object.entries(overviewData).map(([k, v]) => ({
+        metric: k.toUpperCase().replace(/_/g, ' '),
+        value: typeof v === 'object' ? JSON.stringify(v) : v,
+      }));
+    } else if (activeReportId === 'OCCUPANCY') {
+      columns = [
+        { key: 'hostel_name', title: 'Hostel Name' },
+        { key: 'total_capacity', title: 'Total Capacity' },
+        { key: 'occupied_beds', title: 'Occupied Beds' },
+        { key: 'available_capacity', title: 'Available' },
+        { key: 'occupancy_percentage', title: 'Occupancy %' },
       ];
+      rows = occupancyData;
     } else if (activeReportId === 'STUDENTS') {
       columns = [
-        { key: 'name', title: 'Student Name' },
         { key: 'enrollment_number', title: 'Enrollment No' },
+        { key: 'name', title: 'Student Name' },
         { key: 'email', title: 'Email' },
-        { key: 'status', title: 'Enrollment Status' },
-        { key: 'hostel_status', title: 'Hostel Status' },
+        { key: 'status', title: 'Status' },
+        { key: 'hostel_status', title: 'Residency' },
       ];
       rows = students.map((s) => ({
-        name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Student',
-        enrollment_number: s.enrollment_number || '—',
-        email: s.email || '—',
-        status: s.status || 'ACTIVE',
-        hostel_status: s.hostel_status || 'DAY_SCHOLAR',
+        ...s,
+        name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Resident',
       }));
     } else if (activeReportId === 'ALLOCATIONS') {
       columns = [
-        { key: 'student_name', title: 'Resident Student' },
-        { key: 'hostel_name', title: 'Hostel Block' },
-        { key: 'room_number', title: 'Room Number' },
+        { key: 'student_name', title: 'Student Name' },
+        { key: 'hostel_name', title: 'Hostel' },
+        { key: 'room_number', title: 'Room No' },
         { key: 'bed_label', title: 'Bed Label' },
-        { key: 'status', title: 'Allocation Status' },
+        { key: 'status', title: 'Status' },
+        { key: 'start_date', title: 'Allocated Date' },
       ];
       rows = allocations.map((a) => ({
-        student_name: a.student_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Resident',
-        hostel_name: a.hostel_name || 'Hostel',
-        room_number: a.room_number || '—',
-        bed_label: a.bed_label || '—',
-        status: a.status || 'ACTIVE',
+        ...a,
+        student_name: a.student_name || `${a.first_name || ''} ${a.last_name || ''}`.trim(),
       }));
     } else if (activeReportId === 'COMPLAINTS') {
       columns = [
-        { key: 'title', title: 'Complaint Title' },
+        { key: 'title', title: 'Title' },
         { key: 'category', title: 'Category' },
         { key: 'priority', title: 'Priority' },
         { key: 'status', title: 'Status' },
-        { key: 'created_at', title: 'Logged Date' },
+        { key: 'created_at', title: 'Reported Date' },
       ];
-      rows = complaints.map((c) => ({
-        title: c.title || 'Complaint',
-        category: c.category || 'HOSTEL',
-        priority: c.priority || 'NORMAL',
-        status: c.status || 'OPEN',
-        created_at: c.created_at ? new Date(c.created_at).toLocaleDateString() : '—',
-      }));
+      rows = complaints;
     } else {
-      // Fallback for key-value summary reports (ATTENDANCE, LEAVES, MAINTENANCE, STAFF)
       columns = [
-        { key: 'status_key', title: 'Status / Category' },
+        { key: 'status_key', title: 'Category / Status' },
         { key: 'count_val', title: 'Count' },
       ];
       const statsObj =
@@ -320,62 +302,96 @@ export default function AdminReportsPage() {
     }
   };
 
+  const occupancyRate = useMemo(() => {
+    if (!overviewData?.total_beds) return '0%';
+    const pct = Math.round(((overviewData.occupied_beds || 0) / overviewData.total_beds) * 100);
+    return `${pct}%`;
+  }, [overviewData]);
+
   if (loading && !overviewData) {
-    return <LoadingState message="Connecting to institutional analytics engine..." />;
+    return (
+      <div className="fade-in-up" style={{ padding: '32px' }}>
+        <LoadingState message="Connecting to institutional analytics engine..." />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <PageHeader
-        title="Reports & Institutional Analytics"
-        subtitle="Generate, preview, and export authoritative institutional intelligence and compliance records."
-        icon={BarChart3}
-        actions={
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => {
-                setIsRefreshing(true);
-                loadReportsData();
-              }}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-750 transition"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-
-            <button
-              onClick={() => triggerPrintReport(currentReport.title)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-750 transition"
-              title="Print report or save as PDF"
-            >
-              <Printer className="w-4 h-4 text-indigo-500" />
-              Print / PDF
-            </button>
-
-            <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition shadow-sm"
-              title="Export report data to CSV/Excel"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+    <div className="fade-in-up">
+      {/* Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <BarChart3 size={13} />
+            <span>Administration &amp; Governance</span>
           </div>
-        }
-      />
+          <h1 className="hero-main-title">Reports &amp; Institutional Analytics</h1>
+          <p className="hero-subtitle">
+            Generate, preview, and export authoritative institutional intelligence, occupancy records, and compliance reports.
+          </p>
+        </div>
 
-      {/* Export Success Banner */}
+        <div className="hero-action-buttons">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRefreshing(true);
+              loadReportsData();
+            }}
+            disabled={isRefreshing}
+            className="btn-enterprise-secondary"
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Data'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => triggerPrintReport(currentReport.title)}
+            className="btn-enterprise-secondary"
+            title="Print report or save as PDF"
+          >
+            <Printer size={14} style={{ color: '#6366f1' }} />
+            <span>Print / PDF</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="btn-enterprise-primary"
+            title="Export report data to CSV/Excel"
+          >
+            <Download size={14} />
+            <span>Export CSV</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Success Banner */}
       {exportSuccessMessage && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between text-emerald-800 dark:bg-emerald-950 dark:border-emerald-800 dark:text-emerald-200">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="text-sm font-medium">{exportSuccessMessage}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} style={{ color: '#10b981' }} />
+            <span>{exportSuccessMessage}</span>
           </div>
           <button
+            type="button"
             onClick={() => setExportSuccessMessage(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
+            style={{ background: 'none', border: 'none', color: '#047857', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
           >
             Dismiss
           </button>
@@ -384,14 +400,29 @@ export default function AdminReportsPage() {
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-            <span className="text-sm font-medium">{errorMessage}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+            <span>{errorMessage}</span>
           </div>
           <button
+            type="button"
             onClick={() => setErrorMessage(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
           >
             Dismiss
           </button>
@@ -399,404 +430,625 @@ export default function AdminReportsPage() {
       )}
 
       {/* Top Level KPI Overview Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-lg">
-            <BarChart3 className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {reportCatalogue.length}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Operational Report Suites
+      <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Report Suites</span>
+            <div className="stat-kpi-icon-wrap blue">
+              <BarChart3 size={17} />
             </div>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-lg">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {overviewData?.total_students ?? students.length}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Total Enrolled Students
-            </div>
+          <div className="stat-kpi-value text-blue-600">{reportCatalogue.length}</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot green" />
+            <span>Authoritative analytics domains</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-lg">
-            <Building2 className="w-6 h-6" />
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Enrolled Scholars</span>
+            <div className="stat-kpi-icon-wrap emerald">
+              <Users size={17} />
+            </div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {overviewData?.total_beds ? `${Math.round((overviewData.occupied_beds / overviewData.total_beds) * 100)}%` : '—'}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Bed Capacity Occupancy Rate
-            </div>
+          <div className="stat-kpi-value text-emerald-600">
+            {overviewData?.total_students ?? students.length}
+          </div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot green" />
+            <span>Registered residential scholars</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-lg">
-            <AlertTriangle className="w-6 h-6" />
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Bed Occupancy</span>
+            <div className="stat-kpi-icon-wrap amber">
+              <Building2 size={17} />
+            </div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {(overviewData?.open_complaints ?? 0) + (overviewData?.open_maintenance ?? 0)}
+          <div className="stat-kpi-value text-amber-600">{occupancyRate}</div>
+          <div className="stat-kpi-footnote">
+            <span>{overviewData?.occupied_beds || 0} of {overviewData?.total_beds || 0} beds allocated</span>
+          </div>
+        </div>
+
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Pending Support</span>
+            <div className="stat-kpi-icon-wrap purple">
+              <AlertTriangle size={17} />
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Open Support & Repairs
-            </div>
+          </div>
+          <div className="stat-kpi-value text-purple-600">
+            {(overviewData?.open_complaints ?? 0) + (overviewData?.open_maintenance ?? 0)}
+          </div>
+          <div className="stat-kpi-footnote">
+            <span>Open complaints &amp; maintenance tasks</span>
           </div>
         </div>
       </div>
 
-      {/* Main Grid: Catalogue Selector Sidebar + Report Preview Screen */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start">
-        {/* Left Column: Report Catalogue */}
-        <div className="lg:col-span-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-2">
-          <div className="pb-3 border-b border-slate-200 dark:border-slate-700">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Report Catalogue
-            </span>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Select an authoritative dataset
-            </p>
+      {/* Main Dual-Column Layout: Left Catalogue Sidebar + Right Report Suite Workspace */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 320px) 1fr', gap: '24px', alignItems: 'start' }}>
+        {/* Left Column: Interactive Report Catalogue */}
+        <div className="enterprise-card" style={{ padding: '18px 16px', position: 'sticky', top: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', paddingBottom: '12px', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div>
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0f172a' }}>Report Suites</div>
+              <div style={{ fontSize: '0.74rem', color: '#64748b' }}>Select dataset to preview &amp; export</div>
+            </div>
+            <span className="badge-enterprise badge-blue">{filteredCatalogue.length} Suites</span>
           </div>
 
-          <div className="space-y-1 pt-1">
-            {reportCatalogue.map((rep) => {
+          {/* Quick Search */}
+          <div className="filter-search-field" style={{ width: '100%', marginBottom: '12px' }}>
+            <Search size={14} className="filter-search-icon" />
+            <input
+              type="text"
+              className="filter-search-input"
+              placeholder="Filter report suites..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ fontSize: '0.8rem', padding: '6px 10px 6px 30px' }}
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                style={{ position: 'absolute', right: '8px', border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+
+          {/* Suites List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {filteredCatalogue.map((rep) => {
               const IconComponent = rep.icon;
               const isSelected = rep.id === activeReportId;
               return (
                 <button
                   key={rep.id}
+                  type="button"
                   onClick={() => setActiveReportId(rep.id)}
-                  className={`w-full text-left p-3 rounded-lg transition flex items-center justify-between text-xs font-medium ${
-                    isSelected
-                      ? 'bg-indigo-50 text-indigo-700 font-semibold dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                      : 'text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-750'
-                  }`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: isSelected ? '1px solid #bfdbfe' : '1px solid transparent',
+                    background: isSelected ? '#eff6ff' : 'transparent',
+                    color: isSelected ? '#1e40af' : '#334155',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                  }}
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <IconComponent className={`w-4 h-4 shrink-0 ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
-                    <span className="truncate">{rep.title}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: isSelected ? '#dbeafe' : '#f1f5f9',
+                        color: isSelected ? '#2563eb' : '#64748b',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <IconComponent size={15} />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: '0.82rem',
+                          fontWeight: isSelected ? 700 : 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {rep.title}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: isSelected ? '#3b82f6' : '#94a3b8' }}>
+                        {rep.category}
+                      </div>
+                    </div>
                   </div>
-                  <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition ${isSelected ? 'rotate-90 text-indigo-600' : 'text-slate-400 opacity-60'}`} />
+                  <ChevronRight
+                    size={14}
+                    style={{
+                      color: isSelected ? '#2563eb' : '#cbd5e1',
+                      flexShrink: 0,
+                      transform: isSelected ? 'translateX(2px)' : 'none',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  />
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Right 3 Columns: Selected Report Preview & Analytics */}
-        <div className="lg:col-span-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-6">
-          {/* Active Report Header Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-700">
+        {/* Right Column: Selected Report Suite Workspace */}
+        <div className="enterprise-card" style={{ padding: '24px' }}>
+          {/* Active Report Header Topbar */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              justifyContent: 'space-between',
+              gap: '16px',
+              paddingBottom: '18px',
+              borderBottom: '1px solid var(--border-subtle)',
+              marginBottom: '20px',
+              flexWrap: 'wrap',
+            }}
+          >
             <div>
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 uppercase tracking-wider">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                <span className="badge-enterprise badge-purple">
                   {currentReport.category}
                 </span>
-                <span className="text-[10px] font-mono text-slate-400">
+                <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px' }}>
                   {currentReport.endpoint}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 mt-1">
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
                 {currentReport.title}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
+              </h2>
+              <p style={{ fontSize: '0.84rem', color: '#64748b', margin: 0 }}>
                 {currentReport.description}
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">
-                Generated: {new Date().toLocaleTimeString()}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="btn-enterprise-secondary"
+              style={{ fontSize: '0.8rem', padding: '7px 14px' }}
+            >
+              <Download size={13} />
+              <span>Export Dataset</span>
+            </button>
           </div>
 
-          {/* REPORT VIEW 1: EXECUTIVE OVERVIEW */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 1: EXECUTIVE OVERVIEW                                 */}
+          {/* ================================================================= */}
           {activeReportId === 'OVERVIEW' && overviewData && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                  <div className="text-xs text-slate-500 font-medium">Students Status</div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white mt-1">
-                    {overviewData.active_students} / {overviewData.total_students} Active
+            <div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '20px' }}>
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600 }}>Students Status</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                    {overviewData.active_students} / {overviewData.total_students}
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px', fontWeight: 600 }}>Active Scholars</div>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                  <div className="text-xs text-slate-500 font-medium">Bed Utilization</div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white mt-1">
-                    {overviewData.occupied_beds} / {overviewData.total_beds} Occupied
+
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600 }}>Bed Utilization</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                    {overviewData.occupied_beds} / {overviewData.total_beds}
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: '#2563eb', marginTop: '2px', fontWeight: 600 }}>Occupied Beds</div>
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                  <div className="text-xs text-slate-500 font-medium">Hostel Facilities</div>
-                  <div className="text-xl font-bold text-slate-900 dark:text-white mt-1">
-                    {overviewData.total_hostels} Residential Blocks
+
+                <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600 }}>Hostel Facilities</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                    {overviewData.total_hostels}
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: '#7c3aed', marginTop: '2px', fontWeight: 600 }}>Configured Blocks</div>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '18px', marginBottom: '20px' }}>
+                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a', marginBottom: '14px' }}>
                   Executive Key Performance Aggregates
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                   <div>
-                    <span className="text-slate-500 block">Total Staff:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 text-sm">
-                      {overviewData.total_staff}
-                    </span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b', display: 'block' }}>Total Staff:</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a' }}>{overviewData.total_staff}</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Open Complaints:</span>
-                    <span className="font-semibold text-rose-600 dark:text-rose-400 text-sm">
-                      {overviewData.open_complaints}
-                    </span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b', display: 'block' }}>Open Complaints:</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#e11d48' }}>{overviewData.open_complaints}</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Maintenance Tickets:</span>
-                    <span className="font-semibold text-amber-600 dark:text-amber-400 text-sm">
-                      {overviewData.open_maintenance}
-                    </span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b', display: 'block' }}>Maintenance Tickets:</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#d97706' }}>{overviewData.open_maintenance}</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 block">Unread Bulletins:</span>
-                    <span className="font-semibold text-indigo-600 dark:text-indigo-400 text-sm">
-                      {overviewData.unread_notifications}
-                    </span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b', display: 'block' }}>Unread Bulletins:</span>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: '#4f46e5' }}>{overviewData.unread_notifications}</span>
                   </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* REPORT VIEW 2: HOSTEL OCCUPANCY */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 2: HOSTEL OCCUPANCY                                   */}
+          {/* ================================================================= */}
           {activeReportId === 'OCCUPANCY' && (
-            <div className="space-y-4">
-              <DataTable
-                columns={[
-                  { key: 'hostel_name', title: 'Hostel Block' },
-                  { key: 'total_capacity', title: 'Total Capacity' },
-                  { key: 'occupied_beds', title: 'Occupied Beds' },
-                  { key: 'available_capacity', title: 'Available' },
-                  {
-                    key: 'occupancy_percentage',
-                    title: 'Occupancy Rate',
-                    render: (row) => {
-                      const pct = Number(row.occupancy_percentage || 0).toFixed(1);
-                      return (
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                            <div
-                              className="bg-indigo-600 h-full rounded-full"
-                              style={{ width: `${Math.min(100, Math.max(0, row.occupancy_percentage || 0))}%` }}
-                            />
-                          </div>
-                          <span className="font-bold text-xs">{pct}%</span>
-                        </div>
-                      );
-                    },
-                  },
-                ]}
-                data={occupancyData}
-                emptyMessage={<EmptyState icon={Building2} title="No Occupancy Data" message="Occupancy analytics could not be retrieved." />}
-              />
+            <div>
+              {occupancyData.length === 0 ? (
+                <EmptyState icon={Building2} title="No Occupancy Data" message="Occupancy analytics could not be retrieved." />
+              ) : (
+                <div className="enterprise-table-container">
+                  <table className="enterprise-table">
+                    <thead>
+                      <tr>
+                        <th>Hostel Block</th>
+                        <th>Total Capacity</th>
+                        <th>Occupied Beds</th>
+                        <th>Available</th>
+                        <th>Occupancy Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {occupancyData.map((row, idx) => {
+                        const pct = Number(row.occupancy_percentage || 0).toFixed(1);
+                        return (
+                          <tr key={row.hostel_id || idx}>
+                            <td style={{ fontWeight: 600 }}>{row.hostel_name || 'Block'}</td>
+                            <td>{row.total_capacity}</td>
+                            <td>{row.occupied_beds}</td>
+                            <td>{row.available_capacity}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '80px', height: '6px', background: '#e2e8f0', borderRadius: '999px', overflow: 'hidden' }}>
+                                  <div
+                                    style={{
+                                      width: `${Math.min(100, Math.max(0, row.occupancy_percentage || 0))}%`,
+                                      height: '100%',
+                                      background: Number(pct) > 85 ? '#e11d48' : '#2563eb',
+                                      borderRadius: '999px',
+                                    }}
+                                  />
+                                </div>
+                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>{pct}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
-          {/* REPORT VIEW 3: STUDENTS STATS */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 3: STUDENTS STATS                                     */}
+          {/* ================================================================= */}
           {activeReportId === 'STUDENTS' && (
-            <div className="space-y-4">
+            <div>
               {studentStats && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
                   {Object.entries(studentStats.total_by_status || {}).map(([k, v]) => (
-                    <div key={k} className="p-3 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                      <div className="text-[11px] text-slate-500 uppercase tracking-wide">{k}</div>
-                      <div className="text-lg font-bold text-slate-900 dark:text-white mt-0.5">{v}</div>
+                    <div key={k} style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '12px' }}>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>{k}</div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>{v}</div>
                     </div>
                   ))}
                 </div>
               )}
 
-              <DataTable
-                columns={[
-                  {
-                    key: 'name',
-                    title: 'Student Name',
-                    render: (row) => `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Resident',
-                  },
-                  { key: 'enrollment_number', title: 'Enrollment No' },
-                  { key: 'email', title: 'Email Address' },
-                  { key: 'status', title: 'Status' },
-                  { key: 'hostel_status', title: 'Residency Type' },
-                ]}
-                data={students}
-                emptyMessage={<EmptyState icon={Users} title="No Student Records" message="No students found." />}
-              />
+              <div className="enterprise-table-container">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Student Name</th>
+                      <th>Enrollment No</th>
+                      <th>Email Address</th>
+                      <th>Status</th>
+                      <th>Residency Type</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {students.slice(0, 15).map((row, idx) => (
+                      <tr key={row.id || idx}>
+                        <td style={{ fontWeight: 600 }}>{`${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Resident'}</td>
+                        <td style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>{row.enrollment_number || '—'}</td>
+                        <td style={{ color: '#64748b' }}>{row.email || '—'}</td>
+                        <td>
+                          <span className={`badge-enterprise ${row.status === 'ACTIVE' ? 'badge-green' : 'badge-amber'}`}>
+                            {row.status || 'ACTIVE'}
+                          </span>
+                        </td>
+                        <td>{row.hostel_status || 'HOSTEL'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {/* REPORT VIEW 4: ALLOCATIONS */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 4: ALLOCATIONS                                        */}
+          {/* ================================================================= */}
           {activeReportId === 'ALLOCATIONS' && (
-            <div className="space-y-4">
+            <div>
               {allocationStats && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                    <div className="text-xs text-emerald-800 dark:text-emerald-300 font-semibold">Total Active Allocations</div>
-                    <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mt-1">{allocationStats.total_allocated}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginBottom: '20px' }}>
+                  <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '16px' }}>
+                    <div style={{ fontSize: '0.76rem', color: '#065f46', fontWeight: 600 }}>Total Active Allocations</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#064e3b', marginTop: '4px' }}>
+                      {allocationStats.total_allocated}
+                    </div>
                   </div>
-                  <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                    <div className="text-xs text-slate-500 font-semibold">Total Released / Terminated</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{allocationStats.total_released}</div>
+                  <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                    <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600 }}>Total Released / Terminated</div>
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                      {allocationStats.total_released}
+                    </div>
                   </div>
                 </div>
               )}
 
-              <DataTable
-                columns={[
-                  {
-                    key: 'student',
-                    title: 'Student',
-                    render: (row) => row.student_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Resident',
-                  },
-                  { key: 'hostel_name', title: 'Hostel Block' },
-                  { key: 'room_number', title: 'Room No' },
-                  { key: 'bed_label', title: 'Bed' },
-                  { key: 'status', title: 'Status' },
-                ]}
-                data={allocations}
-                emptyMessage={<EmptyState icon={BedDouble} title="No Allocation Records" message="No bed allocations found." />}
-              />
+              <div className="enterprise-table-container">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Resident Scholar</th>
+                      <th>Hostel Block</th>
+                      <th>Room No</th>
+                      <th>Bed</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allocations.slice(0, 15).map((row, idx) => (
+                      <tr key={row.id || idx}>
+                        <td style={{ fontWeight: 600 }}>{row.student_name || `${row.first_name || ''} ${row.last_name || ''}`.trim() || 'Resident'}</td>
+                        <td>{row.hostel_name || 'Block'}</td>
+                        <td><span style={{ fontWeight: 600, color: '#2563eb' }}>{row.room_number || '—'}</span></td>
+                        <td>{row.bed_label || '—'}</td>
+                        <td>
+                          <span className={`badge-enterprise ${row.status === 'ALLOCATED' ? 'badge-green' : 'badge-amber'}`}>
+                            {row.status || 'ALLOCATED'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
-          {/* REPORT VIEW 5: ATTENDANCE STATS */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 5: ATTENDANCE STATS                                   */}
+          {/* ================================================================= */}
           {activeReportId === 'ATTENDANCE' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                  <div className="text-xs text-emerald-700 dark:text-emerald-300 font-semibold">Present Count</div>
-                  <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mt-1">{attendanceStats?.present_count ?? 0}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#065f46', fontWeight: 600 }}>Present Count</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#064e3b', marginTop: '4px' }}>
+                  {attendanceStats?.present_count ?? 0}
                 </div>
-                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                  <div className="text-xs text-rose-700 dark:text-rose-300 font-semibold">Absent Count</div>
-                  <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">{attendanceStats?.absent_count ?? 0}</div>
+                <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px' }}>In hostel rooms</div>
+              </div>
+
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#991b1b', fontWeight: 600 }}>Absent Count</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#7f1d1d', marginTop: '4px' }}>
+                  {attendanceStats?.absent_count ?? 0}
                 </div>
-                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-                  <div className="text-xs text-amber-700 dark:text-amber-300 font-semibold">Late Entry</div>
-                  <div className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">{attendanceStats?.late_count ?? 0}</div>
+                <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '2px' }}>Unaccounted curfew</div>
+              </div>
+
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#92400e', fontWeight: 600 }}>Late Entry</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#78350f', marginTop: '4px' }}>
+                  {attendanceStats?.late_count ?? 0}
                 </div>
-                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800">
-                  <div className="text-xs text-blue-700 dark:text-blue-300 font-semibold">On Approved Leave</div>
-                  <div className="text-2xl font-bold text-blue-900 dark:text-blue-100 mt-1">{attendanceStats?.leave_count ?? 0}</div>
+                <div style={{ fontSize: '0.72rem', color: '#d97706', marginTop: '2px' }}>Post-curfew entries</div>
+              </div>
+
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#1e40af', fontWeight: 600 }}>On Approved Leave</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e3a8a', marginTop: '4px' }}>
+                  {attendanceStats?.leave_count ?? 0}
                 </div>
+                <div style={{ fontSize: '0.72rem', color: '#2563eb', marginTop: '2px' }}>Valid outpasses</div>
               </div>
             </div>
           )}
 
-          {/* REPORT VIEW 6: LEAVE STATS */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 6: LEAVE STATS                                        */}
+          {/* ================================================================= */}
           {activeReportId === 'LEAVES' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-                  <div className="text-xs text-amber-700 dark:text-amber-300 font-semibold">Pending Requests</div>
-                  <div className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">{leaveStats?.pending ?? 0}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#92400e', fontWeight: 600 }}>Pending Requests</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#78350f', marginTop: '4px' }}>
+                  {leaveStats?.pending ?? 0}
                 </div>
-                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                  <div className="text-xs text-emerald-700 dark:text-emerald-300 font-semibold">Approved Passes</div>
-                  <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mt-1">{leaveStats?.approved ?? 0}</div>
+                <div style={{ fontSize: '0.72rem', color: '#d97706', marginTop: '2px' }}>Awaiting warden action</div>
+              </div>
+
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#065f46', fontWeight: 600 }}>Approved Passes</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#064e3b', marginTop: '4px' }}>
+                  {leaveStats?.approved ?? 0}
                 </div>
-                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                  <div className="text-xs text-rose-700 dark:text-rose-300 font-semibold">Rejected</div>
-                  <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">{leaveStats?.rejected ?? 0}</div>
+                <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px' }}>Authorized leaves</div>
+              </div>
+
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#991b1b', fontWeight: 600 }}>Rejected Passes</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#7f1d1d', marginTop: '4px' }}>
+                  {leaveStats?.rejected ?? 0}
                 </div>
-                <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                  <div className="text-xs text-slate-500 font-semibold">Cancelled</div>
-                  <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{leaveStats?.cancelled ?? 0}</div>
+                <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '2px' }}>Declined requests</div>
+              </div>
+
+              <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600 }}>Cancelled</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                  {leaveStats?.cancelled ?? 0}
                 </div>
+                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Withdrawn by resident</div>
               </div>
             </div>
           )}
 
-          {/* REPORT VIEW 7 & 8: COMPLAINTS & MAINTENANCE */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 7 & 8: COMPLAINTS & MAINTENANCE                       */}
+          {/* ================================================================= */}
           {(activeReportId === 'COMPLAINTS' || activeReportId === 'MAINTENANCE') && (
-            <div className="space-y-6">
+            <div>
               {(() => {
                 const s = activeReportId === 'COMPLAINTS' ? complaintStats : maintenanceStats;
                 return (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                      <div className="text-xs text-rose-700 dark:text-rose-300 font-semibold">Open Tickets</div>
-                      <div className="text-2xl font-bold text-rose-900 dark:text-rose-100 mt-1">{s?.open ?? 0}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '20px' }}>
+                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '16px' }}>
+                      <div style={{ fontSize: '0.76rem', color: '#991b1b', fontWeight: 600 }}>Open Tickets</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#7f1d1d', marginTop: '4px' }}>
+                        {s?.open ?? 0}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '2px' }}>Awaiting assignment</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-                      <div className="text-xs text-amber-700 dark:text-amber-300 font-semibold">In Progress</div>
-                      <div className="text-2xl font-bold text-amber-900 dark:text-amber-100 mt-1">{s?.in_progress ?? 0}</div>
+
+                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', padding: '16px' }}>
+                      <div style={{ fontSize: '0.76rem', color: '#92400e', fontWeight: 600 }}>In Progress</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#78350f', marginTop: '4px' }}>
+                        {s?.in_progress ?? 0}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#d97706', marginTop: '2px' }}>Technician active</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                      <div className="text-xs text-emerald-700 dark:text-emerald-300 font-semibold">Resolved</div>
-                      <div className="text-2xl font-bold text-emerald-900 dark:text-emerald-100 mt-1">{s?.resolved ?? 0}</div>
+
+                    <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', padding: '16px' }}>
+                      <div style={{ fontSize: '0.76rem', color: '#065f46', fontWeight: 600 }}>Resolved</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#064e3b', marginTop: '4px' }}>
+                        {s?.resolved ?? 0}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#059669', marginTop: '2px' }}>Work completed</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                      <div className="text-xs text-slate-500 font-semibold">Closed</div>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{s?.closed ?? 0}</div>
+
+                    <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                      <div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 600 }}>Closed</div>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
+                        {s?.closed ?? 0}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>Resident verified</div>
                     </div>
                   </div>
                 );
               })()}
 
               {activeReportId === 'COMPLAINTS' && (
-                <DataTable
-                  columns={[
-                    { key: 'title', title: 'Complaint Title' },
-                    { key: 'category', title: 'Category' },
-                    { key: 'priority', title: 'Priority' },
-                    { key: 'status', title: 'Status' },
-                    {
-                      key: 'created_at',
-                      title: 'Reported Date',
-                      render: (row) => (row.created_at ? new Date(row.created_at).toLocaleDateString() : '—'),
-                    },
-                  ]}
-                  data={complaints}
-                  emptyMessage={<EmptyState icon={AlertTriangle} title="No Complaints Logged" message="No grievances recorded." />}
-                />
+                <div className="enterprise-table-container">
+                  <table className="enterprise-table">
+                    <thead>
+                      <tr>
+                        <th>Complaint Title</th>
+                        <th>Category</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Reported Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {complaints.slice(0, 15).map((row, idx) => (
+                        <tr key={row.id || idx}>
+                          <td style={{ fontWeight: 600 }}>{row.title || 'Support ticket'}</td>
+                          <td><span className="badge-enterprise badge-blue">{row.category || 'HOSTEL'}</span></td>
+                          <td>
+                            <span className={`badge-enterprise ${row.priority === 'HIGH' || row.priority === 'CRITICAL' ? 'badge-amber' : 'badge-green'}`}>
+                              {row.priority || 'NORMAL'}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge-enterprise ${row.status === 'RESOLVED' ? 'badge-green' : 'badge-amber'}`}>
+                              {row.status || 'OPEN'}
+                            </span>
+                          </td>
+                          <td style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                            {row.created_at ? new Date(row.created_at).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
           )}
 
-          {/* REPORT VIEW 9: STAFF STATS */}
+          {/* ================================================================= */}
+          {/* REPORT VIEW 9: STAFF STATS                                        */}
+          {/* ================================================================= */}
           {activeReportId === 'STAFF' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {Object.entries(staffStats?.total_by_status || {}).map(([k, v]) => (
-                  <div key={k} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700">
-                    <div className="text-xs text-slate-500 font-semibold uppercase">{k} STAFF</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{v}</div>
-                  </div>
-                ))}
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+              {Object.entries(staffStats?.total_by_status || {}).map(([k, v]) => (
+                <div key={k} style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>{k} Personnel</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>{v}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#2563eb', marginTop: '2px' }}>Enrolled college staff</div>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Honest Capability & Export Status Footer Notice */}
-          <div className="p-4 bg-slate-50 dark:bg-slate-850 rounded-xl border border-slate-200 dark:border-slate-700 flex items-start gap-3">
-            <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              <span className="font-semibold text-slate-800 dark:text-slate-200">
-                Authoritative Aggregation Engine:{' '}
-              </span>
+          {/* Compliance & Export Status Footer Notice */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              padding: '14px 16px',
+              borderRadius: '10px',
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+              marginTop: '24px',
+            }}
+          >
+            <Info size={16} style={{ color: '#4f46e5', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+              <strong style={{ color: '#0f172a' }}>Authoritative Aggregation Engine: </strong>
               All reports are computed dynamically from real-time database schema aggregations.
               Exports (CSV, Excel-compatible, Print-to-PDF) execute synchronously on client datasets
               without third-party telemetry or synthetic numbers.

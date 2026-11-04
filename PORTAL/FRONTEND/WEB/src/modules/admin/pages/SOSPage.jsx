@@ -136,7 +136,7 @@ export default function AdminSOSPage() {
   }, [students, selectedStudentId]);
 
   return (
-    <div className="enterprise-module-page">
+    <div className="fade-in-up">
       {/* Header Bar */}
       <div className="enterprise-page-header">
         <div className="header-text-group">

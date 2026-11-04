@@ -26,7 +26,6 @@ const ParcelsPage = lazy(() => import('../pages/ParcelsPage'));
 const SOSPage = lazy(() => import('../pages/SOSPage'));
 const FoodPage = lazy(() => import('../pages/FoodPage'));
 const AnnouncementsPage = lazy(() => import('../pages/AnnouncementsPage'));
-const FeesPage = lazy(() => import('../pages/FeesPage'));
 const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
@@ -43,7 +42,14 @@ export default function AppRoutes() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin/login" element={<LoginPage initialPersona="COLLEGE_ADMIN" />} />
+        <Route path="/hostel-incharge/login" element={<LoginPage initialPersona="HOSTEL_INCHARGE" />} />
+        <Route path="/incharge/login" element={<LoginPage initialPersona="HOSTEL_INCHARGE" />} />
+        <Route path="/security/login" element={<LoginPage initialPersona="SECURITY" />} />
+        <Route path="/student/login" element={<LoginPage initialPersona="STUDENT" />} />
+        <Route path="/parent/login" element={<LoginPage initialPersona="PARENT" />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/incharge" element={<Navigate to="/hostel-incharge/dashboard" replace />} />
 
         {/* Primary Protected Admin Shell - Supports both / and /admin prefixes */}
         <Route
@@ -56,6 +62,28 @@ export default function AppRoutes() {
           {/* Root Redirect */}
           <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/students" element={<Navigate to="/admin/students" replace />} />
+          <Route path="/parents" element={<Navigate to="/admin/parents" replace />} />
+          <Route path="/staff" element={<Navigate to="/admin/staff" replace />} />
+          <Route path="/incharges" element={<Navigate to="/admin/incharges" replace />} />
+          <Route path="/security-assignments" element={<Navigate to="/admin/security-assignments" replace />} />
+          <Route path="/passwords" element={<Navigate to="/admin/passwords" replace />} />
+          <Route path="/hostels" element={<Navigate to="/admin/hostels" replace />} />
+          <Route path="/rooms" element={<Navigate to="/admin/rooms" replace />} />
+          <Route path="/allocations" element={<Navigate to="/admin/allocations" replace />} />
+          <Route path="/attendance" element={<Navigate to="/admin/attendance" replace />} />
+          <Route path="/leaves" element={<Navigate to="/admin/leaves" replace />} />
+          <Route path="/movement" element={<Navigate to="/admin/movement" replace />} />
+          <Route path="/gate-passes" element={<Navigate to="/admin/gate-passes" replace />} />
+          <Route path="/complaints" element={<Navigate to="/admin/complaints" replace />} />
+          <Route path="/visitors" element={<Navigate to="/admin/visitors" replace />} />
+          <Route path="/parcels" element={<Navigate to="/admin/parcels" replace />} />
+          <Route path="/sos" element={<Navigate to="/admin/sos" replace />} />
+          <Route path="/food" element={<Navigate to="/admin/food" replace />} />
+          <Route path="/announcements" element={<Navigate to="/admin/announcements" replace />} />
+          <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
+          <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+          <Route path="/audit-logs" element={<Navigate to="/admin/audit-logs" replace />} />
 
           {/* Canonical /admin/* Routes */}
           <Route path="/admin">
@@ -80,7 +108,6 @@ export default function AppRoutes() {
             <Route path="sos" element={<SOSPage />} />
             <Route path="food" element={<FoodPage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
-            <Route path="fees" element={<FeesPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="audit-logs" element={<AuditLogPage />} />

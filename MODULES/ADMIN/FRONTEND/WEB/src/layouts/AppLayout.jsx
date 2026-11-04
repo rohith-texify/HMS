@@ -24,7 +24,7 @@ export default function AppLayout() {
           </NavLink>
           <NavLink to="/staff" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <span>👥</span>
-            <span>College Staff</span>
+            <span>Hostel Staff</span>
           </NavLink>
           <NavLink to="/hostels" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
             <span>🏢</span>

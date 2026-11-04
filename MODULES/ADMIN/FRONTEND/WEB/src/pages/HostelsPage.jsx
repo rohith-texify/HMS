@@ -26,6 +26,10 @@ import {
   Clock,
   Shield,
   UserCheck,
+  LayoutGrid,
+  List,
+  MapPin,
+  ArrowRight,
 } from 'lucide-react';
 import {
   PageHeader,
@@ -83,6 +87,8 @@ export default function AdminHostelsPage() {
 
   // View Mode: 'HIERARCHY' (drill down) or 'GLOBAL_ROOMS' (all rooms flat lookup)
   const [viewMode, setViewMode] = useState('HIERARCHY');
+  // Display Mode: 'CARDS' (visual grid) or 'TABLE' (tabular list)
+  const [displayMode, setDisplayMode] = useState('CARDS');
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -1018,28 +1024,30 @@ export default function AdminHostelsPage() {
         </div>
       )}
 
-      {/* KPI Stats Bar */}
+      {/* KPI Stats Bar - Upgraded Modern V2 Spec */}
       <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
-        <div className="stat-kpi-card">
+        <div className="kpi-card-v2 emerald">
           <div className="stat-kpi-header">
             <span className="stat-kpi-label">Total Hostels</span>
             <div className="stat-kpi-icon-wrap emerald">
-              <Building2 size={17} />
+              <Building2 size={18} />
             </div>
           </div>
           <div className="stat-kpi-value text-emerald-600">{totalHostels}</div>
           <div className="stat-kpi-footnote">
-            <span>
-              {boysHostels} Boys • {girlsHostels} Girls • {coedHostels} Co-Ed
+            <span style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap' }}>
+              <span className="badge-enterprise badge-blue" style={{ fontSize: '11px', padding: '1px 7px' }}>{boysHostels} Boys</span>
+              <span className="badge-enterprise badge-purple" style={{ fontSize: '11px', padding: '1px 7px' }}>{girlsHostels} Girls</span>
+              {coedHostels > 0 && <span className="badge-enterprise badge-green" style={{ fontSize: '11px', padding: '1px 7px' }}>{coedHostels} Co-Ed</span>}
             </span>
           </div>
         </div>
 
-        <div className="stat-kpi-card">
+        <div className="kpi-card-v2 blue">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Total Designed Capacity</span>
+            <span className="stat-kpi-label">Designed Bed Capacity</span>
             <div className="stat-kpi-icon-wrap blue">
-              <BedDouble size={17} />
+              <BedDouble size={18} />
             </div>
           </div>
           <div className="stat-kpi-value text-blue-600">{totalCapacitySum} Beds</div>
@@ -1049,92 +1057,55 @@ export default function AdminHostelsPage() {
           </div>
         </div>
 
-        <div className="stat-kpi-card">
+        <div className="kpi-card-v2 purple">
           <div className="stat-kpi-header">
             <span className="stat-kpi-label">Active Bed Allocations</span>
             <div className="stat-kpi-icon-wrap purple">
-              <UserCheck size={17} />
+              <UserCheck size={18} />
             </div>
           </div>
           <div className="stat-kpi-value text-purple-600">{totalActiveAllocationsCount}</div>
           <div className="stat-kpi-footnote">
-            <span>Verified student residents</span>
+            <span>Verified student residents enrolled</span>
           </div>
         </div>
 
-        <div className="stat-kpi-card">
+        <div className="kpi-card-v2 amber">
           <div className="stat-kpi-header">
             <span className="stat-kpi-label">Campus Occupancy Rate</span>
             <div className="stat-kpi-icon-wrap orange">
-              <Sparkles size={17} />
+              <Sparkles size={18} />
             </div>
           </div>
           <div className="stat-kpi-value text-orange-600">{liveOccupancyRate}%</div>
-          <div className="stat-kpi-footnote">
-            <span>{Math.max(0, totalCapacitySum - totalActiveAllocationsCount)} available beds</span>
+          <div className="occupancy-progress-track" style={{ marginTop: '8px' }}>
+            <div
+              className={`occupancy-progress-fill ${liveOccupancyRate > 85 ? 'high' : liveOccupancyRate > 50 ? 'medium' : 'low'}`}
+              style={{ width: `${liveOccupancyRate}%` }}
+            />
+          </div>
+          <div className="stat-kpi-footnote" style={{ marginTop: '6px' }}>
+            <span>{Math.max(0, totalCapacitySum - totalActiveAllocationsCount)} available beds vacant</span>
           </div>
         </div>
       </div>
 
-      {/* Architecture Hierarchy Notice */}
-      <div
-        style={{
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '12.5px',
-          color: '#475569',
-        }}
-      >
-        <Info size={16} style={{ color: '#6366f1', flexShrink: 0 }} />
-        <div>
-          <strong>HMS Hierarchy Flow:</strong> <code>Hostel Facility</code> &rarr;{' '}
-          <code>Block / Wing</code> &rarr; <code>Floor</code> &rarr; <code>Room</code> &rarr;{' '}
-          <code>Bed Space</code>. Click any row or breadcrumb item to drill down or navigate upward.
-        </div>
-      </div>
-
-      {/* Breadcrumb Navigation Trail */}
-      <div
-        style={{
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          padding: '12px 18px',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '13.5px',
-          flexWrap: 'wrap',
-        }}
-      >
+      {/* Interactive Breadcrumb Navigation Strip */}
+      <div className="hostel-breadcrumb-strip">
         <button
           type="button"
           onClick={resetToRoot}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: selectedHostel ? '#4f46e5' : '#0f172a',
-            fontWeight: selectedHostel ? 500 : 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-          }}
+          className={`breadcrumb-pill ${!selectedHostel ? 'active' : ''}`}
         >
-          <Home size={15} />
-          <span>All Hostels</span>
+          <Home size={14} />
+          <span>All Facilities ({hostels.length})</span>
         </button>
 
         {selectedHostel && (
           <>
-            <ChevronRight size={14} style={{ color: '#94a3b8' }} />
+            <span className="breadcrumb-crumb-sep">
+              <ChevronRight size={14} />
+            </span>
             <button
               type="button"
               onClick={() => {
@@ -1142,68 +1113,85 @@ export default function AdminHostelsPage() {
                 setSelectedFloor(null);
                 setSelectedRoom(null);
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: selectedBlock ? '#4f46e5' : '#0f172a',
-                fontWeight: selectedBlock ? 500 : 700,
-                cursor: 'pointer',
-              }}
+              className={`breadcrumb-pill ${selectedHostel && !selectedBlock ? 'active' : ''}`}
             >
-              {selectedHostel.name} ({selectedHostel.code})
+              <Building2 size={14} />
+              <span>{selectedHostel.name}</span>
+              <span className="code-pill" style={{ fontSize: '10px', padding: '1px 5px' }}>{selectedHostel.code}</span>
             </button>
           </>
         )}
 
         {selectedBlock && (
           <>
-            <ChevronRight size={14} style={{ color: '#94a3b8' }} />
+            <span className="breadcrumb-crumb-sep">
+              <ChevronRight size={14} />
+            </span>
             <button
               type="button"
               onClick={() => {
                 setSelectedFloor(null);
                 setSelectedRoom(null);
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: selectedFloor ? '#4f46e5' : '#0f172a',
-                fontWeight: selectedFloor ? 500 : 700,
-                cursor: 'pointer',
-              }}
+              className={`breadcrumb-pill ${selectedBlock && !selectedFloor ? 'active' : ''}`}
             >
-              {selectedBlock.name}
+              <Layers size={14} />
+              <span>{selectedBlock.name}</span>
+              <span className="code-pill" style={{ fontSize: '10px', padding: '1px 5px' }}>{selectedBlock.code}</span>
             </button>
           </>
         )}
 
         {selectedFloor && (
           <>
-            <ChevronRight size={14} style={{ color: '#94a3b8' }} />
+            <span className="breadcrumb-crumb-sep">
+              <ChevronRight size={14} />
+            </span>
             <button
               type="button"
               onClick={() => setSelectedRoom(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: selectedRoom ? '#4f46e5' : '#0f172a',
-                fontWeight: selectedRoom ? 500 : 700,
-                cursor: 'pointer',
-              }}
+              className={`breadcrumb-pill ${selectedFloor && !selectedRoom ? 'active' : ''}`}
             >
-              {selectedFloor.name}
+              <span>{selectedFloor.name}</span>
             </button>
           </>
         )}
 
         {selectedRoom && (
           <>
-            <ChevronRight size={14} style={{ color: '#94a3b8' }} />
-            <span style={{ fontWeight: 700, color: '#0f172a' }}>
-              {selectedRoom.name} ({selectedRoom.code})
+            <span className="breadcrumb-crumb-sep">
+              <ChevronRight size={14} />
+            </span>
+            <span className="breadcrumb-pill active">
+              <DoorOpen size={14} />
+              <span>Room {selectedRoom.name || selectedRoom.code}</span>
             </span>
           </>
         )}
+
+        {/* View Mode Toggle Controls */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="view-mode-toggle">
+            <button
+              type="button"
+              className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('CARDS')}
+              title="Card Grid View"
+            >
+              <LayoutGrid size={13} />
+              <span>Cards</span>
+            </button>
+            <button
+              type="button"
+              className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+              onClick={() => setDisplayMode('TABLE')}
+              title="Table View"
+            >
+              <List size={13} />
+              <span>Table</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* =================================================================== */}
@@ -1216,21 +1204,23 @@ export default function AdminHostelsPage() {
               <div className="card-title-icon-wrap">
                 <Building2 size={16} />
               </div>
-              <h2 className="card-title-text">Hostel Facilities Master</h2>
+              <h2 className="card-title-text">Hostel Facilities Directory</h2>
             </div>
-            <span className="badge-enterprise badge-emerald">
-              {filteredHostels.length} of {hostels.length} Facilities Showing
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span className="badge-enterprise badge-emerald">
+                {filteredHostels.length} of {hostels.length} Facilities Showing
+              </span>
+            </div>
           </div>
 
           {/* Search & Filter Toolbar */}
-          <div className="enterprise-filter-bar">
+          <div className="enterprise-filter-bar" style={{ marginBottom: '20px' }}>
             <div className="filter-search-field">
               <Search size={14} className="filter-search-icon" />
               <input
                 type="text"
                 className="filter-search-input"
-                placeholder="Search hostels by name, building code, or address..."
+                placeholder="Search hostels by name, building code, or campus zone..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -1242,7 +1232,7 @@ export default function AdminHostelsPage() {
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
-                <option value="ALL">All Categories</option>
+                <option value="ALL">All Classifications</option>
                 <option value="BOYS">Boys Hostel</option>
                 <option value="GIRLS">Girls Hostel</option>
                 <option value="COED">Co-Ed Residence</option>
@@ -1258,34 +1248,164 @@ export default function AdminHostelsPage() {
                 <option value="INACTIVE">INACTIVE</option>
                 <option value="MAINTENANCE">MAINTENANCE</option>
               </select>
+
+              {(searchTerm || categoryFilter !== 'ALL' || statusFilter !== 'ALL') && (
+                <button
+                  type="button"
+                  className="btn-enterprise-secondary"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setCategoryFilter('ALL');
+                    setStatusFilter('ALL');
+                  }}
+                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                >
+                  Reset
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Hostels Table */}
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Hostel Facility</th>
-                  <th>Classification</th>
-                  <th>Design Capacity</th>
-                  <th>Resident Incharges</th>
-                  <th>Facility Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredHostels.length === 0 ? (
+          {filteredHostels.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+              <EmptyState
+                title="No hostel facilities found"
+                message="No hostels match your active search and filter criteria."
+              />
+            </div>
+          ) : displayMode === 'CARDS' ? (
+            /* Cards View for Hostels */
+            <div className="hostels-grid-cards">
+              {filteredHostels.map((h, idx) => {
+                const incharges = inchargesMap[h.id] || [];
+                const primaryIncharge = incharges.find((i) => i.is_primary) || incharges[0];
+                const hostelAllocs = activeAllocations.filter(
+                  (a) => a.hostel_id === h.id || a.hostel_name === h.name
+                );
+                const capacity = Number(h.total_capacity) || 0;
+                const occupiedCount = hostelAllocs.length;
+                const occupancyRate = capacity > 0 ? Math.min(100, Math.round((occupiedCount / capacity) * 100)) : 0;
+                const availableBeds = Math.max(0, capacity - occupiedCount);
+
+                const catLower = (h.category || '').toLowerCase();
+                const accentClass = catLower.includes('boy') ? 'boys' : catLower.includes('girl') ? 'girls' : 'coed';
+
+                return (
+                  <div
+                    key={h.id || idx}
+                    className="hostel-card-v2"
+                    onClick={() => loadBlocksForHostel(h)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className={`hostel-card-accent ${accentClass}`} />
+
+                    <div className="hostel-card-header">
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+                        <div className={`hostel-card-icon-wrap ${accentClass}`}>
+                          <Building2 size={22} />
+                        </div>
+                        <div className="hostel-card-title-block">
+                          <h3 className="hostel-card-title" title={h.name}>{h.name}</h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span className="hostel-card-code-pill">{h.code}</span>
+                            {renderCategoryBadge(h.category)}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        {renderStatusBadge(h.status)}
+                      </div>
+                    </div>
+
+                    <div className="hostel-card-body">
+                      {h.address && (
+                        <div className="hostel-card-location">
+                          <MapPin size={13} style={{ color: '#ef4444', flexShrink: 0 }} />
+                          <span>{h.address}</span>
+                        </div>
+                      )}
+
+                      {/* Live Occupancy Meter */}
+                      <div className="occupancy-bar-container">
+                        <div className="occupancy-bar-labels">
+                          <span>Occupancy ({occupiedCount} / {capacity} Beds)</span>
+                          <span style={{ fontWeight: 700, color: occupancyRate > 85 ? '#dc2626' : '#059669' }}>
+                            {occupancyRate}%
+                          </span>
+                        </div>
+                        <div className="occupancy-progress-track">
+                          <div
+                            className={`occupancy-progress-fill ${occupancyRate > 85 ? 'high' : occupancyRate > 50 ? 'medium' : 'low'}`}
+                            style={{ width: `${occupancyRate}%` }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem' }}>
+                          <span style={{ color: '#64748b' }}>Active Residents: {occupiedCount}</span>
+                          <span style={{ color: '#059669', fontWeight: 600 }}>{availableBeds} Available</span>
+                        </div>
+                      </div>
+
+                      {/* Warden Chip */}
+                      <div className="hostel-warden-chip">
+                        <UserCheck size={14} style={{ color: '#2563eb' }} />
+                        <span style={{ fontWeight: 500 }}>
+                          {primaryIncharge ? `Warden: ${primaryIncharge.name || primaryIncharge.staff_name || 'Assigned'}` : 'No Warden Assigned'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="hostel-card-footer" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="btn-enterprise-primary"
+                        style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                        onClick={() => loadBlocksForHostel(h)}
+                      >
+                        <span>Explore Blocks</span>
+                        <ChevronRight size={13} />
+                      </button>
+
+                      {canManageAccommodation && (
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Edit Hostel Profile"
+                            onClick={() => handleOpenEditHostel(h)}
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Change Operational Status"
+                            onClick={() => handleOpenHostelStatusModal(h)}
+                          >
+                            <SlidersHorizontal size={13} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* Table View for Hostels */
+            <div className="enterprise-table-container">
+              <table className="enterprise-table">
+                <thead>
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No hostel facilities found"
-                        message="No hostels match your active search and filter criteria."
-                      />
-                    </td>
+                    <th>Hostel Facility</th>
+                    <th>Classification</th>
+                    <th>Design Capacity</th>
+                    <th>Resident Incharges</th>
+                    <th>Facility Status</th>
+                    <th>Actions</th>
                   </tr>
-                ) : (
-                  filteredHostels.map((h, idx) => {
+                </thead>
+                <tbody>
+                  {filteredHostels.map((h, idx) => {
                     const incharges = inchargesMap[h.id] || [];
                     const primaryIncharge = incharges.find((i) => i.is_primary);
 
@@ -1299,14 +1419,15 @@ export default function AdminHostelsPage() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div
                               style={{
-                                width: '36px',
-                                height: '36px',
-                                borderRadius: '8px',
+                                width: '38px',
+                                height: '38px',
+                                borderRadius: '10px',
                                 background: '#ecfdf5',
                                 color: '#059669',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
+                                flexShrink: 0,
                               }}
                             >
                               <Building2 size={18} />
@@ -1337,8 +1458,9 @@ export default function AdminHostelsPage() {
 
                         <td>
                           {primaryIncharge ? (
-                            <span style={{ fontSize: '12px', color: '#475569' }}>
-                              Primary Incharge Assigned
+                            <span style={{ fontSize: '12px', color: '#475569', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                              <UserCheck size={13} style={{ color: '#059669' }} />
+                              <span>{primaryIncharge.name || 'Primary Incharge'}</span>
                             </span>
                           ) : (
                             <span style={{ fontSize: '12px', color: '#94a3b8' }}>
@@ -1387,11 +1509,11 @@ export default function AdminHostelsPage() {
                         </td>
                       </tr>
                     );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
@@ -1399,132 +1521,233 @@ export default function AdminHostelsPage() {
       {/* LEVEL 2: Blocks Listing under Selected Hostel                       */}
       {/* =================================================================== */}
       {selectedHostel && !selectedBlock && (
-        <div className="enterprise-card">
-          <div className="card-topbar">
-            <div className="card-title-group">
-              <div className="card-title-icon-wrap">
-                <Layers size={16} />
+        <div>
+          {/* Selected Hostel Context Banner */}
+          <div className="selected-context-banner">
+            <div className="context-banner-left">
+              <div className="context-banner-icon">
+                <Building2 size={26} />
               </div>
-              <h2 className="card-title-text">
-                Structural Blocks / Wings in {selectedHostel.name}
-              </h2>
+              <div className="context-banner-info">
+                <h2 className="context-banner-title">
+                  <span>{selectedHostel.name}</span>
+                  <span className="code-pill">{selectedHostel.code}</span>
+                  {renderCategoryBadge(selectedHostel.category)}
+                  {renderStatusBadge(selectedHostel.status)}
+                </h2>
+                <div className="context-banner-meta">
+                  {selectedHostel.address && (
+                    <span>📍 {selectedHostel.address}</span>
+                  )}
+                  <span>🏢 Total Designed Capacity: <strong>{selectedHostel.total_capacity || 0} Beds</strong></span>
+                  <span>📦 Structural Wings: <strong>{blocks.length} Blocks</strong></span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn-enterprise-secondary"
-                style={{ padding: '4px 10px', fontSize: '12px' }}
                 onClick={resetToRoot}
               >
                 <ArrowLeft size={13} />
                 <span>Back to All Hostels</span>
               </button>
+
               {canManageAccommodation && (
                 <button
                   type="button"
                   className="btn-enterprise-primary"
-                  style={{ padding: '4px 12px', fontSize: '12px' }}
                   onClick={handleOpenCreateBlock}
                 >
-                  <Plus size={13} />
-                  <span>Add Block</span>
+                  <Plus size={14} />
+                  <span>Add Block / Wing</span>
                 </button>
               )}
             </div>
           </div>
 
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Block / Wing Name</th>
-                  <th>Block Code</th>
-                  <th>Design Capacity</th>
-                  <th>Description</th>
-                  <th>Operational Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hierarchyLoading ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <LoadingState message="Loading structural blocks..." />
-                    </td>
-                  </tr>
-                ) : blocks.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No blocks found for this hostel"
-                        message="Click 'Add Block' to create the first structural wing."
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  blocks.map((b) => (
-                    <tr
-                      key={b.id}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => loadFloorsForBlock(b)}
-                    >
-                      <td>
-                        <strong style={{ color: '#0f172a', fontSize: '13.5px' }}>{b.name}</strong>
-                      </td>
-                      <td>
-                        <span className="code-pill">{b.code}</span>
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 600, color: '#334155' }}>
-                          {b.total_capacity || 'Dynamic'} Beds
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ color: '#64748b', fontSize: '12px' }}>
-                          {b.description || '—'}
-                        </span>
-                      </td>
-                      <td>{renderStatusBadge(b.status)}</td>
-                      <td onClick={(e) => e.stopPropagation()}>
+          <div className="enterprise-card">
+            <div className="card-topbar">
+              <div className="card-title-group">
+                <div className="card-title-icon-wrap">
+                  <Layers size={16} />
+                </div>
+                <h2 className="card-title-text">
+                  Structural Blocks &amp; Wings ({blocks.length})
+                </h2>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <span className="badge-enterprise badge-blue">
+                  {blocks.length} Wings Defined
+                </span>
+              </div>
+            </div>
+
+            {hierarchyLoading ? (
+              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <LoadingState message="Loading structural blocks and wings..." />
+              </div>
+            ) : blocks.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 20px' }}>
+                <EmptyState
+                  title="No blocks found for this hostel"
+                  message="Click 'Add Block / Wing' above to create the first structural wing for this facility."
+                />
+              </div>
+            ) : displayMode === 'CARDS' ? (
+              /* Blocks Cards Grid View */
+              <div className="blocks-grid-cards">
+                {blocks.map((b) => (
+                  <div
+                    key={b.id}
+                    className="block-card-v2"
+                    onClick={() => loadFloorsForBlock(b)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className="block-card-top">
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div className="block-icon-box">
+                          <Layers size={20} />
+                        </div>
+                        <div>
+                          <h3 className="block-name-title">{b.name}</h3>
+                          <span className="code-pill" style={{ marginTop: '2px', display: 'inline-block' }}>{b.code}</span>
+                        </div>
+                      </div>
+                      <div>
+                        {renderStatusBadge(b.status)}
+                      </div>
+                    </div>
+
+                    <p style={{ margin: 0, fontSize: '0.84rem', color: '#64748b', lineHeight: 1.4 }}>
+                      {b.description || 'Standard physical building wing'}
+                    </p>
+
+                    <div className="block-card-meta">
+                      <span className="badge-enterprise badge-purple">
+                        {b.total_capacity || 'Dynamic'} Beds Capacity
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #f1f5f9' }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="btn-enterprise-primary"
+                        style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                        onClick={() => loadFloorsForBlock(b)}
+                      >
+                        <span>Explore Floors</span>
+                        <ChevronRight size={13} />
+                      </button>
+
+                      {canManageAccommodation && (
                         <div style={{ display: 'flex', gap: '6px' }}>
                           <button
                             type="button"
-                            className="btn-enterprise-secondary"
-                            style={{ padding: '4px 10px', fontSize: '12px' }}
-                            onClick={() => loadFloorsForBlock(b)}
-                            title="Explore Floors in this Block"
+                            className="btn-icon"
+                            title="Edit Block"
+                            onClick={() => handleOpenEditBlock(b)}
                           >
-                            <span>Floors</span>
-                            <ChevronRight size={13} />
+                            <Edit2 size={13} />
                           </button>
-
-                          {canManageAccommodation && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                title="Edit Block"
-                                onClick={() => handleOpenEditBlock(b)}
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                title="Change Block Status"
-                                onClick={() => handleOpenBlockStatusModal(b)}
-                              >
-                                <SlidersHorizontal size={13} />
-                              </button>
-                            </>
-                          )}
+                          <button
+                            type="button"
+                            className="btn-icon"
+                            title="Change Block Status"
+                            onClick={() => handleOpenBlockStatusModal(b)}
+                          >
+                            <SlidersHorizontal size={13} />
+                          </button>
                         </div>
-                      </td>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Blocks Table View */
+              <div className="enterprise-table-container">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Block / Wing Name</th>
+                      <th>Block Code</th>
+                      <th>Design Capacity</th>
+                      <th>Description</th>
+                      <th>Operational Status</th>
+                      <th>Actions</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {blocks.map((b) => (
+                      <tr
+                        key={b.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => loadFloorsForBlock(b)}
+                      >
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Layers size={16} style={{ color: '#2563eb' }} />
+                            <strong style={{ color: '#0f172a', fontSize: '13.5px' }}>{b.name}</strong>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="code-pill">{b.code}</span>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 600, color: '#334155' }}>
+                            {b.total_capacity || 'Dynamic'} Beds
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ color: '#64748b', fontSize: '12px' }}>
+                            {b.description || '—'}
+                          </span>
+                        </td>
+                        <td>{renderStatusBadge(b.status)}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn-enterprise-secondary"
+                              style={{ padding: '4px 10px', fontSize: '12px' }}
+                              onClick={() => loadFloorsForBlock(b)}
+                              title="Explore Floors in this Block"
+                            >
+                              <span>Floors</span>
+                              <ChevronRight size={13} />
+                            </button>
+
+                            {canManageAccommodation && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-icon"
+                                  title="Edit Block"
+                                  onClick={() => handleOpenEditBlock(b)}
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-icon"
+                                  title="Change Block Status"
+                                  onClick={() => handleOpenBlockStatusModal(b)}
+                                >
+                                  <SlidersHorizontal size={13} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1533,39 +1756,61 @@ export default function AdminHostelsPage() {
       {/* LEVEL 3: Floors Listing under Selected Block                        */}
       {/* =================================================================== */}
       {selectedBlock && !selectedFloor && (
-        <div className="enterprise-card">
-          <div className="card-topbar">
-            <div className="card-title-group">
-              <div className="card-title-icon-wrap">
-                <Layers size={16} />
+        <div>
+          {/* Selected Block Context Banner */}
+          <div className="selected-context-banner">
+            <div className="context-banner-left">
+              <div className="context-banner-icon" style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)' }}>
+                <Layers size={26} />
               </div>
-              <h2 className="card-title-text">
-                Floors in {selectedHostel?.name} &bull; {selectedBlock.name}
-              </h2>
+              <div className="context-banner-info">
+                <h2 className="context-banner-title">
+                  <span>{selectedBlock.name}</span>
+                  <span className="code-pill">{selectedBlock.code}</span>
+                  {renderStatusBadge(selectedBlock.status)}
+                </h2>
+                <div className="context-banner-meta">
+                  <span>🏢 Facility: <strong>{selectedHostel?.name}</strong> ({selectedHostel?.code})</span>
+                  <span>📦 Block Capacity: <strong>{selectedBlock.total_capacity || 'Dynamic'} Beds</strong></span>
+                  <span>🪜 Floor Levels: <strong>{floors.length} Floors</strong></span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn-enterprise-secondary"
-                style={{ padding: '4px 10px', fontSize: '12px' }}
                 onClick={() => setSelectedBlock(null)}
               >
                 <ArrowLeft size={13} />
                 <span>Back to Blocks</span>
               </button>
+
               {canManageAccommodation && (
                 <button
                   type="button"
                   className="btn-enterprise-primary"
-                  style={{ padding: '4px 12px', fontSize: '12px' }}
                   onClick={handleOpenCreateFloor}
                 >
-                  <Plus size={13} />
+                  <Plus size={14} />
                   <span>Add Floor</span>
                 </button>
               )}
             </div>
           </div>
+
+          <div className="enterprise-card">
+            <div className="card-topbar">
+              <div className="card-title-group">
+                <div className="card-title-icon-wrap">
+                  <Layers size={16} />
+                </div>
+                <h2 className="card-title-text">
+                  Floors &amp; Levels in {selectedBlock.name} ({floors.length})
+                </h2>
+              </div>
+            </div>
 
           <div className="enterprise-table-container">
             <table className="enterprise-table">
@@ -1659,178 +1904,335 @@ export default function AdminHostelsPage() {
             </table>
           </div>
         </div>
-      )}
+      </div>
+    )}
 
       {/* =================================================================== */}
       {/* LEVEL 4: Rooms Listing under Selected Floor                         */}
       {/* =================================================================== */}
       {selectedFloor && !selectedRoom && (
-        <div className="enterprise-card">
-          <div className="card-topbar">
-            <div className="card-title-group">
-              <div className="card-title-icon-wrap">
-                <DoorOpen size={16} />
+        <div>
+          {/* Selected Floor Context Banner */}
+          <div className="selected-context-banner">
+            <div className="context-banner-left">
+              <div className="context-banner-icon" style={{ background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)' }}>
+                <DoorOpen size={26} />
               </div>
-              <h2 className="card-title-text">
-                Rooms in {selectedBlock?.name} &bull; {selectedFloor.name}
-              </h2>
+              <div className="context-banner-info">
+                <h2 className="context-banner-title">
+                  <span>{selectedFloor.name}</span>
+                  <span className="code-pill">{selectedFloor.code}</span>
+                  <span className="badge-enterprise badge-purple">Floor {selectedFloor.floor_number}</span>
+                  {renderStatusBadge(selectedFloor.status)}
+                </h2>
+                <div className="context-banner-meta">
+                  <span>Facility: <strong>{selectedHostel?.name}</strong></span>
+                  <span>Wing: <strong>{selectedBlock?.name}</strong></span>
+                  <span>Rooms Inventory: <strong>{rooms.length} Rooms</strong></span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn-enterprise-secondary"
-                style={{ padding: '4px 10px', fontSize: '12px' }}
                 onClick={() => setSelectedFloor(null)}
               >
                 <ArrowLeft size={13} />
                 <span>Back to Floors</span>
               </button>
+
               {canManageAccommodation && (
                 <button
                   type="button"
                   className="btn-enterprise-primary"
-                  style={{ padding: '4px 12px', fontSize: '12px' }}
                   onClick={handleOpenCreateRoom}
                 >
-                  <Plus size={13} />
+                  <Plus size={14} />
                   <span>Add Room</span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* Rooms Search & Filter Bar */}
-          <div className="enterprise-filter-bar">
-            <div className="filter-search-field">
-              <Search size={14} className="filter-search-icon" />
-              <input
-                type="text"
-                className="filter-search-input"
-                placeholder="Search rooms by number or code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="enterprise-card">
+            <div className="card-topbar">
+              <div className="card-title-group">
+                <div className="card-title-icon-wrap">
+                  <DoorOpen size={16} />
+                </div>
+                <h2 className="card-title-text">
+                  Rooms in {selectedBlock?.name} &bull; {selectedFloor.name} ({rooms.length})
+                </h2>
+              </div>
+
+              {/* View Switcher & Tally */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="stats-tally-pill">
+                  <DoorOpen size={13} style={{ color: '#0284c7' }} />
+                  <span>{filteredRooms.length} of {rooms.length} Rooms</span>
+                </span>
+                <div className="view-mode-toggle">
+                  <button
+                    type="button"
+                    className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('CARDS')}
+                    title="Card Grid View"
+                  >
+                    <LayoutGrid size={13} />
+                    <span>Cards</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('TABLE')}
+                    title="Table View"
+                  >
+                    <List size={13} />
+                    <span>Table</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select
-                className="filter-select"
-                value={roomTypeFilter}
-                onChange={(e) => setRoomTypeFilter(e.target.value)}
-              >
-                <option value="ALL">All Room Types</option>
-                <option value="SINGLE">SINGLE</option>
-                <option value="DOUBLE">DOUBLE</option>
-                <option value="TRIPLE">TRIPLE</option>
-                <option value="FOUR_BED">FOUR_BED</option>
-                <option value="DORMITORY">DORMITORY</option>
-              </select>
+            {/* Rooms Search & Filter Bar */}
+            <div className="enterprise-filter-bar">
+              <div className="filter-search-field">
+                <Search size={14} className="filter-search-icon" />
+                <input
+                  type="text"
+                  className="filter-search-input"
+                  placeholder="Search rooms by number or code..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
 
-              <select
-                className="filter-select"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="MAINTENANCE">MAINTENANCE</option>
-              </select>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <select
+                  className="filter-select"
+                  value={roomTypeFilter}
+                  onChange={(e) => setRoomTypeFilter(e.target.value)}
+                >
+                  <option value="ALL">All Room Types</option>
+                  <option value="SINGLE">SINGLE</option>
+                  <option value="DOUBLE">DOUBLE</option>
+                  <option value="TRIPLE">TRIPLE</option>
+                  <option value="FOUR_BED">FOUR_BED</option>
+                  <option value="DORMITORY">DORMITORY</option>
+                </select>
+
+                <select
+                  className="filter-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                </select>
+              </div>
             </div>
-          </div>
 
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Room Code / Number</th>
-                  <th>Room Name</th>
-                  <th>Room Type</th>
-                  <th>Bed Capacity</th>
-                  <th>Operational Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hierarchyLoading ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <LoadingState message="Loading rooms..." />
-                    </td>
-                  </tr>
-                ) : filteredRooms.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No rooms found on this floor"
-                        message="Click 'Add Room' to configure your first room space."
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRooms.map((rm) => (
-                    <tr
+            {hierarchyLoading ? (
+              <div style={{ padding: '48px', textAlign: 'center' }}>
+                <LoadingState message="Loading rooms..." />
+              </div>
+            ) : filteredRooms.length === 0 ? (
+              <div style={{ padding: '36px', textAlign: 'center' }}>
+                <EmptyState
+                  title="No rooms found on this floor"
+                  message="Click 'Add Room' to configure your first room space."
+                />
+              </div>
+            ) : displayMode === 'CARDS' ? (
+              /* Rooms Modern Card Grid */
+              <div className="rooms-grid-cards">
+                {filteredRooms.map((rm) => {
+                  const cap = Number(rm.capacity) || 1;
+                  const roomType = (rm.room_type || 'STANDARD').toUpperCase();
+                  const typeClass =
+                    roomType.includes('SINGLE') ? 'room-type-single' :
+                    roomType.includes('DOUBLE') ? 'room-type-double' :
+                    roomType.includes('TRIPLE') ? 'room-type-triple' :
+                    roomType.includes('FOUR') ? 'room-type-four' :
+                    roomType.includes('DORM') ? 'room-type-dorm' : 'room-type-single';
+
+                  return (
+                    <div
                       key={rm.id}
+                      className="room-card-v2"
                       style={{ cursor: 'pointer' }}
                       onClick={() => loadBedsForRoom(rm)}
                     >
-                      <td>
-                        <span className="code-pill" style={{ fontWeight: 700, fontSize: '13px' }}>
-                          {rm.code}
-                        </span>
-                      </td>
-                      <td>
-                        <strong style={{ color: '#0f172a' }}>{rm.name}</strong>
-                      </td>
-                      <td>
-                        <span className="badge-enterprise badge-blue">{rm.room_type || 'STANDARD'}</span>
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 600, color: '#334155' }}>
-                          {rm.capacity} Beds
-                        </span>
-                      </td>
-                      <td>{renderStatusBadge(rm.status)}</td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            type="button"
-                            className="btn-enterprise-secondary"
-                            style={{ padding: '4px 10px', fontSize: '12px' }}
-                            onClick={() => loadBedsForRoom(rm)}
-                            title="Manage Bed Spaces"
-                          >
-                            <span>Bed Spaces</span>
-                            <ChevronRight size={13} />
-                          </button>
-
-                          {canManageAccommodation && (
-                            <>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                title="Edit Room"
-                                onClick={() => handleOpenEditRoom(rm)}
-                              >
-                                <Edit2 size={13} />
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                title="Change Room Status"
-                                onClick={() => handleOpenRoomStatusModal(rm)}
-                              >
-                                <SlidersHorizontal size={13} />
-                              </button>
-                            </>
-                          )}
+                      <div>
+                        <div className="room-card-top-bar">
+                          <div className="room-card-title-group">
+                            <div className="room-icon-box">
+                              <DoorOpen size={20} />
+                            </div>
+                            <div>
+                              <h3 className="room-card-title">
+                                <span>{rm.name || `Room ${rm.code}`}</span>
+                              </h3>
+                              <span className="code-pill" style={{ fontWeight: 700, fontSize: '11px' }}>
+                                {rm.code}
+                              </span>
+                            </div>
+                          </div>
+                          <div>{renderStatusBadge(rm.status)}</div>
                         </div>
-                      </td>
+
+                        <div className="room-card-body">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span className={`room-type-badge-styled ${typeClass}`}>
+                              {rm.room_type || 'STANDARD'}
+                            </span>
+                            <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
+                              {selectedFloor.name}
+                            </span>
+                          </div>
+
+                          <div className="room-capacity-visual">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <BedDouble size={14} style={{ color: '#64748b' }} />
+                              <span className="capacity-label">{cap} Bed Slots</span>
+                            </div>
+                            <div className="capacity-slots-cluster">
+                              {Array.from({ length: Math.min(cap, 8) }).map((_, idx) => (
+                                <span
+                                  key={idx}
+                                  className="bed-dot-indicator"
+                                  title={`Bed Slot ${idx + 1}`}
+                                />
+                              ))}
+                              {cap > 8 && (
+                                <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                                  +{cap - 8}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="room-card-footer" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          className="btn-enterprise-primary"
+                          style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                          onClick={() => loadBedsForRoom(rm)}
+                        >
+                          <span>Explore Beds</span>
+                          <ChevronRight size={13} />
+                        </button>
+
+                        {canManageAccommodation && (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn-icon"
+                              title="Edit Room"
+                              onClick={() => handleOpenEditRoom(rm)}
+                            >
+                              <Edit2 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-icon"
+                              title="Change Room Status"
+                              onClick={() => handleOpenRoomStatusModal(rm)}
+                            >
+                              <SlidersHorizontal size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Rooms Table View */
+              <div className="enterprise-table-container">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Room Code / Number</th>
+                      <th>Room Name</th>
+                      <th>Room Type</th>
+                      <th>Bed Capacity</th>
+                      <th>Operational Status</th>
+                      <th>Actions</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {filteredRooms.map((rm) => (
+                      <tr
+                        key={rm.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => loadBedsForRoom(rm)}
+                      >
+                        <td>
+                          <span className="code-pill" style={{ fontWeight: 700, fontSize: '13px' }}>
+                            {rm.code}
+                          </span>
+                        </td>
+                        <td>
+                          <strong style={{ color: '#0f172a' }}>{rm.name}</strong>
+                        </td>
+                        <td>
+                          <span className="badge-enterprise badge-blue">{rm.room_type || 'STANDARD'}</span>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 600, color: '#334155' }}>
+                            {rm.capacity} Beds
+                          </span>
+                        </td>
+                        <td>{renderStatusBadge(rm.status)}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn-enterprise-secondary"
+                              style={{ padding: '4px 10px', fontSize: '12px' }}
+                              onClick={() => loadBedsForRoom(rm)}
+                              title="Manage Bed Spaces"
+                            >
+                              <span>Bed Spaces</span>
+                              <ChevronRight size={13} />
+                            </button>
+
+                            {canManageAccommodation && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-icon"
+                                  title="Edit Room"
+                                  onClick={() => handleOpenEditRoom(rm)}
+                                >
+                                  <Edit2 size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-icon"
+                                  title="Change Room Status"
+                                  onClick={() => handleOpenRoomStatusModal(rm)}
+                                >
+                                  <SlidersHorizontal size={13} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1839,137 +2241,337 @@ export default function AdminHostelsPage() {
       {/* LEVEL 5: Beds & Occupancy under Selected Room                       */}
       {/* =================================================================== */}
       {selectedRoom && (
-        <div className="enterprise-card">
-          <div className="card-topbar">
-            <div className="card-title-group">
-              <div className="card-title-icon-wrap">
-                <BedDouble size={16} />
+        <div>
+          {/* Selected Room Context Banner */}
+          <div className="selected-context-banner">
+            <div className="context-banner-left">
+              <div className="context-banner-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)' }}>
+                <BedDouble size={26} />
               </div>
-              <h2 className="card-title-text">
-                Bed Spaces & Resident Occupants in {selectedRoom.name} ({selectedRoom.code})
-              </h2>
+              <div className="context-banner-info">
+                <h2 className="context-banner-title">
+                  <span>Room {selectedRoom.name || selectedRoom.code}</span>
+                  <span className="code-pill">{selectedRoom.code}</span>
+                  <span className="badge-enterprise badge-blue">{selectedRoom.room_type || 'STANDARD'}</span>
+                  {renderStatusBadge(selectedRoom.status)}
+                </h2>
+                <div className="context-banner-meta">
+                  <span>Facility: <strong>{selectedHostel?.name}</strong></span>
+                  <span>Wing: <strong>{selectedBlock?.name}</strong> &bull; {selectedFloor?.name}</span>
+                  <span>Total Capacity: <strong>{selectedRoom.capacity || beds.length} Beds</strong></span>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
+
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 className="btn-enterprise-secondary"
-                style={{ padding: '4px 10px', fontSize: '12px' }}
                 onClick={() => setSelectedRoom(null)}
               >
                 <ArrowLeft size={13} />
                 <span>Back to Rooms</span>
               </button>
+
               {canManageAccommodation && (
                 <button
                   type="button"
                   className="btn-enterprise-primary"
-                  style={{ padding: '4px 12px', fontSize: '12px' }}
                   onClick={handleOpenCreateBed}
                 >
-                  <Plus size={13} />
+                  <Plus size={14} />
                   <span>Add Bed Space</span>
                 </button>
               )}
             </div>
           </div>
 
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Bed Identifier</th>
-                  <th>Bed Name</th>
-                  <th>Occupant Resident</th>
-                  <th>Allocation Period</th>
-                  <th>Bed Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {hierarchyLoading ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <LoadingState message="Loading bed spaces..." />
-                    </td>
-                  </tr>
-                ) : beds.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', padding: '36px' }}>
-                      <EmptyState
-                        title="No beds configured in this room"
-                        message="Click 'Add Bed Space' to define bed slots for this room."
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  beds.map((b) => {
-                    const allocation = bedAllocationMap.get(b.id);
-                    const student = allocation && allocation.student_id ? studentMap.get(allocation.student_id) : null;
+          <div className="enterprise-card">
+            <div className="card-topbar">
+              <div className="card-title-group">
+                <div className="card-title-icon-wrap">
+                  <BedDouble size={16} />
+                </div>
+                <h2 className="card-title-text">
+                  Bed Spaces &amp; Resident Occupants ({beds.length} Beds)
+                </h2>
+              </div>
 
-                    return (
-                      <tr key={b.id}>
-                        <td>
-                          <span className="code-pill" style={{ fontWeight: 700 }}>{b.code}</span>
-                        </td>
-                        <td>
-                          <strong style={{ color: '#0f172a' }}>{b.name || 'Standard Bed'}</strong>
-                        </td>
-                        <td>
-                          {student ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <strong style={{ color: '#0f172a', fontSize: '13px' }}>
-                                {[student.first_name, student.last_name].filter(Boolean).join(' ') || student.name}
-                              </strong>
-                              <span style={{ fontSize: '11px', color: '#64748b' }}>
-                                Adm No: {student.admission_number || '—'}
-                              </span>
+              {/* Occupancy Tallies & View Switcher */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className="stats-tally-pill" style={{ color: '#7c3aed', background: '#f5f3ff', borderColor: '#ddd6fe' }}>
+                  <UserCheck size={12} />
+                  <span>{beds.filter((b) => bedAllocationMap.has(b.id)).length} Occupied</span>
+                </span>
+                <span className="stats-tally-pill" style={{ color: '#059669', background: '#ecfdf5', borderColor: '#a7f3d0' }}>
+                  <CheckCircle2 size={12} />
+                  <span>{beds.filter((b) => !bedAllocationMap.has(b.id) && b.status === 'ACTIVE').length} Available</span>
+                </span>
+
+                <div className="view-mode-toggle">
+                  <button
+                    type="button"
+                    className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('CARDS')}
+                    title="Card Grid View"
+                  >
+                    <LayoutGrid size={13} />
+                    <span>Cards</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
+                    onClick={() => setDisplayMode('TABLE')}
+                    title="Table View"
+                  >
+                    <List size={13} />
+                    <span>Table</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {hierarchyLoading ? (
+              <div style={{ padding: '48px', textAlign: 'center' }}>
+                <LoadingState message="Loading bed spaces..." />
+              </div>
+            ) : beds.length === 0 ? (
+              <div style={{ padding: '36px', textAlign: 'center' }}>
+                <EmptyState
+                  title="No beds configured in this room"
+                  message="Click 'Add Bed Space' to define bed slots for this room."
+                />
+              </div>
+            ) : displayMode === 'CARDS' ? (
+              /* Beds Modern Card Grid */
+              <div className="beds-grid-cards">
+                {beds.map((b) => {
+                  const allocation = bedAllocationMap.get(b.id);
+                  const student = allocation && allocation.student_id ? studentMap.get(allocation.student_id) : null;
+                  const isOccupied = !!allocation;
+                  const isMaintenance = b.status === 'MAINTENANCE';
+
+                  const studentName = student
+                    ? [student.first_name, student.last_name].filter(Boolean).join(' ') || student.name || 'Resident Student'
+                    : 'Resident Student';
+
+                  const initials = student
+                    ? (student.first_name?.[0] || '') + (student.last_name?.[0] || (student.first_name ? '' : student.name?.[0] || 'S'))
+                    : 'V';
+
+                  return (
+                    <div
+                      key={b.id}
+                      className={`bed-slot-card ${isOccupied ? 'occupied' : isMaintenance ? 'maintenance' : 'available'}`}
+                    >
+                      <div>
+                        <div className="bed-card-header">
+                          <div className="bed-card-identifier">
+                            <div className={`bed-icon-badge ${isOccupied ? 'occupied' : isMaintenance ? 'maintenance' : 'available'}`}>
+                              <BedDouble size={20} />
                             </div>
-                          ) : (
-                            <span style={{ color: '#10b981', fontSize: '12px', fontWeight: 600 }}>
-                              Available / Vacant
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          {allocation ? (
-                            <span style={{ fontSize: '12px', color: '#475569' }}>
-                              Since {allocation.allocated_at ? String(allocation.allocated_at).split('T')[0] : '—'}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#94a3b8', fontSize: '12px' }}>Not Allocated</span>
-                          )}
-                        </td>
-                        <td>
-                          {allocation ? (
-                            <span className="badge-enterprise badge-purple">OCCUPIED</span>
-                          ) : (
-                            renderStatusBadge(b.status)
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '6px' }}>
-                            {canManageAccommodation && (
-                              <button
-                                type="button"
-                                className="btn-icon"
-                                title="Change Bed Status"
-                                onClick={() => handleOpenBedStatusModal(b)}
-                              >
-                                <SlidersHorizontal size={13} />
-                              </button>
+                            <div>
+                              <h3 className="bed-code-title">{b.code}</h3>
+                              <p className="bed-name-sub">{b.name || 'Standard Bed Slot'}</p>
+                            </div>
+                          </div>
+
+                          <div>
+                            {isOccupied ? (
+                              <span className="badge-enterprise badge-purple">OCCUPIED</span>
+                            ) : isMaintenance ? (
+                              <span className="badge-enterprise badge-amber">MAINTENANCE</span>
+                            ) : (
+                              <span className="badge-enterprise badge-emerald">AVAILABLE</span>
                             )}
                           </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                        </div>
+
+                        <div className="bed-card-body">
+                          {isOccupied && student ? (
+                            <div className="bed-resident-box">
+                              <div className="resident-avatar-circle">
+                                {initials.toUpperCase() || 'S'}
+                              </div>
+                              <div className="resident-details">
+                                <span className="resident-name" title={studentName}>
+                                  {studentName}
+                                </span>
+                                <span className="resident-adm-no">
+                                  <span>Adm No:</span>
+                                  <strong>{student.admission_number || student.enrollment_number || 'N/A'}</strong>
+                                </span>
+                                {allocation?.allocated_at && (
+                                  <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                                    Since {String(allocation.allocated_at).split('T')[0]}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : isOccupied && !student ? (
+                            <div className="bed-resident-box">
+                              <div className="resident-avatar-circle" style={{ background: '#94a3b8' }}>
+                                ID
+                              </div>
+                              <div className="resident-details">
+                                <span className="resident-name">Allocated Resident</span>
+                                <span className="resident-adm-no">
+                                  ID: {allocation.student_id ? allocation.student_id.substring(0, 8) + '...' : 'N/A'}
+                                </span>
+                                {allocation?.allocated_at && (
+                                  <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                                    Since {String(allocation.allocated_at).split('T')[0]}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : isMaintenance ? (
+                            <div className="bed-maintenance-box">
+                              <AlertCircle size={18} style={{ color: '#d97706', flexShrink: 0 }} />
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <strong style={{ fontSize: '0.82rem', color: '#92400e' }}>Under Maintenance</strong>
+                                <span style={{ fontSize: '0.75rem', color: '#b45309' }}>Slot suspended for repairs/inspection</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bed-vacant-box">
+                              <CheckCircle2 size={18} style={{ color: '#059669', flexShrink: 0 }} />
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <strong style={{ fontSize: '0.82rem', color: '#065f46' }}>Vacant &amp; Ready</strong>
+                                <span style={{ fontSize: '0.75rem', color: '#047857' }}>Ready for student assignment</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bed-card-footer">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                            Room: <strong style={{ color: '#0f172a' }}>{selectedRoom.code}</strong>
+                          </span>
+                        </div>
+
+                        {canManageAccommodation && (
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button
+                              type="button"
+                              className="btn-enterprise-secondary"
+                              style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                              title="Change Bed Status"
+                              onClick={() => handleOpenBedStatusModal(b)}
+                            >
+                              <SlidersHorizontal size={12} />
+                              <span>Status</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* Beds Table View */
+              <div className="enterprise-table-container">
+                <table className="enterprise-table">
+                  <thead>
+                    <tr>
+                      <th>Bed Identifier</th>
+                      <th>Bed Name</th>
+                      <th>Occupant Resident</th>
+                      <th>Allocation Period</th>
+                      <th>Bed Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {beds.map((b) => {
+                      const allocation = bedAllocationMap.get(b.id);
+                      const student = allocation && allocation.student_id ? studentMap.get(allocation.student_id) : null;
+                      const studentName = student
+                        ? [student.first_name, student.last_name].filter(Boolean).join(' ') || student.name || 'Resident Student'
+                        : null;
+
+                      return (
+                        <tr key={b.id}>
+                          <td>
+                            <span className="code-pill" style={{ fontWeight: 700 }}>{b.code}</span>
+                          </td>
+                          <td>
+                            <strong style={{ color: '#0f172a' }}>{b.name || 'Standard Bed'}</strong>
+                          </td>
+                          <td>
+                            {student ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div
+                                  className="resident-avatar-circle"
+                                  style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}
+                                >
+                                  {((student.first_name?.[0] || '') + (student.last_name?.[0] || 'S')).toUpperCase()}
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <strong style={{ color: '#0f172a', fontSize: '13px' }}>
+                                    {studentName}
+                                  </strong>
+                                  <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                    Adm No: {student.admission_number || student.enrollment_number || 'N/A'}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : allocation ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                <strong style={{ color: '#0f172a', fontSize: '13px' }}>Allocated Resident</strong>
+                                <span style={{ fontSize: '11px', color: '#64748b' }}>
+                                  ID: {allocation.student_id ? allocation.student_id.substring(0, 8) + '...' : 'N/A'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span style={{ color: '#10b981', fontSize: '12px', fontWeight: 600 }}>
+                                Available / Vacant
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            {allocation ? (
+                              <span style={{ fontSize: '12px', color: '#475569' }}>
+                                Since {allocation.allocated_at ? String(allocation.allocated_at).split('T')[0] : 'N/A'}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#94a3b8', fontSize: '12px' }}>Not Allocated</span>
+                            )}
+                          </td>
+                          <td>
+                            {allocation ? (
+                              <span className="badge-enterprise badge-purple">OCCUPIED</span>
+                            ) : (
+                              renderStatusBadge(b.status)
+                            )}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              {canManageAccommodation && (
+                                <button
+                                  type="button"
+                                  className="btn-icon"
+                                  title="Change Bed Status"
+                                  onClick={() => handleOpenBedStatusModal(b)}
+                                >
+                                  <SlidersHorizontal size={13} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
-
       {/* =================================================================== */}
       {/* MODAL: Create / Edit Hostel Facility                                */}
       {/* =================================================================== */}

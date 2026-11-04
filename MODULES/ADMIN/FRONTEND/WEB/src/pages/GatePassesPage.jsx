@@ -22,6 +22,13 @@ import {
   ChevronRight,
   Shield,
   Building2,
+  Sparkles,
+  LayoutGrid,
+  List,
+  Printer,
+  Radio,
+  CheckCheck,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   PageHeader,
@@ -39,18 +46,31 @@ export default function AdminGatePassesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Display Mode: Cards vs Table
+  const [displayMode, setDisplayMode] = useState(() => {
+    return localStorage.getItem('hms_gate_passes_view_mode') || 'cards';
+  });
+
+  const handleSetDisplayMode = (mode) => {
+    setDisplayMode(mode);
+    localStorage.setItem('hms_gate_passes_view_mode', mode);
+  };
+
   // Master Data State
   const [approvedClearances, setApprovedClearances] = useState([]);
   const [gates, setGates] = useState([]);
   const [students, setStudents] = useState([]);
+  const [hostels, setHostels] = useState([]);
 
   // UI & Loading States
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [successBanner, setSuccessBanner] = useState(null);
 
   // Search & Filters
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
   const [gateFilter, setGateFilter] = useState('ALL');
 
   // Dossier Modal
@@ -64,6 +84,13 @@ export default function AdminGatePassesPage() {
     return map;
   }, [students]);
 
+  // Quick lookup dictionary for hostels
+  const hostelMap = useMemo(() => {
+    const map = new Map();
+    hostels.forEach((h) => map.set(h.id, h));
+    return map;
+  }, [hostels]);
+
   // =========================================================================
   // Master Data Fetching
   // =========================================================================
@@ -73,16 +100,17 @@ export default function AdminGatePassesPage() {
     setErrorMessage(null);
 
     try {
-      const [leavesRes, gatesRes, studentsRes] = await Promise.allSettled([
+      const [leavesRes, gatesRes, studentsRes, hostelsRes] = await Promise.allSettled([
         adminService.getLeaveRequests({ status: 'APPROVED' }),
         adminService.getGates(),
         adminService.getStudents(),
+        adminService.getHostels(),
       ]);
 
       if (leavesRes.status === 'fulfilled') {
         const raw = leavesRes.value;
         const allLeaves = Array.isArray(raw) ? raw : raw?.leaves || raw?.requests || [];
-        // Only keep approved or currently active clearances
+        // Only keep approved clearances
         setApprovedClearances(allLeaves.filter((l) => l.status === 'APPROVED'));
       } else {
         console.warn('Failed to load approved clearances:', leavesRes.reason);
@@ -97,6 +125,11 @@ export default function AdminGatePassesPage() {
         const rawS = studentsRes.value;
         setStudents(Array.isArray(rawS) ? rawS : rawS?.students || []);
       }
+
+      if (hostelsRes.status === 'fulfilled') {
+        const rawH = hostelsRes.value;
+        setHostels(Array.isArray(rawH) ? rawH : rawH?.hostels || []);
+      }
     } catch (err) {
       console.error('Failed to load clearance data:', err);
       setErrorMessage('Failed to load gate clearance records.');
@@ -110,6 +143,14 @@ export default function AdminGatePassesPage() {
     loadClearanceData();
   }, [loadClearanceData]);
 
+  // Toast banner auto-dismiss
+  useEffect(() => {
+    if (successBanner) {
+      const timer = setTimeout(() => setSuccessBanner(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successBanner]);
+
   // =========================================================================
   // Filtering & Search
   // =========================================================================
@@ -121,6 +162,7 @@ export default function AdminGatePassesPage() {
         : '';
       const regNo = student?.registration_number || student?.admission_number || '';
       const dest = clearance.destination || '';
+      const token = `GP-${(clearance.id || '').slice(0, 6).toUpperCase()}`;
       const term = searchTerm.toLowerCase().trim();
 
       const matchesSearch =
@@ -128,11 +170,23 @@ export default function AdminGatePassesPage() {
         studentName.toLowerCase().includes(term) ||
         regNo.toLowerCase().includes(term) ||
         dest.toLowerCase().includes(term) ||
+        token.toLowerCase().includes(term) ||
         (clearance.id && clearance.id.toLowerCase().includes(term));
 
-      return matchesSearch;
+      const matchesType =
+        typeFilter === 'ALL' ||
+        String(clearance.leave_type || '').toUpperCase() === typeFilter.toUpperCase();
+
+      return matchesSearch && matchesType;
     });
-  }, [approvedClearances, studentMap, searchTerm]);
+  }, [approvedClearances, studentMap, searchTerm, typeFilter]);
+
+  const hasActiveFilters = searchTerm !== '' || typeFilter !== 'ALL';
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setTypeFilter('ALL');
+  };
 
   // Open Dossier
   const handleOpenDossier = (clearance) => {
@@ -140,58 +194,119 @@ export default function AdminGatePassesPage() {
     setDossierOpen(true);
   };
 
+  // Helper for Leave Type Badges
+  const getLeaveTypeBadge = (type) => {
+    switch (type) {
+      case 'DAY_LEAVE':
+        return <span className="badge-enterprise badge-blue">Day Outpass</span>;
+      case 'OVERNIGHT':
+        return <span className="badge-enterprise badge-purple">Overnight</span>;
+      case 'WEEKEND':
+        return <span className="badge-enterprise badge-teal">Weekend</span>;
+      case 'EMERGENCY':
+        return <span className="badge-enterprise badge-rose">Emergency</span>;
+      case 'MEDICAL':
+        return <span className="badge-enterprise badge-amber">Medical</span>;
+      default:
+        return <span className="badge-enterprise badge-emerald">{type || 'OUTPASS'}</span>;
+    }
+  };
+
+  // Helper for Duration Calculation
+  const getDurationText = (from, to) => {
+    if (!from || !to) return null;
+    const diff = new Date(to) - new Date(from);
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (days <= 1) return '1 Day';
+    return `${days} Days`;
+  };
+
   return (
-    <div className="enterprise-module-page">
-      {/* Header Bar */}
-      <div className="enterprise-page-header">
-        <div className="header-text-group">
-          <div className="header-title-row">
-            <div className="header-icon-badge">
-              <Ticket size={22} />
-            </div>
-            <div>
-              <h1 className="header-title">Gate Pass & Departure Clearances</h1>
-              <p className="header-subtitle">
-                Approved resident outpasses, perimeter exit authorization, and security clearance checks.
-              </p>
-            </div>
+    <div className="fade-in-up">
+      {/* Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <Ticket size={13} className="hero-category-icon" />
+            <span>Operations &amp; Movement</span>
           </div>
+          <h1 className="hero-main-title">Gate Clearance & Exit Passes</h1>
+          <p className="hero-subtitle">
+            Approved resident departures, perimeter gate clearance verification, active student outpass inspection, and digital token audit.
+          </p>
         </div>
 
-        <div className="header-actions-group">
+        <div className="hero-action-buttons">
           <button
             type="button"
-            className="action-btn-secondary"
+            className="btn-enterprise-secondary"
             onClick={() => loadClearanceData(true)}
             disabled={isRefreshing || loading}
             title="Refresh Gate Clearances"
           >
             <RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <span>Sync Passes</span>
           </button>
         </div>
       </div>
 
-      {/* Architecture Honesty Banner */}
-      <div
-        style={{
-          background: '#eff6ff',
-          border: '1px solid #bfdbfe',
-          borderRadius: '10px',
-          padding: '14px 18px',
-          marginBottom: '24px',
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'flex-start',
-        }}
-      >
-        <Info size={18} style={{ color: '#2563eb', flexShrink: 0, marginTop: '2px' }} />
-        <div style={{ fontSize: '13px', color: '#1e40af', lineHeight: 1.5 }}>
-          <strong>Gate Clearance Protocol:</strong> Formal campus gate passes are governed authoritatively
-          by <strong>Approved Student Leave Applications</strong> (<code>GET /college/leaves?status=APPROVED</code>).
-          Security personnel at campus checkpoints verify these real-time authorized clearances before logging
-          student departure. The standalone QR token schema (<code>app.gate_passes</code>) will automatically link
-          here once the backend router exposes it.
+      {/* Success Notification Banner */}
+      {successBanner && (
+        <div
+          style={{
+            background: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <CheckCircle2 size={16} style={{ color: '#059669', flexShrink: 0 }} />
+          <span>{successBanner}</span>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {errorMessage && (
+        <div
+          style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <AlertTriangle size={16} style={{ color: '#dc2626', flexShrink: 0 }} />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Modern Clearance Protocol Notice Banner */}
+      <div className="clearance-protocol-banner">
+        <div className="clearance-banner-icon">
+          <Radio size={20} />
+        </div>
+        <div className="clearance-banner-content">
+          <div className="clearance-banner-title">
+            <span className="clearance-banner-pulse" />
+            <span>Gate Clearance Protocol & Live Exit Authorization</span>
+          </div>
+          <p className="clearance-banner-text">
+            Formal campus gate passes are governed authoritatively by <strong>Approved Student Leave Applications</strong>. Checkpoint security officers inspect real-time digital pass tokens and verify resident identity against active student records prior to logging perimeter departures.
+          </p>
         </div>
       </div>
 
@@ -207,7 +322,7 @@ export default function AdminGatePassesPage() {
           <div className="stat-kpi-value text-emerald-600">{approvedClearances.length}</div>
           <div className="stat-kpi-footnote">
             <span className="status-dot green" />
-            <span>Authorized for campus departure</span>
+            <span>Authorized for departure</span>
           </div>
         </div>
 
@@ -228,32 +343,33 @@ export default function AdminGatePassesPage() {
 
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Guard Clearance Mode</span>
+            <span className="stat-kpi-label">Clearance Verification</span>
             <div className="stat-kpi-icon-wrap purple">
               <ShieldCheck size={17} />
             </div>
           </div>
-          <div className="stat-kpi-value text-purple-600">ACTIVE</div>
+          <div className="stat-kpi-value text-purple-600">BIOMETRIC</div>
           <div className="stat-kpi-footnote">
-            <span>Biometric & ID Roll Verification</span>
+            <span>ID roll & photo check</span>
           </div>
         </div>
 
         <div className="stat-kpi-card">
           <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Emergency Protocol</span>
+            <span className="stat-kpi-label">Curfew Protocol</span>
             <div className="stat-kpi-icon-wrap orange">
               <Clock size={17} />
             </div>
           </div>
-          <div className="stat-kpi-value text-orange-600">STANDBY</div>
+          <div className="stat-kpi-value text-orange-600">22:00 ROLL</div>
           <div className="stat-kpi-footnote">
-            <span>Parent contact linkage verified</span>
+            <span className="status-dot orange" />
+            <span>Strict late log enforcement</span>
           </div>
         </div>
       </div>
 
-      {/* Main Table Card */}
+      {/* Main Clearances Section */}
       <div className="enterprise-card">
         <div className="card-topbar">
           <div className="card-title-group">
@@ -262,9 +378,34 @@ export default function AdminGatePassesPage() {
             </div>
             <h2 className="card-title-text">Authorized Gate Departure Registry</h2>
           </div>
-          <span className="badge-enterprise badge-emerald">
-            {filteredClearances.length} of {approvedClearances.length} Clearances Active
-          </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span className="badge-enterprise badge-emerald">
+              {filteredClearances.length} of {approvedClearances.length} Clearances Active
+            </span>
+
+            {/* View Mode Switcher */}
+            <div className="view-toggle-group">
+              <button
+                type="button"
+                className={`view-toggle-btn ${displayMode === 'cards' ? 'active' : ''}`}
+                onClick={() => handleSetDisplayMode('cards')}
+                title="Card Grid View"
+              >
+                <LayoutGrid size={15} />
+                <span>Cards</span>
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${displayMode === 'table' ? 'active' : ''}`}
+                onClick={() => handleSetDisplayMode('table')}
+                title="Table View"
+              >
+                <List size={15} />
+                <span>Table</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Filter Toolbar */}
@@ -274,58 +415,259 @@ export default function AdminGatePassesPage() {
             <input
               type="text"
               className="filter-search-input"
-              placeholder="Search by student name, registration number, destination..."
+              placeholder="Search by student name, registration number, destination, token..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
+
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              className="filter-select"
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+            >
+              <option value="ALL">All Outpass Types</option>
+              <option value="DAY_LEAVE">Day Outpass</option>
+              <option value="OVERNIGHT">Overnight</option>
+              <option value="WEEKEND">Weekend</option>
+              <option value="EMERGENCY">Emergency</option>
+              <option value="MEDICAL">Medical</option>
+            </select>
+
+            {hasActiveFilters && (
+              <button
+                type="button"
+                className="btn-enterprise-secondary"
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                onClick={handleResetFilters}
+              >
+                Reset
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Clearances Table */}
-        <div className="enterprise-table-container">
-          <table className="enterprise-table">
-            <thead>
-              <tr>
-                <th>Resident Student</th>
-                <th>Clearance Type</th>
-                <th>Authorized Period</th>
-                <th>Destination</th>
-                <th>Emergency Contact</th>
-                <th>Verification State</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {/* Loading State */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <LoadingState message="Loading gate clearance records from backend..." />
+          </div>
+        ) : filteredClearances.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '48px 0' }}>
+            <EmptyState
+              icon={Ticket}
+              title="No active gate clearances found"
+              description={
+                hasActiveFilters
+                  ? 'No approved student leaves match your search criteria.'
+                  : 'There are currently no approved student leaves awaiting departure at campus gates.'
+              }
+            />
+          </div>
+        ) : displayMode === 'cards' ? (
+          /* ========================================================================= */
+          /* CARDS VIEW MODE                                                           */
+          /* ========================================================================= */
+          <div style={{ padding: '18px 20px' }}>
+            <div className="clearances-grid-cards">
+              {filteredClearances.map((clearance) => {
+                const student = studentMap.get(clearance.student_id);
+                const studentName = student
+                  ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
+                  : 'Resident Student';
+                const initials = student
+                  ? `${student.first_name?.[0] || 'S'}${student.last_name?.[0] || 'R'}`.toUpperCase()
+                  : 'ST';
+                const regNo =
+                  student?.registration_number ||
+                  student?.admission_number ||
+                  (clearance.student_id ? clearance.student_id.slice(0, 8) + '...' : 'N/A');
+                const hostel = student?.hostel_id ? hostelMap.get(student.hostel_id) : null;
+                const hostelName = hostel?.name || 'Resident Hostel';
+                const token = `GP-${(clearance.id || '').slice(0, 6).toUpperCase()}`;
+
+                const fromDate = clearance.from_date
+                  ? new Date(clearance.from_date).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                  : '—';
+                const toDate = clearance.to_date
+                  ? new Date(clearance.to_date).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  : '—';
+                const duration = getDurationText(clearance.from_date, clearance.to_date);
+
+                return (
+                  <div key={clearance.id} className="clearance-card-v2">
+                    {/* Card Top Strip */}
+                    <div className="clearance-card-top">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                        <div className="clearance-avatar-box">{initials}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <h3 className="clearance-name-title" title={studentName}>
+                            {studentName}
+                          </h3>
+                          <div className="clearance-code-sub">
+                            <code
+                              style={{
+                                background: '#f1f5f9',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontWeight: 700,
+                                fontSize: '11px',
+                                color: '#0f172a',
+                              }}
+                            >
+                              {regNo}
+                            </code>
+                            <span>•</span>
+                            {getLeaveTypeBadge(clearance.leave_type)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="badge-enterprise badge-emerald">
+                          <CheckCircle2 size={11} style={{ marginRight: '3px' }} />
+                          AUTHORIZED
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card Body Info Stack */}
+                    <div className="clearance-card-body">
+                      <div className="clearance-info-stack">
+                        {/* Period & Duration */}
+                        <div className="clearance-info-row">
+                          <Calendar size={13} style={{ color: '#059669', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Window:</span>
+                          <span style={{ color: '#0f172a', fontWeight: 600 }}>
+                            {fromDate} &rarr; {toDate}
+                          </span>
+                          {duration && (
+                            <span
+                              style={{
+                                marginLeft: 'auto',
+                                background: '#e0f2fe',
+                                color: '#0369a1',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {duration}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Destination */}
+                        <div className="clearance-info-row" title={clearance.destination || 'Home Address'}>
+                          <MapPin size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Destination:</span>
+                          <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {clearance.destination || 'Home Address'}
+                          </span>
+                        </div>
+
+                        {/* Facility */}
+                        <div className="clearance-info-row">
+                          <Building2 size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Hostel:</span>
+                          <span style={{ color: '#475569' }}>{hostelName}</span>
+                        </div>
+
+                        {/* Emergency Contact */}
+                        <div className="clearance-info-row">
+                          <Phone size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, color: '#334155' }}>Contact:</span>
+                          <span style={{ color: '#475569' }}>
+                            {clearance.contact_phone || student?.phone || 'Campus Emergency'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pass Token & Checkpoint Pill */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '6px 10px',
+                          background: '#f8fafc',
+                          border: '1px solid #f1f5f9',
+                          borderRadius: '8px',
+                          fontSize: '11.5px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <QrCode size={14} style={{ color: '#059669' }} />
+                          <span style={{ fontWeight: 700, color: '#0f172a' }}>{token}</span>
+                        </div>
+                        <span style={{ color: '#059669', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCheck size={13} />
+                          Ready for Exit
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="clearance-card-footer">
+                      <button
+                        type="button"
+                        className="btn-enterprise-secondary"
+                        style={{ padding: '6px 12px', fontSize: '12px' }}
+                        onClick={() => handleOpenDossier(clearance)}
+                      >
+                        <Eye size={13} />
+                        <span>Dossier & Credentials</span>
+                      </button>
+
+                      <div style={{ fontSize: '11px', color: '#64748b' }}>
+                        ID Roll Matched
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          /* ========================================================================= */
+          /* TABLE VIEW MODE                                                           */
+          /* ========================================================================= */
+          <div className="enterprise-table-container">
+            <table className="enterprise-table">
+              <thead>
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <LoadingState message="Loading gate clearance records..." />
-                  </td>
+                  <th>Resident Student</th>
+                  <th>Pass Token & Type</th>
+                  <th>Authorized Period</th>
+                  <th>Destination</th>
+                  <th>Contact Phone</th>
+                  <th>Verification State</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
-              ) : filteredClearances.length === 0 ? (
-                <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '48px 0' }}>
-                    <EmptyState
-                      icon={Ticket}
-                      title="No active gate clearances found"
-                      description={
-                        searchTerm
-                          ? 'No student matches your search query.'
-                          : 'There are currently no approved student leaves awaiting departure at campus gates.'
-                      }
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filteredClearances.map((clearance) => {
+              </thead>
+              <tbody>
+                {filteredClearances.map((clearance) => {
                   const student = studentMap.get(clearance.student_id);
                   const studentName = student
                     ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
                     : 'Resident Student';
+                  const initials = student
+                    ? `${student.first_name?.[0] || 'S'}${student.last_name?.[0] || 'R'}`.toUpperCase()
+                    : 'ST';
                   const regNo =
                     student?.registration_number ||
                     student?.admission_number ||
                     (clearance.student_id ? clearance.student_id.slice(0, 8) + '...' : 'N/A');
+                  const token = `GP-${(clearance.id || '').slice(0, 6).toUpperCase()}`;
 
                   const fromDate = clearance.from_date
                     ? new Date(clearance.from_date).toLocaleDateString(undefined, {
@@ -347,38 +689,41 @@ export default function AdminGatePassesPage() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '8px',
-                              background: '#f1f5f9',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: '#475569',
-                              fontWeight: 600,
-                              fontSize: '13px',
-                              flexShrink: 0,
-                            }}
+                            className="clearance-avatar-box"
+                            style={{ width: '32px', height: '32px', fontSize: '0.8rem', borderRadius: '8px' }}
                           >
-                            <GraduationCap size={16} />
+                            {initials}
                           </div>
                           <div>
                             <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '13.5px' }}>
                               {studentName}
                             </div>
-                            <div style={{ fontSize: '12px', color: '#64748b' }}>
-                              Reg: <code style={{ fontSize: '11.5px' }}>{regNo}</code>
+                            <div style={{ fontSize: '11.5px', color: '#64748b' }}>
+                              Reg: <code style={{ fontSize: '11px' }}>{regNo}</code>
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      {/* Type */}
+                      {/* Token & Type */}
                       <td>
-                        <span className="badge-enterprise badge-emerald">
-                          {clearance.leave_type || 'OUTPASS'}
-                        </span>
+                        <div>
+                          <code
+                            style={{
+                              background: '#f1f5f9',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 700,
+                              fontSize: '11.5px',
+                              color: '#0f172a',
+                            }}
+                          >
+                            {token}
+                          </code>
+                          <div style={{ marginTop: '3px' }}>
+                            {getLeaveTypeBadge(clearance.leave_type)}
+                          </div>
+                        </div>
                       </td>
 
                       {/* Period */}
@@ -440,192 +785,158 @@ export default function AdminGatePassesPage() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* =================================================================== */}
-      {/* DRAWER: Gate Clearance Dossier                                      */}
+      {/* MODAL / DRAWER: Gate Clearance Digital Credentials                  */}
       {/* =================================================================== */}
       {dossierOpen && selectedClearance && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            justifyContent: 'flex-end',
-            background: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(2px)',
-          }}
-          onClick={() => setDossierOpen(false)}
+        <Modal
+          isOpen={dossierOpen}
+          onClose={() => setDossierOpen(false)}
+          title="Campus Gate Clearance Pass"
+          size="md"
         >
-          <div
-            style={{
-              width: '100%',
-              maxWidth: '460px',
-              height: '100%',
-              background: '#ffffff',
-              boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.15)',
-              padding: '28px',
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                paddingBottom: '16px',
-                borderBottom: '1px solid #f1f5f9',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Ticket size={20} style={{ color: '#2563eb' }} />
-                <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: '#0f172a' }}>
-                  Gate Clearance Credentials
-                </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            {/* Boarding-Pass Style Digital Ticket */}
+            <div className="digital-pass-ticket">
+              <div className="ticket-header-strip">
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    HMS Digital Gate Clearance Pass
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', marginTop: '2px' }}>
+                    GP-{(selectedClearance.id || '').slice(0, 6).toUpperCase()}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span className="badge-enterprise badge-emerald">
+                    <CheckCircle2 size={12} style={{ marginRight: '4px' }} />
+                    CLEARED FOR EXIT
+                  </span>
+                </div>
               </div>
-              <button
-                type="button"
-                className="table-icon-btn"
-                onClick={() => setDossierOpen(false)}
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            {/* Resident Card */}
-            <div
-              style={{
-                background: '#f8fafc',
-                border: '1px solid #e2e8f0',
-                borderRadius: '10px',
-                padding: '16px',
-              }}
-            >
-              <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>
-                Resident Profile
+              {/* Student Profile Info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '16px' }}>
+                <div
+                  className="clearance-avatar-box"
+                  style={{ width: '48px', height: '48px', fontSize: '1.1rem' }}
+                >
+                  {(studentMap.get(selectedClearance.student_id)?.first_name?.[0] || 'S') +
+                    (studentMap.get(selectedClearance.student_id)?.last_name?.[0] || 'T')}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+                    {studentMap.get(selectedClearance.student_id)?.first_name || 'Resident'}{' '}
+                    {studentMap.get(selectedClearance.student_id)?.last_name || ''}
+                  </h3>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '3px', fontSize: '12px', color: '#64748b' }}>
+                    <span>
+                      Reg:{' '}
+                      <code style={{ fontWeight: 700, color: '#0f172a' }}>
+                        {studentMap.get(selectedClearance.student_id)?.registration_number ||
+                          studentMap.get(selectedClearance.student_id)?.admission_number ||
+                          'N/A'}
+                      </code>
+                    </span>
+                    <span>•</span>
+                    {getLeaveTypeBadge(selectedClearance.leave_type)}
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
-                {studentMap.get(selectedClearance.student_id)?.first_name || 'Resident'}{' '}
-                {studentMap.get(selectedClearance.student_id)?.last_name || ''}
-              </div>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                Reg Number:{' '}
-                <code style={{ color: '#0f172a' }}>
-                  {studentMap.get(selectedClearance.student_id)?.registration_number ||
-                    studentMap.get(selectedClearance.student_id)?.admission_number ||
-                    'N/A'}
-                </code>
-              </div>
-              <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>
-                Phone: {selectedClearance.contact_phone || studentMap.get(selectedClearance.student_id)?.phone || 'N/A'}
-              </div>
-            </div>
 
-            {/* Security Clearance Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Travel Details Grid */}
               <div
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                }}
-              >
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Security Clearance</span>
-                <span className="badge-enterprise badge-emerald">VERIFIED & APPROVED</span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                }}
-              >
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Outpass Category</span>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-                  {selectedClearance.leave_type}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                }}
-              >
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Departure Schedule</span>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-                  {new Date(selectedClearance.from_date).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                }}
-              >
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Expected Return</span>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-                  {new Date(selectedClearance.to_date).toLocaleDateString()}
-                </span>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid #f1f5f9',
-                }}
-              >
-                <span style={{ fontSize: '13px', color: '#64748b' }}>Travel Destination</span>
-                <span style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a' }}>
-                  {selectedClearance.destination || 'Home Address'}
-                </span>
-              </div>
-            </div>
-
-            {/* Purpose */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
-                Declared Reason
-              </div>
-              <div
-                style={{
-                  background: '#f8fafc',
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '12px',
+                  background: '#ffffff',
                   border: '1px solid #e2e8f0',
-                  borderRadius: '6px',
+                  borderRadius: '10px',
                   padding: '12px',
-                  fontSize: '13px',
-                  color: '#334155',
-                  lineHeight: 1.5,
+                  fontSize: '12.5px',
                 }}
               >
-                {selectedClearance.reason || 'Personal visit.'}
+                <div>
+                  <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>DEPARTURE DATE</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                    {new Date(selectedClearance.from_date).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>EXPECTED RETURN</div>
+                  <div style={{ fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
+                    {new Date(selectedClearance.to_date).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>DESTINATION</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
+                    {selectedClearance.destination || 'Home Address'}
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 600 }}>EMERGENCY CONTACT</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a', marginTop: '2px' }}>
+                    {selectedClearance.contact_phone ||
+                      studentMap.get(selectedClearance.student_id)?.phone ||
+                      'Campus Extension'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Reason Snippet */}
+              <div style={{ marginTop: '14px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', marginBottom: '4px' }}>
+                  DECLARED REASON
+                </div>
+                <div
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    color: '#334155',
+                  }}
+                >
+                  {selectedClearance.reason || 'Personal visit.'}
+                </div>
+              </div>
+
+              {/* Simulated Barcode / QR Box */}
+              <div className="ticket-barcode-box">
+                <QrCode size={38} style={{ color: '#0f172a' }} />
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', letterSpacing: '0.1em' }}>
+                  SCAN AT PERIMETER GATE BARRIER
+                </span>
               </div>
             </div>
 
+            {/* Checkpoint Instructions */}
             <div
               style={{
-                marginTop: 'auto',
-                padding: '14px',
+                padding: '12px 14px',
                 background: '#ecfdf5',
                 border: '1px solid #a7f3d0',
                 borderRadius: '8px',
@@ -634,11 +945,39 @@ export default function AdminGatePassesPage() {
                 lineHeight: 1.4,
               }}
             >
-              <strong>Security Protocol Notice:</strong> Match resident photo ID and student card registration
-              number before issuing gate exit timestamp.
+              <strong>Security Guard Protocol:</strong> Verify student photo ID and ensure registration number matches institutional record before allowing perimeter egress.
+            </div>
+
+            {/* Modal Actions */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: '16px',
+                borderTop: '1px solid #f1f5f9',
+              }}
+            >
+              <button
+                type="button"
+                className="btn-enterprise-secondary"
+                onClick={() => window.print()}
+                title="Print Gate Pass Voucher"
+              >
+                <Printer size={14} />
+                <span>Print Voucher</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn-enterprise-primary"
+                onClick={() => setDossierOpen(false)}
+              >
+                Close Dossier
+              </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

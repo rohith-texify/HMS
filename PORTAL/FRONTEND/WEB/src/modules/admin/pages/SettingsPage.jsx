@@ -20,10 +20,12 @@ import {
   FileCode,
   Tag,
   Key,
+  Search,
+  Check,
+  Copy,
+  X,
 } from 'lucide-react';
 import {
-  PageHeader,
-  DataTable,
   LoadingState,
   EmptyState,
 } from '../../../shared/components';
@@ -37,6 +39,8 @@ export default function AdminSettingsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState(null);
   const [activeTab, setActiveTab] = useState('PROFILE'); // 'PROFILE' | 'MODULES' | 'BRANDING' | 'PREFERENCES'
+  const [copiedUUID, setCopiedUUID] = useState(false);
+  const [moduleSearch, setModuleSearch] = useState('');
 
   // Load College Bootstrap Data (Tenant Metadata, Modules, Settings)
   const loadSettingsData = useCallback(async () => {
@@ -63,112 +67,87 @@ export default function AdminSettingsPage() {
   const modules = bootstrapConfig?.enabled_modules || [];
   const safeSettings = bootstrapConfig?.settings || {};
 
-  // Columns for Enabled Modules Table
-  const moduleColumns = [
-    {
-      key: 'module_name',
-      title: 'Module Name',
-      render: (row) => (
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-indigo-500" />
-          <span className="font-semibold text-slate-900 dark:text-slate-100">
-            {row.module_name || row.module_code}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'module_code',
-      title: 'Module Code',
-      render: (row) => (
-        <span className="font-mono text-xs text-slate-500 uppercase bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-          {row.module_code}
-        </span>
-      ),
-    },
-    {
-      key: 'kind',
-      title: 'Category',
-      render: (row) => (
-        <span className="text-xs text-slate-600 dark:text-slate-400 font-medium">
-          {row.kind || 'APP'}
-        </span>
-      ),
-    },
-    {
-      key: 'mode',
-      title: 'Operational Mode',
-      render: (row) => (
-        <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-          {row.mode || 'STANDARD'}
-        </span>
-      ),
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      render: (row) => (
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${
-            row.status === 'ACTIVE'
-              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-          }`}
-        >
-          <CheckCircle2 className="w-3 h-3" />
-          {row.status || 'ACTIVE'}
-        </span>
-      ),
-    },
-    {
-      key: 'effective_from',
-      title: 'Effective Since',
-      render: (row) => (
-        <span className="text-xs text-slate-500">
-          {row.effective_from ? new Date(row.effective_from).toLocaleDateString() : '—'}
-        </span>
-      ),
-    },
-  ];
+  const handleCopyUUID = (uuid) => {
+    if (!uuid) return;
+    navigator.clipboard.writeText(uuid);
+    setCopiedUUID(true);
+    setTimeout(() => setCopiedUUID(false), 3000);
+  };
+
+  const filteredModules = useMemo(() => {
+    if (!moduleSearch.trim()) return modules;
+    const q = moduleSearch.toLowerCase();
+    return modules.filter((m) =>
+      (m.module_name && m.module_name.toLowerCase().includes(q)) ||
+      (m.module_code && m.module_code.toLowerCase().includes(q)) ||
+      (m.kind && m.kind.toLowerCase().includes(q))
+    );
+  }, [modules, moduleSearch]);
 
   if (loading && !bootstrapConfig) {
-    return <LoadingState message="Resolving college administrative configuration..." />;
+    return (
+      <div className="fade-in-up" style={{ padding: '32px' }}>
+        <LoadingState message="Resolving college administrative configuration..." />
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Page Header */}
-      <PageHeader
-        title="Institution Settings & College Branding"
-        subtitle="Manage college tenant identity, licensed platform modules, regional timezone, and visual branding."
-        icon={Sliders}
-        actions={
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setIsRefreshing(true);
-                loadSettingsData();
-              }}
-              disabled={isRefreshing}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-750 transition"
-            >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
+    <div className="fade-in-up">
+      {/* Enterprise Hero Header */}
+      <div className="enterprise-hero-header">
+        <div className="hero-header-titles">
+          <div className="hero-category-pill">
+            <Sliders size={13} />
+            <span>Administration &amp; Governance</span>
           </div>
-        }
-      />
+          <h1 className="hero-main-title">Institution Settings &amp; College Branding</h1>
+          <p className="hero-subtitle">
+            Manage college tenant identity, licensed platform modules, regional timezone, and visual branding.
+          </p>
+        </div>
+
+        <div className="hero-action-buttons">
+          <button
+            type="button"
+            onClick={() => {
+              setIsRefreshing(true);
+              loadSettingsData();
+            }}
+            disabled={isRefreshing}
+            className="btn-enterprise-secondary"
+          >
+            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Data'}</span>
+          </button>
+        </div>
+      </div>
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-center justify-between text-rose-800 dark:bg-rose-950 dark:border-rose-800 dark:text-rose-200">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-            <span className="text-sm font-medium">{errorMessage}</span>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            color: '#991b1b',
+            padding: '12px 18px',
+            borderRadius: '10px',
+            marginBottom: '20px',
+            fontSize: '13.5px',
+            fontWeight: 500,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertTriangle size={16} style={{ color: '#ef4444' }} />
+            <span>{errorMessage}</span>
           </div>
           <button
+            type="button"
             onClick={() => setErrorMessage(null)}
-            className="text-xs font-semibold uppercase hover:underline ml-4"
+            style={{ background: 'none', border: 'none', color: '#b91c1c', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
           >
             Dismiss
           </button>
@@ -176,284 +155,437 @@ export default function AdminSettingsPage() {
       )}
 
       {/* Top Level Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-lg">
-            <Building2 className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-slate-900 dark:text-white truncate max-w-[180px]">
-              {tenant.name || 'Institution'}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-              Code: {tenant.college_code || '—'}
+      <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Institution Identity</span>
+            <div className="stat-kpi-icon-wrap blue">
+              <Building2 size={17} />
             </div>
           </div>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-lg">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="text-lg font-bold text-slate-900 dark:text-white">
-              {tenant.status || 'ACTIVE'}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Institution Tenant Status
-            </div>
+          <div className="stat-kpi-value text-blue-600">{tenant.college_code || 'ACET'}</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot green" />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {tenant.name || 'Institution Campus'}
+            </span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 rounded-lg">
-            <Globe className="w-6 h-6" />
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Tenant Status</span>
+            <div className="stat-kpi-icon-wrap emerald">
+              <ShieldCheck size={17} />
+            </div>
           </div>
-          <div>
-            <div className="text-lg font-bold text-slate-900 dark:text-white">
-              {tenant.timezone || 'Asia/Kolkata'}
-            </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Evaluated Timezone
-            </div>
+          <div className="stat-kpi-value text-emerald-600">{tenant.status || 'ACTIVE'}</div>
+          <div className="stat-kpi-footnote">
+            <span className="status-dot green" />
+            <span>Multi-tenant partition active</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-4 rounded-xl flex items-center gap-4">
-          <div className="p-3 bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400 rounded-lg">
-            <Layers className="w-6 h-6" />
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Evaluated Timezone</span>
+            <div className="stat-kpi-icon-wrap amber">
+              <Globe size={17} />
+            </div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-slate-900 dark:text-white">
-              {modules.length}
+          <div className="stat-kpi-value text-amber-600">
+            {tenant.timezone ? 'IST' : 'Asia/Kolkata'}
+          </div>
+          <div className="stat-kpi-footnote">
+            <span>{tenant.timezone || 'Asia/Kolkata (UTC+05:30)'}</span>
+          </div>
+        </div>
+
+        <div className="stat-kpi-card">
+          <div className="stat-kpi-header">
+            <span className="stat-kpi-label">Licensed Modules</span>
+            <div className="stat-kpi-icon-wrap purple">
+              <Layers size={17} />
             </div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Licensed Modules
-            </div>
+          </div>
+          <div className="stat-kpi-value text-purple-600">{modules.length}</div>
+          <div className="stat-kpi-footnote">
+            <span>Authorized enterprise capabilities</span>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 dark:border-slate-700 gap-4">
+      {/* Main Tabs Navigation */}
+      <div className="staff-tabs-container" style={{ marginBottom: '20px' }}>
         <button
+          type="button"
           onClick={() => setActiveTab('PROFILE')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
-            activeTab === 'PROFILE'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900'
-          }`}
+          className={`staff-tab-pill ${activeTab === 'PROFILE' ? 'active' : ''}`}
         >
-          <Building2 className="w-4 h-4" />
-          Institution Profile
+          <Building2 size={15} />
+          <span>Institution Profile</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('MODULES')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
-            activeTab === 'MODULES'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900'
-          }`}
+          className={`staff-tab-pill ${activeTab === 'MODULES' ? 'active' : ''}`}
         >
-          <Layers className="w-4 h-4" />
-          Licensed Modules
-          <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300">
-            {modules.length}
-          </span>
+          <Layers size={15} />
+          <span>Licensed Modules</span>
+          <span className="staff-tab-counter">{modules.length}</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('BRANDING')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
-            activeTab === 'BRANDING'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900'
-          }`}
+          className={`staff-tab-pill ${activeTab === 'BRANDING' ? 'active' : ''}`}
         >
-          <Palette className="w-4 h-4" />
-          College Branding & Identity
+          <Palette size={15} />
+          <span>College Branding &amp; Identity</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab('PREFERENCES')}
-          className={`pb-3 text-sm font-semibold flex items-center gap-2 border-b-2 transition ${
-            activeTab === 'PREFERENCES'
-              ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900'
-          }`}
+          className={`staff-tab-pill ${activeTab === 'PREFERENCES' ? 'active' : ''}`}
         >
-          <Sliders className="w-4 h-4" />
-          Operational Preferences
+          <Sliders size={15} />
+          <span>Operational Preferences</span>
         </button>
       </div>
 
-      {/* TAB 1: INSTITUTION PROFILE */}
+      {/* ===================================================================== */}
+      {/* TAB 1: INSTITUTION PROFILE                                            */}
+      {/* ===================================================================== */}
       {activeTab === 'PROFILE' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-700">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                Institutional Tenant Metadata
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Authoritative institution registration details evaluated from the platform tier.
-              </p>
+        <div className="enterprise-card" style={{ padding: '24px' }}>
+          <div className="card-topbar">
+            <div className="card-title-group">
+              <div className="card-title-icon-wrap">
+                <Building2 size={16} />
+              </div>
+              <div>
+                <h2 className="card-title-text" style={{ margin: 0 }}>Institutional Tenant Metadata</h2>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                  Authoritative institution registration details evaluated from the platform tier.
+                </p>
+              </div>
             </div>
-            <span className="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Verified Tenant
+            <span className="badge-enterprise badge-green">
+              <CheckCircle2 size={12} />
+              <span>Verified Active Tenant</span>
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', marginBottom: '24px' }}>
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '0.74rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
                 College / Institution Name
-              </label>
-              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 p-3 bg-slate-50 dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-700">
+              </div>
+              <div style={{ fontSize: '0.98rem', fontWeight: 700, color: '#0f172a' }}>
                 {tenant.name || 'Aditya College of Engineering & Technology'}
               </div>
+              <div style={{ fontSize: '0.74rem', color: '#059669', marginTop: '4px', fontWeight: 600 }}>
+                Autonomous Higher Education Institution
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '0.74rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
                 Institutional Identifier Code
-              </label>
-              <div className="text-sm font-mono font-semibold text-slate-900 dark:text-slate-100 p-3 bg-slate-50 dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-700">
+              </div>
+              <div style={{ fontSize: '0.98rem', fontWeight: 700, fontFamily: 'monospace', color: '#2563eb' }}>
                 {tenant.college_code || 'ACET'}
               </div>
+              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
+                Unique prefix across system namespaces
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Tenant Database UUID
-              </label>
-              <div className="text-xs font-mono text-slate-600 dark:text-slate-400 p-3 bg-slate-50 dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-700 truncate">
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>
+                  Tenant Database Partition UUID
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyUUID(tenant.college_id || user?.college_id)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.72rem',
+                    color: copiedUUID ? '#059669' : '#2563eb',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  {copiedUUID ? <Check size={12} /> : <Copy size={12} />}
+                  <span>{copiedUUID ? 'Copied!' : 'Copy'}</span>
+                </button>
+              </div>
+              <div style={{ fontSize: '0.84rem', fontFamily: 'monospace', color: '#334155', wordBreak: 'break-all' }}>
                 {tenant.college_id || user?.college_id || '—'}
               </div>
+              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
+                Postgres RLS tenant schema boundary
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Official Timezone
-              </label>
-              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100 p-3 bg-slate-50 dark:bg-slate-850 rounded-lg border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-indigo-500" />
+            <div style={{ background: '#f8fafc', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ fontSize: '0.74rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', marginBottom: '6px' }}>
+                Official Regional Timezone
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.98rem', fontWeight: 700, color: '#0f172a' }}>
+                <Clock size={16} style={{ color: '#6366f1' }} />
                 <span>{tenant.timezone || 'Asia/Kolkata (IST +05:30)'}</span>
               </div>
+              <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '4px' }}>
+                Enforced for all curfew and gate logs
+              </div>
             </div>
           </div>
 
-          {/* Governance Notice */}
-          <div className="p-4 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 rounded-xl flex items-start gap-3 text-amber-900 dark:text-amber-200">
-            <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-xs leading-relaxed text-amber-800 dark:text-amber-300">
-              <span className="font-semibold text-amber-900 dark:text-amber-100">
-                Compliance Policy:{' '}
-              </span>
-              Under institutional security compliance regulations, core organizational identifiers
-              (College Code, Legal Name, and Database Partition) are managed through the Platform
-              Super Administrator registry to ensure tamper-evident tenancy isolation.
+          {/* Governance Notice Banner */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '14px',
+              padding: '16px 18px',
+              borderRadius: '10px',
+              background: '#fffbeb',
+              border: '1px solid #fde68a',
+            }}
+          >
+            <Lock size={18} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontSize: '0.8rem', color: '#92400e', lineHeight: 1.5 }}>
+              <strong style={{ color: '#78350f' }}>Institutional Compliance Policy: </strong>
+              Under institutional security compliance regulations, core organizational identifiers (College Code, Legal Name, and Database Partition)
+              are managed through the Platform Super Administrator registry to ensure tamper-evident tenancy isolation.
             </div>
           </div>
         </div>
       )}
 
-      {/* TAB 2: LICENSED MODULES */}
+      {/* ===================================================================== */}
+      {/* TAB 2: LICENSED MODULES                                               */}
+      {/* ===================================================================== */}
       {activeTab === 'MODULES' && (
-        <div className="space-y-4">
-          <div className="p-4 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-start gap-3">
-            <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-            <div className="text-xs text-slate-700 dark:text-slate-300">
-              <span className="font-semibold text-slate-900 dark:text-slate-100">
-                Active Entitlements:{' '}
-              </span>
-              These modules have been provisioned and authorized for this institution. Permissions and access
-              control policies are verified against these active modules at each API gateway boundary.
-            </div>
-          </div>
-
-          <DataTable
-            columns={moduleColumns}
-            data={modules}
-            emptyMessage={
-              <EmptyState
-                icon={Layers}
-                title="No Modules Retrieved"
-                message="No active module entitlements found in the bootstrap response."
-              />
-            }
-          />
-        </div>
-      )}
-
-      {/* TAB 3: COLLEGE BRANDING & IDENTITY */}
-      {activeTab === 'BRANDING' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-              Visual Identity & College Branding
-            </h3>
-            <p className="text-xs text-slate-500">
-              Assets displayed across resident mobile apps, security checkpoint interfaces, and official notices.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            {/* Logo Badge Preview Card */}
-            <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-850 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-800 text-white flex items-center justify-center shadow-md">
-                <Building2 className="w-10 h-10" />
+        <div className="enterprise-card" style={{ padding: '24px' }}>
+          <div className="card-topbar">
+            <div className="card-title-group">
+              <div className="card-title-icon-wrap">
+                <Layers size={16} />
               </div>
               <div>
-                <h4 className="font-bold text-slate-900 dark:text-slate-100 text-base">
+                <h2 className="card-title-text" style={{ margin: 0 }}>Provisioned Platform Entitlements</h2>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                  These enterprise modules have been provisioned and authorized for this institution.
+                </p>
+              </div>
+            </div>
+            <span className="badge-enterprise badge-purple">
+              {modules.length} Active Entitlements
+            </span>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="enterprise-filter-bar" style={{ marginBottom: '16px' }}>
+            <div className="filter-search-field" style={{ flex: '1 1 280px', maxWidth: '380px' }}>
+              <Search size={14} className="filter-search-icon" />
+              <input
+                type="text"
+                className="filter-search-input"
+                placeholder="Search modules by name or code..."
+                value={moduleSearch}
+                onChange={(e) => setModuleSearch(e.target.value)}
+              />
+              {moduleSearch && (
+                <button
+                  type="button"
+                  onClick={() => setModuleSearch('')}
+                  style={{ position: 'absolute', right: '8px', border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredModules.length === 0 ? (
+            <EmptyState
+              icon={Layers}
+              title="No Modules Found"
+              message="No licensed modules match your search filter."
+            />
+          ) : (
+            <div className="enterprise-table-container">
+              <table className="enterprise-table">
+                <thead>
+                  <tr>
+                    <th>Module Name</th>
+                    <th>Module Code</th>
+                    <th>Category</th>
+                    <th>Operational Mode</th>
+                    <th>Status</th>
+                    <th>Effective Since</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredModules.map((row, idx) => (
+                    <tr key={row.module_code || idx}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+                          <Layers size={14} style={{ color: '#6366f1' }} />
+                          <span>{row.module_name || row.module_code}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontFamily: 'monospace', fontSize: '0.76rem', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', color: '#475569' }}>
+                          {row.module_code}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="badge-enterprise badge-blue">
+                          {row.kind || 'APP'}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#4f46e5' }}>
+                          {row.mode || 'STANDARD'}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="badge-enterprise badge-green">
+                          <CheckCircle2 size={12} />
+                          <span>{row.status || 'ACTIVE'}</span>
+                        </span>
+                      </td>
+                      <td style={{ color: '#64748b', fontSize: '0.78rem' }}>
+                        {row.effective_from ? new Date(row.effective_from).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===================================================================== */}
+      {/* TAB 3: COLLEGE BRANDING & IDENTITY                                    */}
+      {/* ===================================================================== */}
+      {activeTab === 'BRANDING' && (
+        <div className="enterprise-card" style={{ padding: '24px' }}>
+          <div className="card-topbar">
+            <div className="card-title-group">
+              <div className="card-title-icon-wrap">
+                <Palette size={16} />
+              </div>
+              <div>
+                <h2 className="card-title-text" style={{ margin: 0 }}>Visual Identity &amp; College Branding</h2>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                  Assets displayed across resident mobile apps, security checkpoint interfaces, and official notices.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', marginBottom: '24px' }}>
+            {/* Logo Badge Preview Card */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                gap: '16px',
+              }}
+            >
+              <div
+                style={{
+                  width: '76px',
+                  height: '76px',
+                  borderRadius: '18px',
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)',
+                  color: '#ffffff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 20px rgba(37, 99, 235, 0.25)',
+                }}
+              >
+                <Building2 size={38} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
                   {tenant.name || 'Aditya College of Engineering & Technology'}
-                </h4>
-                <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400 font-semibold">
+                </h3>
+                <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: '#4f46e5', fontWeight: 600 }}>
                   Institutional Portal — {tenant.college_code || 'ACET'}
                 </span>
               </div>
-              <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                Official Crest Verified
+              <span className="badge-enterprise badge-green">
+                <CheckCircle2 size={12} />
+                <span>Official Crest Verified</span>
               </span>
             </div>
 
             {/* Portal Theme Palette Card */}
-            <div className="p-6 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-850 space-y-4">
-              <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Palette className="w-4 h-4 text-indigo-600" />
-                Active Theme & Color Palette
-              </h4>
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '12px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
+                <Palette size={16} style={{ color: '#4f46e5' }} />
+                <span>Active Theme &amp; Color Palette</span>
+              </div>
 
-              <div className="space-y-3 text-xs">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Primary Brand Accent:</span>
-                  <div className="flex items-center gap-2 font-mono font-medium">
-                    <span className="w-4 h-4 rounded bg-indigo-600 inline-block" />
-                    #4F46E5 (Indigo 600)
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Primary Brand Accent:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontWeight: 600 }}>
+                    <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: '#2563eb', display: 'inline-block' }} />
+                    <span>#2563EB (Royal Blue)</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Success Indicator:</span>
-                  <div className="flex items-center gap-2 font-mono font-medium">
-                    <span className="w-4 h-4 rounded bg-emerald-600 inline-block" />
-                    #059669 (Emerald 600)
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Success Indicator:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontWeight: 600 }}>
+                    <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: '#059669', display: 'inline-block' }} />
+                    <span>#059669 (Emerald 600)</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Warning & Urgent Flag:</span>
-                  <div className="flex items-center gap-2 font-mono font-medium">
-                    <span className="w-4 h-4 rounded bg-rose-600 inline-block" />
-                    #E11D48 (Rose 600)
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Warning &amp; Urgent Flag:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'monospace', fontWeight: 600 }}>
+                    <span style={{ width: '16px', height: '16px', borderRadius: '4px', background: '#e11d48', display: 'inline-block' }} />
+                    <span>#E11D48 (Rose 600)</span>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Interface Layout Mode:</span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: '#64748b' }}>Interface Layout Mode:</span>
+                  <span style={{ fontWeight: 600, color: '#0f172a' }}>
                     Unified Institutional Portal
                   </span>
                 </div>
@@ -461,69 +593,141 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          {/* Read-Only Notice */}
-          <div className="p-4 bg-slate-100 dark:bg-slate-750 rounded-xl text-xs text-slate-600 dark:text-slate-400 flex items-start gap-3">
-            <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-            <span>
-              Branding logos and high-resolution svg emblems are provisioned during institutional onboarding.
-              To request a logo asset refresh or color customisation, submit a platform change ticket to your Super Administrator.
-            </span>
+          {/* Read-Only Asset Notice */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '12px',
+              padding: '14px 16px',
+              borderRadius: '10px',
+              background: '#f8fafc',
+              border: '1px solid var(--border-color)',
+            }}
+          >
+            <Info size={16} style={{ color: '#64748b', flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+              Branding logos and high-resolution vector emblems are provisioned during institutional onboarding.
+              To request a logo asset refresh or theme customization, submit a platform change ticket to your Super Administrator.
+            </div>
           </div>
         </div>
       )}
 
-      {/* TAB 4: OPERATIONAL PREFERENCES */}
+      {/* ===================================================================== */}
+      {/* TAB 4: OPERATIONAL PREFERENCES                                        */}
+      {/* ===================================================================== */}
       {activeTab === 'PREFERENCES' && (
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-6">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 mb-1">
-              Campus Operating Parameters & Thresholds
-            </h3>
-            <p className="text-xs text-slate-500">
-              Non-sensitive runtime settings evaluated for daily residential operations.
-            </p>
+        <div className="enterprise-card" style={{ padding: '24px' }}>
+          <div className="card-topbar">
+            <div className="card-title-group">
+              <div className="card-title-icon-wrap">
+                <Sliders size={16} />
+              </div>
+              <div>
+                <h2 className="card-title-text" style={{ margin: 0 }}>Campus Operating Parameters &amp; Thresholds</h2>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '2px 0 0 0' }}>
+                  Non-sensitive runtime settings evaluated for daily residential operations.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               <div>
-                <div className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
                   Nightly Curfew Attendance Deadline
                 </div>
-                <div className="text-xs text-slate-500">
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
                   Standard roll-call closing time enforced at hostel entry gates.
                 </div>
               </div>
-              <span className="font-mono text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span style={{ fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: 700, color: '#2563eb', background: '#ffffff', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 {safeSettings.curfew_hour || '21:30 (09:30 PM)'}
               </span>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               <div>
-                <div className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
                   Emergency SOS Alert Propagation
                 </div>
-                <div className="text-xs text-slate-500">
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
                   Direct mobile push notification to active wardens and security personnel.
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded text-xs font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                ENABLED (24/7)
+              <span className="badge-enterprise badge-green" style={{ fontSize: '0.78rem', padding: '5px 10px' }}>
+                <CheckCircle2 size={13} />
+                <span>ENABLED (24/7)</span>
               </span>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
               <div>
-                <div className="font-semibold text-sm text-slate-900 dark:text-slate-100">
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
                   Dining Hall Mess Feedback Window
                 </div>
-                <div className="text-xs text-slate-500">
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
                   Timeframe during which resident students can rate meals after service.
                 </div>
               </div>
-              <span className="font-mono text-sm font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span style={{ fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: 700, color: '#334155', background: '#ffffff', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 120 Minutes Post-Service
+              </span>
+            </div>
+
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid var(--border-color)',
+                borderRadius: '10px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#0f172a' }}>
+                  Student Movement Checkout Grace Window
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                  Allowed buffer timeframe before automatic curfew notification triggers.
+                </div>
+              </div>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.88rem', fontWeight: 700, color: '#334155', background: '#ffffff', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                30 Minutes Grace
               </span>
             </div>
           </div>

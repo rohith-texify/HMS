@@ -28,7 +28,6 @@ const AdminParcelsPage = lazy(() => import('../../modules/admin/pages/ParcelsPag
 const AdminSOSPage = lazy(() => import('../../modules/admin/pages/SOSPage'));
 const AdminFoodPage = lazy(() => import('../../modules/admin/pages/FoodPage'));
 const AdminAnnouncementsPage = lazy(() => import('../../modules/admin/pages/AnnouncementsPage'));
-const AdminFeesPage = lazy(() => import('../../modules/admin/pages/FeesPage'));
 const AdminReportsPage = lazy(() => import('../../modules/admin/pages/ReportsPage'));
 const AdminSettingsPage = lazy(() => import('../../modules/admin/pages/SettingsPage'));
 const AdminAuditLogPage = lazy(() => import('../../modules/admin/pages/AuditLogPage'));
@@ -48,6 +47,7 @@ const InchargeDashboardPage = lazy(() => import('../../modules/hostel-incharge/p
 const InchargeRoomsPage = lazy(() => import('../../modules/hostel-incharge/pages/RoomsPage'));
 const InchargeComplaintsPage = lazy(() => import('../../modules/hostel-incharge/pages/ComplaintsPage'));
 const InchargeAttendancePage = lazy(() => import('../../modules/hostel-incharge/pages/AttendancePage'));
+const InchargeStudentsPage = lazy(() => import('../../modules/hostel-incharge/pages/StudentsPage'));
 
 // Lazy-loaded Security Pages
 const SecurityDashboardPage = lazy(() => import('../../modules/security/pages/DashboardPage'));
@@ -83,7 +83,39 @@ export default function AppRoutes() {
         {/* Root and Public Authentication Routes */}
         <Route path="/" element={<RootRoute />} />
         <Route path="/login" element={<SharedLoginPage />} />
+        <Route path="/admin/login" element={<SharedLoginPage initialPersona="COLLEGE_ADMIN" />} />
+        <Route path="/hostel-incharge/login" element={<SharedLoginPage initialPersona="HOSTEL_INCHARGE" />} />
+        <Route path="/incharge/login" element={<SharedLoginPage initialPersona="HOSTEL_INCHARGE" />} />
+        <Route path="/security/login" element={<SharedLoginPage initialPersona="SECURITY" />} />
+        <Route path="/student/login" element={<SharedLoginPage initialPersona="STUDENT" />} />
+        <Route path="/parent/login" element={<SharedLoginPage initialPersona="PARENT" />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
+        <Route path="/incharge" element={<Navigate to="/hostel-incharge/dashboard" replace />} />
+
+        {/* Top-Level Route Aliases (Direct Navigation to Admin Modules) */}
+        <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
+        <Route path="/attendance" element={<Navigate to="/admin/attendance" replace />} />
+        <Route path="/leaves" element={<Navigate to="/admin/leaves" replace />} />
+        <Route path="/movement" element={<Navigate to="/admin/movement" replace />} />
+        <Route path="/gate-passes" element={<Navigate to="/admin/gate-passes" replace />} />
+        <Route path="/complaints" element={<Navigate to="/admin/complaints" replace />} />
+        <Route path="/visitors" element={<Navigate to="/admin/visitors" replace />} />
+        <Route path="/parcels" element={<Navigate to="/admin/parcels" replace />} />
+        <Route path="/sos" element={<Navigate to="/admin/sos" replace />} />
+        <Route path="/food" element={<Navigate to="/admin/food" replace />} />
+        <Route path="/announcements" element={<Navigate to="/admin/announcements" replace />} />
+        <Route path="/staff" element={<Navigate to="/admin/staff" replace />} />
+        <Route path="/incharges" element={<Navigate to="/admin/incharges" replace />} />
+        <Route path="/security-assignments" element={<Navigate to="/admin/security-assignments" replace />} />
+        <Route path="/passwords" element={<Navigate to="/admin/passwords" replace />} />
+        <Route path="/hostels" element={<Navigate to="/admin/hostels" replace />} />
+        <Route path="/rooms" element={<Navigate to="/admin/rooms" replace />} />
+        <Route path="/allocations" element={<Navigate to="/admin/allocations" replace />} />
+        <Route path="/students" element={<Navigate to="/admin/students" replace />} />
+        <Route path="/parents" element={<Navigate to="/admin/parents" replace />} />
+        <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
+        <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
+        <Route path="/audit-logs" element={<Navigate to="/admin/audit-logs" replace />} />
 
         {/* ============================================================== */}
         {/* Module 1: College Administration (/admin/*)                   */}
@@ -117,7 +149,6 @@ export default function AppRoutes() {
           <Route path="sos" element={<AdminSOSPage />} />
           <Route path="food" element={<AdminFoodPage />} />
           <Route path="announcements" element={<AdminAnnouncementsPage />} />
-          <Route path="fees" element={<AdminFeesPage />} />
           <Route path="reports" element={<AdminReportsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
           <Route path="audit-logs" element={<AdminAuditLogPage />} />
@@ -170,6 +201,7 @@ export default function AppRoutes() {
         >
           <Route index element={<Navigate to="/hostel-incharge/dashboard" replace />} />
           <Route path="dashboard" element={<InchargeDashboardPage />} />
+          <Route path="students" element={<InchargeStudentsPage />} />
           <Route path="rooms" element={<InchargeRoomsPage />} />
           <Route path="complaints" element={<InchargeComplaintsPage />} />
           <Route path="attendance" element={<InchargeAttendancePage />} />

@@ -69,6 +69,8 @@ type CreateStudentParams struct {
 	BloodGroup         *string
 	Phone              *string
 	Email              *string
+	Password           *string
+	ConfirmPassword    *string
 	AddressLine1       *string
 	AddressLine2       *string
 	City               *string
@@ -103,6 +105,8 @@ type UpdateStudentParams struct {
 	BloodGroup         *string
 	Phone              *string
 	Email              *string
+	Password           *string
+	ConfirmPassword    *string
 	AddressLine1       *string
 	AddressLine2       *string
 	City               *string

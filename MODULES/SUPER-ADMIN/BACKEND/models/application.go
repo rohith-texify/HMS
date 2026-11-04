@@ -194,7 +194,7 @@ func MapRoleToAppID(role string) string {
 		return AppStudent
 	case "PARENT":
 		return AppParent
-	case "SECURITY":
+	case "SECURITY", "SECURITY_GUARD":
 		return AppSecurity
 	case "INCHARGE", "HOSTEL_INCHARGE":
 		return AppHostelIncharge

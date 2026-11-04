@@ -1,11 +1,7 @@
 package services
 
 import (
-	"context"
-
-	"github.com/google/uuid"
 	"github.com/yourusername/hostel-management-system/API/database"
-	"github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/models"
 	"github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/repository"
 )
 
@@ -112,4 +108,3 @@ type ReportService struct {
 func NewReportService(db *database.Database, repo *repository.Repository) *ReportService {
 	return &ReportService{repo: repo}
 }
-

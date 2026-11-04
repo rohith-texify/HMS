@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { getAuthorizedRedirectPath } from '../hooks/portalAuthService';
 
 /**
  * ProtectedRoute for College Admin module.
@@ -40,6 +41,10 @@ export default function ProtectedRoute({
   const userRole = (user.role || '').toUpperCase();
   const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
   if (allowedRoles.length > 0 && !normalizedAllowed.includes(userRole)) {
+    const authorizedDashboard = getAuthorizedRedirectPath(userRole, null);
+    if (authorizedDashboard && authorizedDashboard !== '/login' && authorizedDashboard !== location.pathname) {
+      return <Navigate to={authorizedDashboard} replace />;
+    }
     return <Navigate to="/unauthorized" replace />;
   }
 

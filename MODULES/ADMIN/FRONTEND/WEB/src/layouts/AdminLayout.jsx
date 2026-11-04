@@ -87,27 +87,64 @@ export default function InstitutionalLayout() {
       >
         {/* Brand Header */}
         <div className="sidebar-brand-wrapper">
-          <div className="sidebar-brand-content">
-            <div className="sidebar-brand-badge">
-              <Building2 size={18} />
-            </div>
-            {!sidebarCollapsed && (
-              <div className="sidebar-brand-info">
-                <span className="sidebar-brand-title">Texify HMS</span>
-                <span className="sidebar-brand-tag" title={collegeName}>{collegeName}</span>
+          {!sidebarCollapsed ? (
+            <>
+              <div className="sidebar-brand-content">
+                <div className="sidebar-brand-badge">
+                  {user?.college_logo_url ? (
+                    <img
+                      src={user.college_logo_url}
+                      alt={user.college_name || 'College Logo'}
+                      className="sidebar-brand-college-logo"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        if (e.currentTarget.nextSibling) e.currentTarget.nextSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div style={{ display: user?.college_logo_url ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Building2 size={18} />
+                  </div>
+                </div>
+                <div className="sidebar-brand-info" style={{ minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+                  <span
+                    className="sidebar-brand-title"
+                    title={user?.college_name || user?.collegeName || 'Texify HMS'}
+                    style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '140px' }}
+                  >
+                    {user?.college_name || user?.collegeName || 'Texify HMS'}
+                  </span>
+                  <span
+                    className="sidebar-brand-tag"
+                    title={user?.college_code ? `${user.college_code} • Admin` : collegeName}
+                    style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '140px' }}
+                  >
+                    {user?.college_code ? `${user.college_code} • Admin` : (collegeName || navConfig.brand)}
+                  </span>
+                </div>
               </div>
-            )}
-          </div>
 
-          <button
-            type="button"
-            className="sidebar-collapse-toggle"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {sidebarCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-          </button>
+              <button
+                type="button"
+                className="sidebar-collapse-toggle"
+                onClick={() => setSidebarCollapsed(true)}
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="sidebar-collapse-toggle"
+              onClick={() => setSidebarCollapsed(false)}
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+            >
+              <ChevronRight size={14} />
+            </button>
+          )}
 
           <button
             type="button"
