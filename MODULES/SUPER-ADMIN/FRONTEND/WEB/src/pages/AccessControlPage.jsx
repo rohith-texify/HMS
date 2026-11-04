@@ -520,7 +520,7 @@ export default function AccessControlPage() {
           </button>
         </div>
       )}
-
+          
       {/* Main Content Card */}
       <div className="access-main-card card-stagger-4">
         {/* Navigation Tabs Pillbox */}
