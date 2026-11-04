@@ -186,7 +186,7 @@ export default function DashboardPage() {
           <PortalState
             variant="blocked"
             title="Attendance and leave statistics"
-            message="Blocked: attendance summaries and leave endpoints do not establish that the records belong to the authenticated parent. No counts are requested or calculated."
+            message="Attendance BLOCKED: GET /college/attendance/students and GET /college/attendance/reports/summary require people.view, which is not included in the checked-in Parent permissions. The list is college-scoped, accepts an optional student_id without verifying Parent ownership, and the summary aggregates college records. No attendance data or counts are requested. Leave access is also blocked because Parent-student ownership is not verified."
           />
           <PortalState
             variant="blocked"
