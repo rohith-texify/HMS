@@ -2,28 +2,6 @@
 @import './portal.css';
 @import './layout.css';
 
-:root {
-  --bg-primary: #f8fafc;
-  --bg-card: #ffffff;
-  --border-color: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --primary-color: #4f46e5;
-  --primary-hover: #4338ca;
-  --success-bg: #ecfdf5;
-  --success-text: #065f46;
-  --danger-bg: #fef2f2;
-  --danger-text: #991b1b;
-  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 body {
   font-family: var(--font-family);
   background-color: var(--bg-primary);
