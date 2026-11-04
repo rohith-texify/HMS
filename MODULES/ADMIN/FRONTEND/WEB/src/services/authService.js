@@ -292,7 +292,37 @@ export const portalAuthService = {
       sessionStorage.removeItem(k);
     });
   },
+  /**
+   * Fetch public branding for a college by code, id, or email.
+   * @param {string} identifier
+   * @returns {Promise<Object|null>}
+   */
+  async getCollegeBranding(identifier) {
+    if (!identifier) return null;
+    try {
+      const res = await api.get('/auth/college-branding', {
+        params: { identifier: identifier.trim() },
+      });
+      return res.data?.college || null;
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Fetch list of all public active colleges.
+   * @returns {Promise<Array>}
+   */
+  async listPublicColleges() {
+    try {
+      const res = await api.get('/auth/colleges');
+      return res.data?.colleges || [];
+    } catch {
+      return [];
+    }
+  },
 };
 
 export default portalAuthService;
+
 
