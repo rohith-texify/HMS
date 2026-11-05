@@ -1,42 +1,54 @@
-import React, { lazy, Suspense } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { lazy, Suspense, useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import useAuth from '../hooks/useAuth';
 import ProtectedRoute from './ProtectedRoute';
 import AppLayout from '../layouts/AppLayout';
-import PortalState from '../components/PortalState';
+import PageBoundary from '../components/PageBoundary';
+import { LoadingState } from '../components/PageStates';
 
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
-const StudentDetailPage = lazy(() => import('../pages/StudentDetailPage'));
-const LeavesPage = lazy(() => import('../pages/LeavesPage'));
-const UpdatesPage = lazy(() => import('../pages/UpdatesPage'));
+const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
+const MessPage = lazy(() => import('../pages/MessPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
-function RouteLoadingFallback() {
+function RouteView({ page: Page }) {
   return (
-    <div className="route-loading">
-      <PortalState variant="loading" title="Loading page..." />
-    </div>
+    <PageBoundary>
+      <Suspense fallback={<LoadingState message="Loading page..." />}>
+        <Page />
+      </Suspense>
+    </PageBoundary>
   );
 }
 
+function LoginRoute() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Navigate to="/dashboard" replace /> : <RouteView page={LoginPage} />;
+}
+
 export default function AppRoutes() {
+  const location = useLocation();
+  const { isAuthenticated, validateSession } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated) validateSession();
+  }, [isAuthenticated, location.pathname, location.search, validateSession]);
+
   return (
-    <Suspense fallback={<RouteLoadingFallback />}>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+    <Routes>
+      <Route path="/login" element={<LoginRoute />} />
 
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/students/:studentId" element={<StudentDetailPage />} />
-            <Route path="/leaves" element={<LeavesPage />} />
-            <Route path="/updates" element={<UpdatesPage />} />
-          </Route>
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<RouteView page={DashboardPage} />} />
+          <Route path="/notifications" element={<RouteView page={NotificationsPage} />} />
+          <Route path="/mess" element={<RouteView page={MessPage} />} />
         </Route>
+      </Route>
 
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </Suspense>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<RouteView page={NotFoundPage} />} />
+    </Routes>
   );
 }

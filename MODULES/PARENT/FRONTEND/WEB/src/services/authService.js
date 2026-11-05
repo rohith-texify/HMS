@@ -3,6 +3,23 @@ import api from './api';
 const TOKEN_KEY = 'hms_parent_token';
 const USER_KEY = 'hms_parent_user';
 
+function clearStoredSession() {
+  [localStorage, sessionStorage].forEach((storage) => {
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key === 'token' || (key && key.startsWith('hms_parent_'))) {
+        storage.removeItem(key);
+      }
+    }
+  });
+}
+
+function isSessionExpired(user) {
+  if (!user || typeof user.expiresAt !== 'string') return true;
+  const expiresAt = Date.parse(user.expiresAt);
+  return !Number.isFinite(expiresAt) || expiresAt <= Date.now();
+}
+
 export const authService = {
   async login(email, password, rememberMe = true) {
     const response = await api.post('/auth/login', {
@@ -37,6 +54,10 @@ export const authService = {
       expiresAt: expires_at,
     };
 
+    if (isSessionExpired(sessionUser)) {
+      throw new Error('Authentication response did not contain a valid session expiry.');
+    }
+
     if (rememberMe) {
       localStorage.setItem(TOKEN_KEY, access_token);
       localStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
@@ -49,15 +70,15 @@ export const authService = {
       localStorage.removeItem(USER_KEY);
     }
 
-    localStorage.setItem('token', access_token);
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     return { token: access_token, user: sessionUser };
   },
 
   getToken() {
     return (
       localStorage.getItem(TOKEN_KEY) ||
-      sessionStorage.getItem(TOKEN_KEY) ||
-      localStorage.getItem('token')
+      sessionStorage.getItem(TOKEN_KEY)
     );
   },
 
@@ -71,12 +92,37 @@ export const authService = {
     }
   },
 
-  logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+  getSession() {
+    for (const storage of [localStorage, sessionStorage]) {
+      const token = storage.getItem(TOKEN_KEY);
+      const rawUser = storage.getItem(USER_KEY);
+      if (!token && !rawUser) continue;
+
+      try {
+        const user = rawUser ? JSON.parse(rawUser) : null;
+        if (token && user && !isSessionExpired(user)) {
+          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
+          return { token, user };
+        }
+      } catch {
+        clearStoredSession();
+        return null;
+      }
+
+      clearStoredSession();
+      return null;
+    }
+
     localStorage.removeItem('token');
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem('token');
+    return null;
+  },
+
+  isSessionExpired,
+
+  logout() {
+    clearStoredSession();
   },
 };
 

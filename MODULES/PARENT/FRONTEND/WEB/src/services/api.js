@@ -17,8 +17,7 @@ api.interceptors.request.use(
   (config) => {
     const token =
       localStorage.getItem('hms_parent_token') ||
-      sessionStorage.getItem('hms_parent_token') ||
-      localStorage.getItem('token');
+      sessionStorage.getItem('hms_parent_token');
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -40,8 +39,14 @@ api.interceptors.response.use(
     const responseData = error.response?.data;
     const message = responseData?.error?.message || error.message || 'An unexpected error occurred';
     const code = responseData?.error?.code || 'NETWORK_ERROR';
+    const status = error.response?.status || 500;
+
+    if (status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('hms:parent-auth-expired'));
+    }
+
     return Promise.reject({
-      status: error.response?.status || 500,
+      status,
       code,
       message,
     });
