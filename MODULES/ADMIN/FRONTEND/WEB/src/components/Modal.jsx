@@ -41,8 +41,8 @@ export default function Modal({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(3px)',
+        backgroundColor: 'rgba(15, 23, 42, 0.52)',
+        backdropFilter: 'blur(4px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -56,13 +56,13 @@ export default function Modal({
       role="dialog"
     >
       <div
-        className={`enterprise-modal-card fade-in-up ${className}`}
+        className={`enterprise-modal-card ${className}`}
         style={{
           width: '100%',
           maxWidth,
           backgroundColor: '#ffffff',
-          borderRadius: '12px',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          borderRadius: '16px',
+          boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.18), 0 10px 20px -5px rgba(0, 0, 0, 0.04)',
           border: '1px solid var(--border-color, #e2e8f0)',
           overflow: 'hidden',
           display: 'flex',
@@ -72,9 +72,10 @@ export default function Modal({
       >
         {/* Modal Header */}
         <div
+          className="modal-header"
           style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-color, #e2e8f0)',
+            padding: '18px 24px',
+            borderBottom: '1px solid #f1f5f9',
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
@@ -83,11 +84,13 @@ export default function Modal({
         >
           <div>
             <h2
+              className="modal-title"
               style={{
-                fontSize: '1.05rem',
+                fontSize: '1.15rem',
                 fontWeight: 700,
                 color: 'var(--text-primary, #0f172a)',
                 margin: 0,
+                letterSpacing: '-0.01em',
               }}
             >
               {title}
@@ -95,9 +98,9 @@ export default function Modal({
             {subtitle && (
               <p
                 style={{
-                  fontSize: '0.8rem',
+                  fontSize: '0.82rem',
                   color: 'var(--text-secondary, #475569)',
-                  margin: '3px 0 0 0',
+                  margin: '4px 0 0 0',
                 }}
               >
                 {subtitle}
@@ -106,31 +109,22 @@ export default function Modal({
           </div>
           <button
             type="button"
+            className="btn-icon-action"
             onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: '6px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              color: 'var(--text-muted, #94a3b8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background-color 0.15s ease, color 0.15s ease',
-            }}
             aria-label="Close dialog"
           >
-            <X size={18} />
+            <X size={17} />
           </button>
         </div>
 
         {/* Modal Body */}
         <div
+          className="modal-body"
           style={{
-            padding: '20px',
+            padding: '22px 24px',
             overflowY: 'auto',
             flex: 1,
+            backgroundColor: '#ffffff',
           }}
         >
           {children}
@@ -139,9 +133,10 @@ export default function Modal({
         {/* Modal Footer */}
         {footer && (
           <div
+            className="modal-footer"
             style={{
-              padding: '14px 20px',
-              borderTop: '1px solid var(--border-color, #e2e8f0)',
+              padding: '16px 24px',
+              borderTop: '1px solid #f1f5f9',
               backgroundColor: '#f8fafc',
               display: 'flex',
               alignItems: 'center',

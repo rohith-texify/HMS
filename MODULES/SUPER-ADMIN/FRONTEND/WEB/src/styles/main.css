@@ -13098,3 +13098,177 @@ body {
 
 
 
+
+
+/* =========================================================================
+   ENTERPRISE FORM CONTROLS & MODAL FORMS
+   ========================================================================= */
+
+.form-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+  margin-bottom: 16px !important;
+  width: 100% !important;
+  text-align: left !important;
+}
+
+.form-label {
+  display: block !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+  color: #1e293b !important;
+  margin-bottom: 2px !important;
+  letter-spacing: -0.01em !important;
+}
+
+.form-label .required,
+.form-label span.required {
+  color: #dc2626 !important;
+  margin-left: 3px !important;
+}
+
+.form-control {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 10px 14px !important;
+  font-size: 0.88rem !important;
+  font-family: inherit !important;
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  line-height: 1.5 !important;
+  transition: all 0.15s ease-in-out !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+}
+
+.form-control:focus {
+  outline: none !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14) !important;
+  background-color: #ffffff !important;
+}
+
+.form-control:disabled,
+.form-control[readonly] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #64748b !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+}
+
+.form-control::placeholder {
+  color: #94a3b8 !important;
+  opacity: 1 !important;
+}
+
+.form-hint,
+.form-text {
+  display: block !important;
+  font-size: 0.77rem !important;
+  color: #64748b !important;
+  margin-top: 4px !important;
+  line-height: 1.4 !important;
+}
+
+.form-input-group {
+  position: relative !important;
+  width: 100% !important;
+}
+
+.form-input-group .form-control {
+  padding-right: 42px !important;
+}
+
+.form-input-action-btn {
+  position: absolute !important;
+  right: 8px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background: transparent !important;
+  border: none !important;
+  color: #64748b !important;
+  padding: 6px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 0.15s ease !important;
+}
+
+.form-input-action-btn:hover {
+  color: #0f172a !important;
+  background-color: #f1f5f9 !important;
+}
+
+/* Modal Form Specifics */
+.modal-dialog {
+  max-width: 540px !important;
+  width: 95% !important;
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.18), 0 10px 20px -5px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden !important;
+  margin: 20px auto !important;
+}
+
+.modal-header {
+  padding: 20px 24px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  background: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.modal-title {
+  font-size: 1.22rem !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  margin: 0 !important;
+  letter-spacing: -0.01em !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.modal-body {
+  padding: 22px 24px !important;
+  background: #ffffff !important;
+}
+
+.modal-footer {
+  padding: 16px 24px !important;
+  border-top: 1px solid #f1f5f9 !important;
+  background: #f8fafc !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 10px !important;
+}
+
+/* Notice Banner inside Modal */
+.modal-notice-banner {
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+  border-radius: 10px !important;
+  padding: 12px 14px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  font-size: 0.82rem !important;
+  color: #1e40af !important;
+  line-height: 1.45 !important;
+  margin-top: 16px !important;
+}
+
+.modal-notice-banner-icon {
+  color: #2563eb !important;
+  flex-shrink: 0 !important;
+  margin-top: 1px !important;
+}

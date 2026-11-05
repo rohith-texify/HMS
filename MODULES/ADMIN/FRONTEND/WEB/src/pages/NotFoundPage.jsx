@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
 import { ROLE_ROUTE_MAP } from '../shared/auth/portalAuthService';
+import { FileQuestion, ArrowRight } from 'lucide-react';
 
 export default function NotFoundPage() {
   const { user, isAuthenticated } = useAuth();
@@ -22,41 +23,51 @@ export default function NotFoundPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0f172a',
+        backgroundColor: '#f8fafc',
         padding: '24px',
       }}
     >
       <div
+        className="enterprise-card"
         style={{
           maxWidth: '480px',
           width: '100%',
-          backgroundColor: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '12px',
-          padding: '36px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
+          padding: '40px 32px',
           textAlign: 'center',
+          boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.08), 0 8px 16px -6px rgba(15, 23, 42, 0.04)',
         }}
       >
-        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔍</div>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            backgroundColor: '#eff6ff',
+            color: '#2563eb',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '20px',
+          }}
+        >
+          <FileQuestion size={32} />
+        </div>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.02em' }}>
           404 — Page Not Found
         </h1>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: '24px' }}>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '28px' }}>
           The requested page or resource could not be found on this institutional domain.
         </p>
         <button
           onClick={handleReturn}
-          style={{
-            padding: '10px 20px',
-            backgroundColor: '#0284c7',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '6px',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          className="btn-enterprise btn-primary-blue"
+          style={{ padding: '10px 24px', fontSize: '0.9rem' }}
         >
-          Return to Dashboard →
+          <span>Return to Dashboard</span>
+          <ArrowRight size={15} />
         </button>
       </div>
     </div>

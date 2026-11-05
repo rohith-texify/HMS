@@ -21,6 +21,8 @@ import {
   Calendar,
   Clock,
   Filter,
+  UserPlus,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   fetchCollegeById,
@@ -798,105 +800,133 @@ export default function CollegeAdminsPage() {
 
       {/* MODAL 1: Provision First Administrator */}
       {showProvisionModal && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>👤 Provision College Administrator</h2>
+        <div className="modal-overlay" onClick={() => setShowProvisionModal(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>Provision Administrator</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                    {college.name} ({college.college_code})
+                  </div>
+                </div>
+              </div>
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-icon-action"
                 onClick={() => setShowProvisionModal(false)}
                 disabled={provisionSubmitting}
+                style={{ width: '28px', height: '28px' }}
+                aria-label="Close"
               >
-                ✕
+                <X size={15} />
               </button>
             </div>
 
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              Create an administrator account for <strong>{college.name}</strong>. The account will automatically receive
-              the canonical <code>COLLEGE_ADMIN</code> role.
-            </p>
-
-            {provisionError && (
-              <div
-                className="alert alert-danger"
-                style={{ marginBottom: '16px', padding: '10px 12px', fontSize: '0.85rem' }}
-              >
-                ⚠️ {provisionError}
-              </div>
-            )}
-
             <form onSubmit={handleProvisionSubmit}>
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Target College
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={`${college.name} (${college.college_code})`}
-                  disabled
-                  style={{ backgroundColor: '#f1f5f9' }}
-                />
+              <div className="modal-body">
+                <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.45 }}>
+                  Create an administrator account for <strong>{college.name}</strong>. The account will automatically receive
+                  the canonical <code>COLLEGE_ADMIN</code> role.
+                </p>
+
+                {provisionError && (
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={15} className="text-rose-600" />
+                    <span>{provisionError}</span>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Target College</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={`${college.name} (${college.college_code})`}
+                      disabled
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Building2 size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Admin Email Address <span className="required">*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="email"
+                      className="form-control"
+                      required
+                      value={provisionForm.email}
+                      onChange={(e) => setProvisionForm({ ...provisionForm, email: e.target.value })}
+                      placeholder="admin@college.edu"
+                      disabled={provisionSubmitting}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
+                  <div className="form-hint">Used as the unique authentication identity for the tenant.</div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Contact Phone (Optional)</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      value={provisionForm.phone}
+                      onChange={(e) => setProvisionForm({ ...provisionForm, phone: e.target.value })}
+                      placeholder="+919876543210"
+                      disabled={provisionSubmitting}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Phone size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Initial Password <span className="required">*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="password"
+                      className="form-control"
+                      required
+                      minLength={8}
+                      value={provisionForm.password}
+                      onChange={(e) => setProvisionForm({ ...provisionForm, password: e.target.value })}
+                      placeholder="Min 8 characters"
+                      disabled={provisionSubmitting}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Lock size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
+                  <div className="form-hint">
+                    Passwords are encrypted using bcrypt hashing. Plaintext passwords are never stored.
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Admin Email Address *
-                </label>
-                <input
-                  type="email"
-                  className="form-control"
-                  required
-                  value={provisionForm.email}
-                  onChange={(e) => setProvisionForm({ ...provisionForm, email: e.target.value })}
-                  placeholder="admin@college.edu"
-                  disabled={provisionSubmitting}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Contact Phone (Optional)
-                </label>
-                <input
-                  type="tel"
-                  className="form-control"
-                  value={provisionForm.phone}
-                  onChange={(e) => setProvisionForm({ ...provisionForm, phone: e.target.value })}
-                  placeholder="+919876543210"
-                  disabled={provisionSubmitting}
-                />
-              </div>
-
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Initial Password *
-                </label>
-                <input
-                  type="password"
-                  className="form-control"
-                  required
-                  minLength={8}
-                  value={provisionForm.password}
-                  onChange={(e) => setProvisionForm({ ...provisionForm, password: e.target.value })}
-                  placeholder="Min 8 characters"
-                  disabled={provisionSubmitting}
-                />
-                <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                  Passwords are encrypted using bcrypt hashing. Plaintext passwords are never stored.
-                </small>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="btn-enterprise btn-outline-soft btn-sm"
                   onClick={() => setShowProvisionModal(false)}
                   disabled={provisionSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={provisionSubmitting}>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary-blue btn-sm"
+                  disabled={provisionSubmitting}
+                >
                   {provisionSubmitting ? 'Provisioning...' : 'Provision Administrator'}
                 </button>
               </div>
@@ -907,74 +937,84 @@ export default function CollegeAdminsPage() {
 
       {/* MODAL 2: Edit Permitted Profile Fields */}
       {editingAdmin && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '480px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>✏️ Edit Administrator Details</h2>
+        <div className="modal-overlay" onClick={() => setEditingAdmin(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>Edit Details</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{editingAdmin.email}</div>
+                </div>
+              </div>
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-icon-action"
                 onClick={() => setEditingAdmin(null)}
                 disabled={editSubmitting}
+                style={{ width: '28px', height: '28px' }}
+                aria-label="Close"
               >
-                ✕
+                <X size={15} />
               </button>
             </div>
 
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-              Editing details for <strong>{editingAdmin.email}</strong>. Security boundaries prevent arbitrary modification
-              of user IDs, tenant scopes, roles, or password hashes via profile edit.
-            </p>
-
-            {editError && (
-              <div
-                className="alert alert-danger"
-                style={{ marginBottom: '14px', padding: '10px 12px', fontSize: '0.85rem' }}
-              >
-                ⚠️ {editError}
-              </div>
-            )}
-
             <form onSubmit={handleEditSubmit}>
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Email Address
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={editingAdmin.email}
-                  disabled
-                  style={{ backgroundColor: '#f1f5f9' }}
-                />
-                <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                  Email serves as the persistent identity key in app.users.
-                </small>
+              <div className="modal-body">
+                <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0 0 16px 0', lineHeight: 1.45 }}>
+                  Security boundaries prevent arbitrary modification of user IDs, tenant scopes, roles, or password hashes via profile edit.
+                </p>
+
+                {editError && (
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={15} className="text-rose-600" />
+                    <span>{editError}</span>
+                  </div>
+                )}
+
+                <div className="form-group">
+                  <label className="form-label">Email Address</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={editingAdmin.email}
+                      disabled
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
+                  <div className="form-hint">Email serves as the persistent identity key in app.users.</div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Contact Phone</label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="tel"
+                      className="form-control"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ phone: e.target.value })}
+                      placeholder="+919876543210"
+                      disabled={editSubmitting}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Phone size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
+                </div>
               </div>
 
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Contact Phone (Permitted Allowlist Field)
-                </label>
-                <input
-                  type="tel"
-                  className="form-control"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm({ phone: e.target.value })}
-                  placeholder="+919876543210"
-                  disabled={editSubmitting}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="btn-enterprise btn-outline-soft btn-sm"
                   onClick={() => setEditingAdmin(null)}
                   disabled={editSubmitting}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" disabled={editSubmitting}>
+                <button type="submit" className="btn-enterprise btn-primary-blue btn-sm" disabled={editSubmitting}>
                   {editSubmitting ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -983,92 +1023,84 @@ export default function CollegeAdminsPage() {
         </div>
       )}
 
-      {/* MODAL 3: Update Account Status (with Last-Admin rejection) */}
+      {/* MODAL 3: Update Account Status */}
       {statusAdmin && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '500px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>🔄 Change Administrator Status</h2>
+        <div className="modal-overlay" onClick={() => setStatusAdmin(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <RotateCw size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>Change Administrator Status</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{statusAdmin.email}</div>
+                </div>
+              </div>
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-icon-action"
                 onClick={() => setStatusAdmin(null)}
                 disabled={statusSubmitting}
+                style={{ width: '28px', height: '28px' }}
+                aria-label="Close"
               >
-                ✕
+                <X size={15} />
               </button>
             </div>
 
-            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-              Change the operational lifecycle status of administrator <strong>{statusAdmin.email}</strong>.
-            </p>
-
-            {statusError && (
-              <div
-                className="alert alert-danger"
-                style={{
-                  marginBottom: '14px',
-                  padding: '12px',
-                  fontSize: '0.85rem',
-                  borderLeft: '4px solid var(--danger-border)',
-                }}
-              >
-                <strong>Operation Rejected:</strong> {statusError}
-              </div>
-            )}
-
             <form onSubmit={handleStatusSubmit}>
-              <div className="form-group" style={{ marginBottom: '14px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Target Status *
-                </label>
-                <select
-                  className="form-control"
-                  value={targetStatus}
-                  onChange={(e) => setTargetStatus(e.target.value)}
-                  disabled={statusSubmitting}
-                >
-                  <option value="ACTIVE">ACTIVE — Full operational access</option>
-                  <option value="SUSPENDED">SUSPENDED — Temporary block</option>
-                  <option value="DEACTIVATED">DEACTIVATED — Access revoked</option>
-                </select>
-              </div>
+              <div className="modal-body">
+                {statusError && (
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={15} className="text-rose-600" />
+                    <span>{statusError}</span>
+                  </div>
+                )}
 
-              {(targetStatus === 'DEACTIVATED' || targetStatus === 'SUSPENDED') && (
-                <div
-                  style={{
-                    backgroundColor: 'var(--warning-bg)',
-                    border: '1px solid var(--warning-border)',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '0.8rem',
-                    color: 'var(--warning-text)',
-                    marginBottom: '14px',
-                  }}
-                >
-                  ⚠️ <strong>Last Active Admin Protection:</strong> If this account is the sole active College Administrator
-                  for <strong>{college.name}</strong>, the backend will atomically reject this status change to prevent orphaning the tenant.
+                <div className="form-group">
+                  <label className="form-label">Target Status *</label>
+                  <select
+                    className="form-control"
+                    value={targetStatus}
+                    onChange={(e) => setTargetStatus(e.target.value)}
+                    disabled={statusSubmitting}
+                  >
+                    <option value="ACTIVE">ACTIVE — Full operational access</option>
+                    <option value="SUSPENDED">SUSPENDED — Temporary block</option>
+                    <option value="DEACTIVATED">DEACTIVATED — Access revoked</option>
+                  </select>
                 </div>
-              )}
 
-              <div className="form-group" style={{ marginBottom: '20px' }}>
-                <label className="form-label" style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                  Reason for Status Change (Mandatory Audit Trail) *
-                </label>
-                <textarea
-                  className="form-control"
-                  rows={3}
-                  required
-                  value={statusReason}
-                  onChange={(e) => setStatusReason(e.target.value)}
-                  placeholder="e.g. Administrator resignation, transfer, or temporary security hold"
-                  disabled={statusSubmitting}
-                />
+                {(targetStatus === 'DEACTIVATED' || targetStatus === 'SUSPENDED') && (
+                  <div className="modal-notice-banner" style={{ background: '#fffbeb', borderColor: '#fde68a', color: '#92400e' }}>
+                    <AlertTriangle size={16} style={{ color: '#d97706', flexShrink: 0, marginTop: '1px' }} />
+                    <div>
+                      <strong>Last Active Admin Protection:</strong> If this account is the sole active College Administrator
+                      for <strong>{college.name}</strong>, the backend will atomically reject this status change to prevent orphaning the tenant.
+                    </div>
+                  </div>
+                )}
+
+                <div className="form-group" style={{ marginTop: '14px' }}>
+                  <label className="form-label">
+                    Reason for Status Change (Mandatory Audit Trail) *
+                  </label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    required
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                    placeholder="e.g. Administrator resignation, transfer, or temporary security hold"
+                    disabled={statusSubmitting}
+                  />
+                </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="btn-enterprise btn-outline-soft btn-sm"
                   onClick={() => setStatusAdmin(null)}
                   disabled={statusSubmitting}
                 >
@@ -1076,7 +1108,8 @@ export default function CollegeAdminsPage() {
                 </button>
                 <button
                   type="submit"
-                  className={targetStatus === 'ACTIVE' ? 'btn btn-primary' : 'btn btn-danger'}
+                  className={`btn-enterprise ${targetStatus === 'ACTIVE' ? 'btn-primary-blue' : 'btn-outline-soft'} btn-sm`}
+                  style={targetStatus !== 'ACTIVE' ? { color: '#dc2626', borderColor: '#fca5a5' } : {}}
                   disabled={statusSubmitting}
                 >
                   {statusSubmitting ? 'Updating...' : `Confirm ${targetStatus}`}
@@ -1089,47 +1122,59 @@ export default function CollegeAdminsPage() {
 
       {/* MODAL 4: Unlock Locked Account */}
       {unlockingAdmin && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '460px' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '12px' }}>
-              🔓 Unlock Administrator Account
-            </h2>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-              Are you sure you want to unlock the administrator account for <strong>{unlockingAdmin.email}</strong>?
-            </p>
-
-            <div
-              style={{
-                backgroundColor: '#f8fafc',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-                padding: '12px',
-                fontSize: '0.8rem',
-                marginBottom: '16px',
-              }}
-            >
-              Unlocking restores the account to <code>ACTIVE</code> status. All prior failed authentication events and lockout
-              records in <code>platform.login_events</code> will be preserved for security auditing.
+        <div className="modal-overlay" onClick={() => setUnlockingAdmin(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '460px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Unlock size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>Unlock Administrator</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{unlockingAdmin.email}</div>
+                </div>
+              </div>
+              <button
+                className="btn-icon-action"
+                onClick={() => setUnlockingAdmin(null)}
+                disabled={unlockSubmitting}
+                style={{ width: '28px', height: '28px' }}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
             </div>
 
-            {unlockError && (
-              <div
-                className="alert alert-danger"
-                style={{ marginBottom: '14px', padding: '10px 12px', fontSize: '0.85rem' }}
-              >
-                ⚠️ {unlockError}
-              </div>
-            )}
+            <div className="modal-body">
+              <p style={{ fontSize: '0.86rem', color: '#334155', margin: '0 0 14px 0', lineHeight: 1.5 }}>
+                Are you sure you want to unlock the administrator account for <strong>{unlockingAdmin.email}</strong>?
+              </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <div className="modal-notice-banner">
+                <Info size={16} className="modal-notice-banner-icon" />
+                <div>
+                  Unlocking restores the account to <code>ACTIVE</code> status. All prior failed authentication events and lockout
+                  records in <code>platform.login_events</code> will be preserved for security auditing.
+                </div>
+              </div>
+
+              {unlockError && (
+                <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginTop: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={15} className="text-rose-600" />
+                  <span>{unlockError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
               <button
-                className="btn btn-outline"
+                className="btn-enterprise btn-outline-soft btn-sm"
                 onClick={() => setUnlockingAdmin(null)}
                 disabled={unlockSubmitting}
               >
                 Cancel
               </button>
-              <button className="btn btn-primary" onClick={handleUnlockSubmit} disabled={unlockSubmitting}>
+              <button className="btn-enterprise btn-primary-blue btn-sm" onClick={handleUnlockSubmit} disabled={unlockSubmitting}>
                 {unlockSubmitting ? 'Unlocking...' : 'Confirm Unlock'}
               </button>
             </div>
@@ -1139,55 +1184,59 @@ export default function CollegeAdminsPage() {
 
       {/* MODAL 5: Invalidate Push Device Tokens */}
       {revokingAdmin && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '480px' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', marginBottom: '12px' }}>
-              📲 Invalidate Push Device Tokens
-            </h2>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '14px' }}>
-              Invalidate registered device push notification tokens for <strong>{revokingAdmin.email}</strong>.
-            </p>
-
-            <div
-              style={{
-                backgroundColor: 'var(--warning-bg)',
-                border: '1px solid var(--warning-border)',
-                borderRadius: '6px',
-                padding: '12px',
-                fontSize: '0.8rem',
-                color: 'var(--warning-text)',
-                marginBottom: '16px',
-              }}
-            >
-              <strong>Security Protocol Notice:</strong>
-              <p style={{ marginTop: '4px' }}>
-                This operation deactivates push notification registration records in <code>platform.device_tokens</code>.
-                Stateless JWT access tokens will remain valid until their expiration (up to 24 hours). To immediately prevent
-                authentication requests, change the account status to <code>SUSPENDED</code> or <code>DEACTIVATED</code>.
-              </p>
+        <div className="modal-overlay" onClick={() => setRevokingAdmin(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Smartphone size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>Invalidate Device Push Tokens</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>{revokingAdmin.email}</div>
+                </div>
+              </div>
+              <button
+                className="btn-icon-action"
+                onClick={() => setRevokingAdmin(null)}
+                disabled={revokeSubmitting}
+                style={{ width: '28px', height: '28px' }}
+                aria-label="Close"
+              >
+                <X size={15} />
+              </button>
             </div>
 
-            {revokeResult && (
-              <div
-                className="alert alert-success"
-                style={{ marginBottom: '14px', padding: '10px 12px', fontSize: '0.85rem' }}
-              >
-                ✓ Deactivated {revokeResult.device_tokens_revoked ?? 0} push token(s).
-              </div>
-            )}
+            <div className="modal-body">
+              <p style={{ fontSize: '0.86rem', color: '#334155', margin: '0 0 14px 0', lineHeight: 1.5 }}>
+                Invalidate registered device push notification tokens for <strong>{revokingAdmin.email}</strong>.
+              </p>
 
-            {revokeError && (
-              <div
-                className="alert alert-danger"
-                style={{ marginBottom: '14px', padding: '10px 12px', fontSize: '0.85rem' }}
-              >
-                ⚠️ {revokeError}
+              <div className="modal-notice-banner" style={{ background: '#fffbeb', borderColor: '#fde68a', color: '#92400e' }}>
+                <AlertTriangle size={16} style={{ color: '#d97706', flexShrink: 0, marginTop: '1px' }} />
+                <div>
+                  <strong>Security Protocol Notice:</strong> This operation deactivates push notification registration records in <code>platform.device_tokens</code>. Stateless JWT access tokens remain valid until expiration.
+                </div>
               </div>
-            )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              {revokeResult && (
+                <div style={{ backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginTop: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CheckCircle2 size={15} className="text-emerald-600" />
+                  <span>Deactivated {revokeResult.device_tokens_revoked ?? 0} push token(s).</span>
+                </div>
+              )}
+
+              {revokeError && (
+                <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginTop: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <AlertTriangle size={15} className="text-rose-600" />
+                  <span>{revokeError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
               <button
-                className="btn btn-outline"
+                className="btn-enterprise btn-outline-soft btn-sm"
                 onClick={() => setRevokingAdmin(null)}
                 disabled={revokeSubmitting}
               >
@@ -1195,7 +1244,8 @@ export default function CollegeAdminsPage() {
               </button>
               {!revokeResult && (
                 <button
-                  className="btn btn-danger"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  style={{ color: '#dc2626', borderColor: '#fca5a5' }}
                   onClick={handleRevokeTokens}
                   disabled={revokeSubmitting}
                 >
@@ -1209,86 +1259,96 @@ export default function CollegeAdminsPage() {
 
       {/* MODAL 6: Login History Drawer / Modal */}
       {historyAdmin && (
-        <div className="modal-backdrop">
-          <div className="modal-content" style={{ maxWidth: '680px', maxHeight: '85vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>📜 Authentication History</h2>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  {historyAdmin.email} | Real events from <code>platform.login_events</code>
-                </span>
+        <div className="modal-overlay" onClick={() => setHistoryAdmin(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '680px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <History size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>Authentication History</h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                    {historyAdmin.email} | Authoritative events from platform.login_events
+                  </div>
+                </div>
               </div>
-              <button className="btn btn-outline btn-sm" onClick={() => setHistoryAdmin(null)}>
-                ✕
+              <button className="btn-icon-action" onClick={() => setHistoryAdmin(null)} style={{ width: '28px', height: '28px' }} aria-label="Close">
+                <X size={15} />
               </button>
             </div>
 
-            {historyLoading ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                Loading authentication records...
-              </div>
-            ) : historyError ? (
-              <div className="alert alert-danger" style={{ padding: '12px' }}>
-                ⚠️ {historyError}
-              </div>
-            ) : loginHistory.length === 0 ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                No authentication events recorded for this administrator yet.
-              </div>
-            ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                      <th style={{ padding: '8px 12px' }}>Result</th>
-                      <th style={{ padding: '8px 12px' }}>Date & Time</th>
-                      <th style={{ padding: '8px 12px' }}>IP Address</th>
-                      <th style={{ padding: '8px 12px' }}>Device / Client</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loginHistory.map((item) => (
-                      <tr key={item.login_event_id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '8px 12px' }}>
-                          <span
-                            className={`badge ${
-                              item.result === 'SUCCESS'
-                                ? 'badge-success'
-                                : item.result === 'LOCKED'
-                                ? 'badge-danger'
-                                : 'badge-warning'
-                            }`}
-                          >
-                            {item.result}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 12px' }}>
-                          {item.event_at ? new Date(item.event_at).toLocaleString() : 'N/A'}
-                        </td>
-                        <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>
-                          {item.ip_address || '—'}
-                        </td>
-                        <td
-                          style={{
-                            padding: '8px 12px',
-                            maxWidth: '220px',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                          title={item.user_agent || item.device || ''}
-                        >
-                          {item.device || item.user_agent || 'Standard Web'}
-                        </td>
+            <div className="modal-body" style={{ overflowY: 'auto', flex: 1, padding: 0 }}>
+              {historyLoading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                  <RotateCw size={24} className="animate-spin" style={{ margin: '0 auto 10px', color: '#2563eb' }} />
+                  <p style={{ margin: 0, fontSize: '0.86rem' }}>Loading authentication records...</p>
+                </div>
+              ) : historyError ? (
+                <div style={{ margin: '20px', padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', fontSize: '0.85rem' }}>
+                  {historyError}
+                </div>
+              ) : loginHistory.length === 0 ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+                  No authentication events recorded for this administrator yet.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', margin: 0 }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                        <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Result</th>
+                        <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Date & Time</th>
+                        <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>IP Address</th>
+                        <th style={{ padding: '10px 16px', fontWeight: '600', color: '#475569', fontSize: '0.75rem', textTransform: 'uppercase' }}>Device / Client</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                    </thead>
+                    <tbody>
+                      {loginHistory.map((item) => (
+                        <tr key={item.login_event_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td style={{ padding: '10px 16px' }}>
+                            <span
+                              className={
+                                item.result === 'SUCCESS'
+                                  ? 'badge-status-active'
+                                  : item.result === 'LOCKED'
+                                  ? 'badge-status-locked'
+                                  : 'badge-status-inactive'
+                              }
+                              style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                            >
+                              {item.result}
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 16px', color: '#334155' }}>
+                            {item.event_at ? new Date(item.event_at).toLocaleString() : 'N/A'}
+                          </td>
+                          <td style={{ padding: '10px 16px', fontFamily: 'monospace', color: '#64748b' }}>
+                            {item.ip_address || '—'}
+                          </td>
+                          <td
+                            style={{
+                              padding: '10px 16px',
+                              maxWidth: '220px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              color: '#64748b',
+                            }}
+                            title={item.user_agent || item.device || ''}
+                          >
+                            {item.device || item.user_agent || 'Standard Web'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
 
-            <div style={{ marginTop: '20px', textAlign: 'right' }}>
-              <button className="btn btn-outline" onClick={() => setHistoryAdmin(null)}>
+            <div className="modal-footer">
+              <button className="btn-enterprise btn-outline-soft btn-sm" onClick={() => setHistoryAdmin(null)}>
                 Close
               </button>
             </div>

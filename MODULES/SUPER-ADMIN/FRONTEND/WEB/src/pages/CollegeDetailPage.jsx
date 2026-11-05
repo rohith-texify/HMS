@@ -61,6 +61,9 @@ import {
   FileText,
   DoorOpen,
   Layers,
+  Zap,
+  Info,
+  Phone,
 } from 'lucide-react';
 
 export default function CollegeDetailPage() {
@@ -2415,74 +2418,86 @@ export default function CollegeDetailPage() {
       {/* Password Reset / Update Modal */}
       {showPasswordModal && (
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
             <div className="modal-header">
-              <h2 className="modal-title">
-                {adminAccount ? 'Reset Administrator Password' : 'Initialize Administrator Credentials'}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>
+                    {adminAccount ? 'Reset Administrator Password' : 'Initialize Administrator Credentials'}
+                  </h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                    {college.name} ({college.college_code})
+                  </div>
+                </div>
+              </div>
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-icon-action"
                 onClick={() => setShowPasswordModal(false)}
                 disabled={passwordSubmitting}
-                style={{ padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ width: '28px', height: '28px' }}
                 aria-label="Close password modal"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
 
             <form onSubmit={handlePasswordSubmit}>
               <div className="modal-body">
                 {passwordError && (
-                  <div className="error-box" style={{ marginBottom: '16px', padding: '10px', textAlign: 'left' }}>
-                    <strong>Error:</strong> {passwordError}
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={15} className="text-rose-600" />
+                    <span>{passwordError}</span>
                   </div>
                 )}
-
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                  Configure credentials for <strong>{college.name}</strong> ({college.college_code}). The college administrator uses this identity and password to log in and administer the Admin Module.
-                </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="modal-admin-email">
                     Administrator Login Email / Username
                   </label>
-                  <input
-                    id="modal-admin-email"
-                    type="email"
-                    className="form-control"
-                    placeholder={
-                      adminAccount?.email ||
-                      college.contact_email ||
-                      `${college.college_code.toLowerCase()}.admin@hms.local`
-                    }
-                    value={passwordFormData.admin_email}
-                    onChange={(e) =>
-                      setPasswordFormData((prev) => ({ ...prev, admin_email: e.target.value }))
-                    }
-                    disabled={passwordSubmitting}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="modal-admin-email"
+                      type="email"
+                      className="form-control"
+                      placeholder={
+                        adminAccount?.email ||
+                        college.contact_email ||
+                        `${college.college_code.toLowerCase()}.admin@hms.local`
+                      }
+                      value={passwordFormData.admin_email}
+                      onChange={(e) =>
+                        setPasswordFormData((prev) => ({ ...prev, admin_email: e.target.value }))
+                      }
+                      disabled={passwordSubmitting}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
                   <div className="form-hint">
-                    Current/New login email. Defaults to {adminAccount?.email || college.contact_email || `${college.college_code.toLowerCase()}.admin@hms.local`}.
+                    Authorized email for College Administrator authentication.
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                     <label className="form-label" htmlFor="modal-new-password" style={{ margin: 0 }}>
                       New Password <span className="required">*</span>
                     </label>
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className="btn-enterprise btn-outline-soft btn-sm"
                       onClick={generateModalRandomPassword}
                       disabled={passwordSubmitting}
-                      style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                      style={{ fontSize: '0.74rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563eb' }}
                     >
-                      ⚡ Generate Password
+                      <Zap size={12} className="text-amber-500" />
+                      <span>Generate Password</span>
                     </button>
                   </div>
-                  <div style={{ position: 'relative' }}>
+                  <div className="form-input-group">
                     <input
                       id="modal-new-password"
                       type={showNewPassword ? 'text' : 'password'}
@@ -2493,35 +2508,24 @@ export default function CollegeDetailPage() {
                         setPasswordFormData((prev) => ({ ...prev, password: e.target.value }))
                       }
                       disabled={passwordSubmitting}
-                      style={{ paddingRight: '42px' }}
                     />
                     <button
                       type="button"
+                      className="form-input-action-btn"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                      }}
                       title={showNewPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showNewPassword ? '🙈' : '👁️'}
+                      {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
-                  <div className="form-hint">Minimum 8 characters. Required to access the Admin Module.</div>
+                  <div className="form-hint">Must be at least 8 characters with letters, numbers, and symbols.</div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="modal-confirm-password">
                     Confirm New Password <span className="required">*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
+                  <div className="form-input-group">
                     <input
                       id="modal-confirm-password"
                       type={showConfirmNewPassword ? 'text' : 'password'}
@@ -2532,38 +2536,30 @@ export default function CollegeDetailPage() {
                         setPasswordFormData((prev) => ({ ...prev, confirm_password: e.target.value }))
                       }
                       disabled={passwordSubmitting}
-                      style={{ paddingRight: '42px' }}
                     />
                     <button
                       type="button"
+                      className="form-input-action-btn"
                       onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                      }}
                       title={showConfirmNewPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showConfirmNewPassword ? '🙈' : '👁️'}
+                      {showConfirmNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
                 </div>
 
-                <div className="notice-box" style={{ marginTop: '12px' }}>
-                  ℹ️ Updating this password updates the College Administrator account in <code>app.users</code> and logs the action in the platform audit logs. The administrator can log in using either the College Code (<strong>{college.college_code}</strong>) or their Admin Email.
+                <div className="modal-notice-banner">
+                  <Info size={16} className="modal-notice-banner-icon" />
+                  <div>
+                    Updating this password updates the College Administrator account in <code>app.users</code> and logs the action in the platform audit logs. The administrator can log in using either the College Code (<strong>{college.college_code}</strong>) or their Admin Email.
+                  </div>
                 </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="btn-enterprise btn-outline-soft btn-sm"
                   onClick={() => setShowPasswordModal(false)}
                   disabled={passwordSubmitting}
                 >
@@ -2571,7 +2567,7 @@ export default function CollegeDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn-enterprise btn-primary-blue btn-sm"
                   id="btn-submit-password-update"
                   disabled={passwordSubmitting}
                 >

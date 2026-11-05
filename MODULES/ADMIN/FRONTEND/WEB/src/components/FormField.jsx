@@ -15,30 +15,17 @@ export default function FormField({
 }) {
   return (
     <div
-      className={`form-field-wrapper ${className}`}
-      style={{
-        marginBottom: '16px',
-        display: 'flex',
-        flexDirection: 'column',
-        ...style,
-      }}
+      className={`form-group form-field-wrapper ${className}`}
+      style={style}
     >
       {label && (
         <label
           htmlFor={htmlFor}
-          style={{
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            color: 'var(--text-primary, #0f172a)',
-            marginBottom: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-          }}
+          className="form-label"
         >
           <span>{label}</span>
           {required && (
-            <span style={{ color: '#ef4444', fontWeight: 'bold' }}>*</span>
+            <span className="required" style={{ color: '#dc2626', fontWeight: 'bold' }}>*</span>
           )}
         </label>
       )}
@@ -47,6 +34,7 @@ export default function FormField({
 
       {error ? (
         <span
+          className="form-hint"
           style={{
             fontSize: '0.75rem',
             color: '#dc2626',
@@ -59,6 +47,7 @@ export default function FormField({
         </span>
       ) : helperText ? (
         <span
+          className="form-hint"
           style={{
             fontSize: '0.75rem',
             color: 'var(--text-muted, #94a3b8)',

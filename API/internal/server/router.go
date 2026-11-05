@@ -19,6 +19,7 @@ import (
 	"github.com/yourusername/hostel-management-system/API/internal/service"
 	superadminroutes "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/routes"
 	adminroutes "github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/routes"
+	inchargeroutes "github.com/yourusername/hostel-management-system/MODULES/HOSTEL-INCHARGE/BACKEND/routes"
 )
 
 func NewRouter(
@@ -194,9 +195,7 @@ func NewRouter(
 	staffHandler := NewPeopleStaffHandler(staffService)
 
 	inchargeHostelService := service.NewInchargeHostelService(db, repository)
-	inchargeHostelHandler := NewPeopleInchargeHostelHandler(
-		inchargeHostelService,
-	)
+	_ = inchargeHostelService
 
 	securityAssignmentService := service.NewSecurityAssignmentService(
 		repository,
@@ -840,58 +839,12 @@ func NewRouter(
 			gateHandler.UpdateStatus,
 		)
 
-		collegeProtected.GET(
-			"/hostels/:hostel_id/incharges",
+		// Canonical Hostel In-Charge modular routes
+		inchargeroutes.RegisterInchargeRoutes(
+			collegeProtected,
+			db,
 			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.List,
-		)
-
-		collegeProtected.POST(
-			"/hostels/:hostel_id/incharges",
 			permissionMiddleware.RequirePermission("people.manage"),
-			inchargeHostelHandler.Create,
-		)
-
-		collegeProtected.GET(
-			"/hostels/:hostel_id/incharges/:assignment_id",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.Get,
-		)
-
-		collegeProtected.PUT(
-			"/hostels/:hostel_id/incharges/:assignment_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			inchargeHostelHandler.Update,
-		)
-
-		collegeProtected.DELETE(
-			"/hostels/:hostel_id/incharges/:assignment_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			inchargeHostelHandler.Delete,
-		)
-
-		collegeProtected.GET(
-			"/incharges/my-hostel",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.GetMyHostel,
-		)
-
-		collegeProtected.GET(
-			"/incharges/my-hostel/residents",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.ListResidents,
-		)
-
-		collegeProtected.GET(
-			"/incharges/my-hostel/vacant-beds",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.ListVacantBeds,
-		)
-
-		collegeProtected.GET(
-			"/incharges/unallocated-students",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.ListUnallocatedStudents,
 		)
 
 		collegeProtected.GET(
