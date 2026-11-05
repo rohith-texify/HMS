@@ -11,6 +11,11 @@ import (
 // Database exposes the API database type to other project modules.
 type Database = internaldb.Database
 
+// WithTenantID attaches tenant ID to context
+func WithTenantID(ctx context.Context, tenantID uuid.UUID) context.Context {
+	return internaldb.WithTenantID(ctx, tenantID)
+}
+
 // TxFromContext returns the transaction stored in the request context.
 func TxFromContext(ctx context.Context) (pgx.Tx, bool) {
 	return internaldb.TxFromContext(ctx)

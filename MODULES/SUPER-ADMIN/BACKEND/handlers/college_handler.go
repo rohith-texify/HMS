@@ -768,3 +768,76 @@ func (h *CollegeHandler) GetCollegeAdminLoginHistory(c *gin.Context) {
 	})
 }
 
+// GetCollegeStats handles GET /super-admin/colleges/:id/stats.
+func (h *CollegeHandler) GetCollegeStats(c *gin.Context) {
+	collegeID, err := parseCollegeIDParam(c)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	stats, err := h.service.GetCollegeStats(c.Request.Context(), collegeID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	response.OK(c, map[string]interface{}{
+		"stats": stats,
+	})
+}
+
+// GetCollegeActivity handles GET /super-admin/colleges/:id/activity.
+func (h *CollegeHandler) GetCollegeActivity(c *gin.Context) {
+	collegeID, err := parseCollegeIDParam(c)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	activity, err := h.service.GetCollegeActivity(c.Request.Context(), collegeID)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	response.OK(c, map[string]interface{}{
+		"activity": activity,
+	})
+}
+
+// UpdateCollegeQuotas handles PUT /super-admin/colleges/:id/quotas.
+func (h *CollegeHandler) UpdateCollegeQuotas(c *gin.Context) {
+	collegeID, err := parseCollegeIDParam(c)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	var req models.UpdateCollegeQuotasRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, validators.NewValidationError("Invalid quota request body"))
+		return
+	}
+
+	actorID, actorRole, err := getAuthenticatedActor(c)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+
+	ctx := database.WithPlatformUserID(c.Request.Context(), actorID)
+	ctx = context.WithValue(ctx, services.ActorRoleContextKey, actorRole)
+
+	if err := h.service.UpdateCollegeQuotas(ctx, collegeID, req); err != nil {
+		respondError(c, err)
+		return
+	}
+
+	response.OK(c, map[string]interface{}{
+		"success": true,
+		"message": "Resource quota limits updated successfully",
+	})
+}
+
+

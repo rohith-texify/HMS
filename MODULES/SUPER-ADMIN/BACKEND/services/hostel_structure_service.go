@@ -201,6 +201,22 @@ func (s *HostelStructureService) CreateBlock(ctx context.Context, collegeID uuid
 		return nil, apierrors.New(apierrors.ValidationError, "Invalid block status")
 	}
 
+	// Concurrency-Safe Hostel Block Quota Enforcement
+	if b.Status == "ACTIVE" {
+		var maxBlocks int
+		if err := s.repo.Executor(ctx).QueryRow(ctx, `
+			SELECT COALESCE(max_blocks, 5) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+		`, collegeID).Scan(&maxBlocks); err == nil {
+			var activeBlocks int
+			_ = s.repo.Executor(ctx).QueryRow(ctx, `
+				SELECT COUNT(*) FROM app.blocks WHERE college_id = $1 AND status = 'ACTIVE'
+			`, collegeID).Scan(&activeBlocks)
+			if activeBlocks >= maxBlocks {
+				return nil, apierrors.New(apierrors.Conflict, fmt.Sprintf("Hostel block limit reached for this college (limit: %d, currently active: %d). Increase quota in Super Admin", maxBlocks, activeBlocks))
+			}
+		}
+	}
+
 	b.CollegeID = collegeID
 	if err := s.repo.CreateBlock(ctx, b); err != nil {
 		return nil, fmt.Errorf("failed to create block: %w", err)
@@ -224,6 +240,22 @@ func (s *HostelStructureService) UpdateBlock(ctx context.Context, collegeID, blo
 	b.Name = strings.TrimSpace(b.Name)
 	if b.Code == "" || b.Name == "" {
 		return nil, apierrors.New(apierrors.ValidationError, "Block code and name are required")
+	}
+
+	// Concurrency-Safe Hostel Block Reactivation Quota Enforcement
+	if existing.Status != "ACTIVE" && b.Status == "ACTIVE" {
+		var maxBlocks int
+		if err := s.repo.Executor(ctx).QueryRow(ctx, `
+			SELECT COALESCE(max_blocks, 5) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+		`, collegeID).Scan(&maxBlocks); err == nil {
+			var activeBlocks int
+			_ = s.repo.Executor(ctx).QueryRow(ctx, `
+				SELECT COUNT(*) FROM app.blocks WHERE college_id = $1 AND status = 'ACTIVE'
+			`, collegeID).Scan(&activeBlocks)
+			if activeBlocks >= maxBlocks {
+				return nil, apierrors.New(apierrors.Conflict, fmt.Sprintf("Cannot reactivate block: hostel block limit reached (%d/%d). Increase quota in Super Admin", activeBlocks, maxBlocks))
+			}
+		}
 	}
 
 	b.ID = blockID

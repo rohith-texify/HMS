@@ -68,19 +68,7 @@ export default function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            backgroundColor: '#ffffff',
-            border: '1px solid var(--danger-border, #fecaca)',
-            color: 'var(--danger-text, #991b1b)',
-            padding: '6px 14px',
-            borderRadius: '6px',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          className="btn-enterprise btn-danger-soft btn-sm"
         >
           <RotateCcw size={13} />
           <span>Retry Operation</span>

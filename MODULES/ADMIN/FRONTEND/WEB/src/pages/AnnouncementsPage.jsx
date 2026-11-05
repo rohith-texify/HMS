@@ -616,7 +616,7 @@ export default function AdminAnnouncementsPage() {
 
                   <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: '11px', fontWeight: 600, color: isUnread ? '#6366f1' : '#059669' }}>
-                      {isUnread ? '• Unread' : '✓ Read'}
+                      {isUnread ? '• Unread' : 'Read'}
                     </span>
 
                     <div style={{ display: 'flex', gap: '6px' }}>

@@ -91,6 +91,11 @@ func (r *Repository) ListCollegesWithFilter(
 			village_code,
 			campus_locality,
 			logo_url,
+			max_incharges,
+			max_students,
+			max_parents,
+			max_security,
+			max_blocks,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -134,6 +139,11 @@ func (r *Repository) ListCollegesWithFilter(
 			&college.VillageCode,
 			&college.CampusLocality,
 			&college.LogoURL,
+			&college.MaxIncharges,
+			&college.MaxStudents,
+			&college.MaxParents,
+			&college.MaxSecurity,
+			&college.MaxBlocks,
 			&college.ActivatedAt,
 			&college.SuspendedAt,
 			&college.DeactivatedAt,
@@ -179,6 +189,11 @@ func (r *Repository) GetCollegeByID(
 			village_code,
 			campus_locality,
 			logo_url,
+			max_incharges,
+			max_students,
+			max_parents,
+			max_security,
+			max_blocks,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -210,6 +225,11 @@ func (r *Repository) GetCollegeByID(
 		&college.VillageCode,
 		&college.CampusLocality,
 		&college.LogoURL,
+		&college.MaxIncharges,
+		&college.MaxStudents,
+		&college.MaxParents,
+		&college.MaxSecurity,
+		&college.MaxBlocks,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,
@@ -312,6 +332,27 @@ func (r *Repository) CreateCollege(
 		tz = strings.TrimSpace(req.Timezone)
 	}
 
+	maxIncharges := 5
+	if req.MaxIncharges != nil && *req.MaxIncharges >= 0 {
+		maxIncharges = *req.MaxIncharges
+	}
+	maxStudents := 500
+	if req.MaxStudents != nil && *req.MaxStudents >= 0 {
+		maxStudents = *req.MaxStudents
+	}
+	maxParents := 500
+	if req.MaxParents != nil && *req.MaxParents >= 0 {
+		maxParents = *req.MaxParents
+	}
+	maxSecurity := 10
+	if req.MaxSecurity != nil && *req.MaxSecurity >= 0 {
+		maxSecurity = *req.MaxSecurity
+	}
+	maxBlocks := 5
+	if req.MaxBlocks != nil && *req.MaxBlocks >= 0 {
+		maxBlocks = *req.MaxBlocks
+	}
+
 	query := `
 		INSERT INTO platform.colleges (
 			college_code,
@@ -330,10 +371,17 @@ func (r *Repository) CreateCollege(
 			ward_code,
 			village_code,
 			campus_locality,
-			logo_url
+			logo_url,
+			max_incharges,
+			max_students,
+			max_parents,
+			max_security,
+			max_blocks,
+			activated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, 'ONBOARDING',
-			$7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, 'ACTIVE',
+			$7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+			$17, $18, $19, $20, $21, NOW()
 		)
 		RETURNING
 			college_id,
@@ -354,6 +402,11 @@ func (r *Repository) CreateCollege(
 			village_code,
 			campus_locality,
 			logo_url,
+			max_incharges,
+			max_students,
+			max_parents,
+			max_security,
+			max_blocks,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -383,6 +436,11 @@ func (r *Repository) CreateCollege(
 		req.VillageCode,
 		req.CampusLocality,
 		req.LogoURL,
+		maxIncharges,
+		maxStudents,
+		maxParents,
+		maxSecurity,
+		maxBlocks,
 	).Scan(
 		&college.CollegeID,
 		&college.CollegeCode,
@@ -402,6 +460,11 @@ func (r *Repository) CreateCollege(
 		&college.VillageCode,
 		&college.CampusLocality,
 		&college.LogoURL,
+		&college.MaxIncharges,
+		&college.MaxStudents,
+		&college.MaxParents,
+		&college.MaxSecurity,
+		&college.MaxBlocks,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,
@@ -528,6 +591,36 @@ func (r *Repository) UpdateCollege(
 		argPos++
 	}
 
+	if req.MaxIncharges != nil {
+		query += fmt.Sprintf(`, max_incharges = $%d`, argPos)
+		args = append(args, *req.MaxIncharges)
+		argPos++
+	}
+
+	if req.MaxStudents != nil {
+		query += fmt.Sprintf(`, max_students = $%d`, argPos)
+		args = append(args, *req.MaxStudents)
+		argPos++
+	}
+
+	if req.MaxParents != nil {
+		query += fmt.Sprintf(`, max_parents = $%d`, argPos)
+		args = append(args, *req.MaxParents)
+		argPos++
+	}
+
+	if req.MaxSecurity != nil {
+		query += fmt.Sprintf(`, max_security = $%d`, argPos)
+		args = append(args, *req.MaxSecurity)
+		argPos++
+	}
+
+	if req.MaxBlocks != nil {
+		query += fmt.Sprintf(`, max_blocks = $%d`, argPos)
+		args = append(args, *req.MaxBlocks)
+		argPos++
+	}
+
 	query += fmt.Sprintf(` WHERE college_id = $%d`, argPos)
 	args = append(args, collegeID)
 	argPos++
@@ -552,6 +645,11 @@ func (r *Repository) UpdateCollege(
 			village_code,
 			campus_locality,
 			logo_url,
+			max_incharges,
+			max_students,
+			max_parents,
+			max_security,
+			max_blocks,
 			activated_at,
 			suspended_at,
 			deactivated_at,
@@ -581,6 +679,11 @@ func (r *Repository) UpdateCollege(
 		&college.VillageCode,
 		&college.CampusLocality,
 		&college.LogoURL,
+		&college.MaxIncharges,
+		&college.MaxStudents,
+		&college.MaxParents,
+		&college.MaxSecurity,
+		&college.MaxBlocks,
 		&college.ActivatedAt,
 		&college.SuspendedAt,
 		&college.DeactivatedAt,
@@ -2423,5 +2526,243 @@ func (r *Repository) GetCollegeAdminLoginHistory(
 
 	return events, nil
 }
+
+// GetCollegeAccountStats queries live authoritative counts for students, parents, incharges, security, and blocks.
+func (r *Repository) GetCollegeAccountStats(ctx context.Context, collegeID uuid.UUID) (*models.CollegeAccountStats, error) {
+	var maxIncharges, maxStudents, maxParents, maxSecurity, maxBlocks int
+	err := r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COALESCE(max_incharges, 5), 
+			COALESCE(max_students, 500), 
+			COALESCE(max_parents, 500), 
+			COALESCE(max_security, 10), 
+			COALESCE(max_blocks, 5)
+		FROM platform.colleges 
+		WHERE college_id = $1
+	`, collegeID).Scan(&maxIncharges, &maxStudents, &maxParents, &maxSecurity, &maxBlocks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load college limits: %w", err)
+	}
+
+	// 1. Students: Only student_status = 'ACTIVE' and user status = 'ACTIVE' count
+	var totalStudents, activeStudents, deactStudents int
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE s.student_status = 'ACTIVE' AND (u.status IS NULL OR u.status = 'ACTIVE')),
+			COUNT(*) FILTER (WHERE s.student_status != 'ACTIVE' OR u.status IN ('DEACTIVATED', 'SUSPENDED', 'INACTIVE'))
+		FROM app.students s
+		LEFT JOIN app.users u ON s.user_id = u.user_id
+		WHERE s.college_id = $1
+	`, collegeID).Scan(&totalStudents, &activeStudents, &deactStudents)
+
+	// 2. Parents: Only user status = 'ACTIVE' counts
+	var totalParents, activeParents, deactParents int
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE u.status IS NULL OR u.status = 'ACTIVE'),
+			COUNT(*) FILTER (WHERE u.status IN ('DEACTIVATED', 'SUSPENDED', 'INACTIVE'))
+		FROM app.parents p
+		LEFT JOIN app.users u ON p.user_id = u.user_id
+		WHERE p.college_id = $1
+	`, collegeID).Scan(&totalParents, &activeParents, &deactParents)
+
+	// 3. Hostel Incharges: roles IN ('INCHARGE', 'HOSTEL_INCHARGE', 'WARDEN')
+	var totalIncharges, activeIncharges, deactIncharges int
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COUNT(DISTINCT ur.user_id),
+			COUNT(DISTINCT ur.user_id) FILTER (WHERE ur.status = 'ACTIVE' AND (u.status IS NULL OR u.status = 'ACTIVE')),
+			COUNT(DISTINCT ur.user_id) FILTER (WHERE ur.status != 'ACTIVE' OR u.status IN ('DEACTIVATED', 'SUSPENDED', 'INACTIVE'))
+		FROM platform.user_roles ur
+		JOIN platform.roles r ON ur.role_id = r.role_id
+		LEFT JOIN app.users u ON ur.user_id = u.user_id
+		WHERE ur.college_id = $1 AND r.role_code IN ('INCHARGE', 'HOSTEL_INCHARGE', 'WARDEN')
+	`, collegeID).Scan(&totalIncharges, &activeIncharges, &deactIncharges)
+
+	// 4. Security: role = 'SECURITY'
+	var totalSecurity, activeSecurity, deactSecurity int
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COUNT(DISTINCT ur.user_id),
+			COUNT(DISTINCT ur.user_id) FILTER (WHERE ur.status = 'ACTIVE' AND (u.status IS NULL OR u.status = 'ACTIVE')),
+			COUNT(DISTINCT ur.user_id) FILTER (WHERE ur.status != 'ACTIVE' OR u.status IN ('DEACTIVATED', 'SUSPENDED', 'INACTIVE'))
+		FROM platform.user_roles ur
+		JOIN platform.roles r ON ur.role_id = r.role_id
+		LEFT JOIN app.users u ON ur.user_id = u.user_id
+		WHERE ur.college_id = $1 AND r.role_code = 'SECURITY'
+	`, collegeID).Scan(&totalSecurity, &activeSecurity, &deactSecurity)
+
+	// 5. Hostel Blocks: status = 'ACTIVE'
+	var totalBlocks, activeBlocks, deactBlocks int
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'ACTIVE'),
+			COUNT(*) FILTER (WHERE status != 'ACTIVE')
+		FROM app.blocks
+		WHERE college_id = $1
+	`, collegeID).Scan(&totalBlocks, &activeBlocks, &deactBlocks)
+
+	calcCategory := func(total, active, deact, limit int) models.AccountStatCategory {
+		remaining := limit - active
+		if remaining < 0 {
+			remaining = 0
+		}
+		var usagePct float64
+		if limit > 0 {
+			usagePct = (float64(active) / float64(limit)) * 100.0
+			if usagePct > 100.0 {
+				usagePct = 100.0
+			}
+		}
+		return models.AccountStatCategory{
+			Total:       total,
+			Active:      active,
+			Deactivated: deact,
+			Limit:       limit,
+			Remaining:   remaining,
+			UsagePct:    usagePct,
+		}
+	}
+
+	stats := &models.CollegeAccountStats{
+		CollegeID:           collegeID,
+		TotalAccounts:       totalStudents + totalParents + totalIncharges + totalSecurity,
+		ActiveAccounts:      activeStudents + activeParents + activeIncharges + activeSecurity,
+		DeactivatedAccounts: deactStudents + deactParents + deactIncharges + deactSecurity,
+		Students:            calcCategory(totalStudents, activeStudents, deactStudents, maxStudents),
+		Parents:             calcCategory(totalParents, activeParents, deactParents, maxParents),
+		Incharges:           calcCategory(totalIncharges, activeIncharges, deactIncharges, maxIncharges),
+		Security:            calcCategory(totalSecurity, activeSecurity, deactSecurity, maxSecurity),
+		Blocks:              calcCategory(totalBlocks, activeBlocks, deactBlocks, maxBlocks),
+	}
+
+	return stats, nil
+}
+
+// GetCollegeActivity aggregates recent logins across roles, recent audit logs, and support tickets for a college.
+func (r *Repository) GetCollegeActivity(ctx context.Context, collegeID uuid.UUID) (*models.CollegeActivityDashboard, error) {
+	dashboard := &models.CollegeActivityDashboard{
+		CollegeID:    collegeID,
+		RecentLogins: make([]models.RoleRecentLogin, 0),
+		AuditLogs:    make([]models.PlatformAuditLog, 0),
+		Tickets: models.SupportTicketSummary{
+			Recent: make([]models.RecentSupportTicket, 0),
+		},
+	}
+
+	// 1. Recent Logins by Role from platform.login_events
+	loginRows, err := r.Executor(ctx).Query(ctx, `
+		SELECT DISTINCT ON (r.role_code)
+			r.role_code,
+			r.role_name,
+			COALESCE(u.email, 'Unknown'),
+			le.event_at,
+			le.device,
+			le.user_agent,
+			host(le.ip_address)
+		FROM platform.login_events le
+		JOIN app.users u ON le.user_id = u.user_id
+		JOIN platform.user_roles ur ON ur.user_id = u.user_id AND (ur.college_id = le.college_id OR ur.college_id IS NULL)
+		JOIN platform.roles r ON ur.role_id = r.role_id
+		WHERE le.college_id = $1 AND le.result = 'SUCCESS'
+		ORDER BY r.role_code, le.event_at DESC
+	`, collegeID)
+	if err == nil {
+		defer loginRows.Close()
+		for loginRows.Next() {
+			var l models.RoleRecentLogin
+			if scanErr := loginRows.Scan(
+				&l.RoleCode,
+				&l.RoleName,
+				&l.Email,
+				&l.EventAt,
+				&l.Device,
+				&l.UserAgent,
+				&l.IPAddress,
+			); scanErr == nil {
+				dashboard.RecentLogins = append(dashboard.RecentLogins, l)
+			}
+		}
+	}
+
+	// 2. Audit Logs: Last 10 records for this college from platform.audit_logs
+	auditLogs, _, auditErr := r.ListAuditLogs(ctx, models.AuditLogFilterParams{
+		CollegeID: &collegeID,
+		Limit:     10,
+	})
+	if auditErr == nil && len(auditLogs) > 0 {
+		dashboard.AuditLogs = auditLogs
+	}
+
+	// 3. Support Tickets from app.complaints
+	var tTotal, tOpen, tInProgress, tResolved int
+	_ = r.Executor(ctx).QueryRow(ctx, `
+		SELECT 
+			COUNT(*),
+			COUNT(*) FILTER (WHERE status = 'OPEN'),
+			COUNT(*) FILTER (WHERE status IN ('ASSIGNED', 'IN_PROGRESS')),
+			COUNT(*) FILTER (WHERE status IN ('RESOLVED', 'CLOSED'))
+		FROM app.complaints
+		WHERE college_id = $1
+	`, collegeID).Scan(&tTotal, &tOpen, &tInProgress, &tResolved)
+
+	dashboard.Tickets.Total = tTotal
+	dashboard.Tickets.Open = tOpen
+	dashboard.Tickets.InProgress = tInProgress
+	dashboard.Tickets.Resolved = tResolved
+
+	ticketRows, tErr := r.Executor(ctx).Query(ctx, `
+		SELECT id, complaint_number, title, category, priority, status, created_at
+		FROM app.complaints
+		WHERE college_id = $1
+		ORDER BY created_at DESC
+		LIMIT 5
+	`, collegeID)
+	if tErr == nil {
+		defer ticketRows.Close()
+		for ticketRows.Next() {
+			var t models.RecentSupportTicket
+			if scanErr := ticketRows.Scan(
+				&t.ID,
+				&t.ComplaintNumber,
+				&t.Title,
+				&t.Category,
+				&t.Priority,
+				&t.Status,
+				&t.CreatedAt,
+			); scanErr == nil {
+				dashboard.Tickets.Recent = append(dashboard.Tickets.Recent, t)
+			}
+		}
+	}
+
+	return dashboard, nil
+}
+
+// UpdateCollegeQuotas updates the maximum resource limits for a college.
+func (r *Repository) UpdateCollegeQuotas(ctx context.Context, collegeID uuid.UUID, req models.UpdateCollegeQuotasRequest) error {
+	query := `
+		UPDATE platform.colleges
+		SET max_students = $1,
+			max_parents = $2,
+			max_incharges = $3,
+			max_security = $4,
+			max_blocks = $5,
+			updated_at = NOW()
+		WHERE college_id = $6
+	`
+	res, err := r.Executor(ctx).Exec(ctx, query, req.MaxStudents, req.MaxParents, req.MaxIncharges, req.MaxSecurity, req.MaxBlocks, collegeID)
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+	return nil
+}
+
 
 

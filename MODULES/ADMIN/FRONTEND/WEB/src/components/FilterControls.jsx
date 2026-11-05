@@ -25,20 +25,8 @@ export default function FilterControls({
         {onReset && (
           <button
             type="button"
+            className="btn-enterprise btn-outline-soft btn-sm"
             onClick={onReset}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 10px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-color, #e2e8f0)',
-              backgroundColor: '#ffffff',
-              color: 'var(--text-secondary, #475569)',
-              fontSize: '0.78rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
             title="Reset filters"
           >
             <RotateCcw size={12} />

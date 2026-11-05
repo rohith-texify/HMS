@@ -93,6 +93,11 @@ func RegisterSuperAdminRoutes(
 			colleges.PUT("/:id/status", requireManage, collegeHandler.UpdateCollegeStatus)
 			colleges.PATCH("/:id/status", requireManage, collegeHandler.UpdateCollegeStatus)
 
+			// College stats, activity monitoring, and quotas
+			colleges.GET("/:id/stats", requireView, collegeHandler.GetCollegeStats)
+			colleges.GET("/:id/activity", requireView, collegeHandler.GetCollegeActivity)
+			colleges.PUT("/:id/quotas", requireManage, collegeHandler.UpdateCollegeQuotas)
+
 			// College administrator credentials management
 			colleges.GET("/:id/admin", requireView, collegeHandler.GetCollegeAdmin)
 			colleges.PUT("/:id/admin/password", requireManage, collegeHandler.UpdateCollegeAdminPassword)

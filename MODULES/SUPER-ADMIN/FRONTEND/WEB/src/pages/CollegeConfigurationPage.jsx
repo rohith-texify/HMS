@@ -1,6 +1,25 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import {
+  ArrowLeft,
+  RotateCw,
+  BarChart2,
+  Building2,
+  Shield,
+  Database,
+  Bell,
+  GitCompare,
+  History,
+  CheckCircle2,
+  AlertCircle,
+  X,
+  Sliders,
+  Layers,
+  Rocket,
+  Clock,
+  Settings2,
+} from 'lucide-react';
+import {
   fetchCollege,
   fetchEffectiveSettings,
   fetchSettingDefinitions,
@@ -105,7 +124,7 @@ export default function CollegeConfigurationPage() {
   const [pendingApprovals, setPendingApprovals] = useState([]);
 
   // Loading & error state
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [actionNotice, setActionNotice] = useState(null);
@@ -484,16 +503,6 @@ export default function CollegeConfigurationPage() {
     });
   }, [comparisons, compareOnlyOverrides, compareSearch]);
 
-  if (loading && !college) {
-    return (
-      <div style={{ padding: '60px 32px', textAlign: 'center', color: '#64748b' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚙️</div>
-        <h3 style={{ color: '#0f172a', fontWeight: '600' }}>Loading College Configuration</h3>
-        <p style={{ fontSize: '0.875rem' }}>Fetching tenant parameters, baseline defaults, and audit history...</p>
-      </div>
-    );
-  }
-
   if (permissionDenied) {
     return (
       <div style={{ padding: '40px 32px', maxWidth: '720px', margin: '40px auto' }}>
@@ -531,6 +540,16 @@ export default function CollegeConfigurationPage() {
     );
   }
 
+  if (loading || !college) {
+    return (
+      <div style={{ padding: '60px 32px', textAlign: 'center', color: '#64748b' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚙️</div>
+        <h3 style={{ color: '#0f172a', fontWeight: '600' }}>Loading College Configuration</h3>
+        <p style={{ fontSize: '0.875rem' }}>Fetching tenant parameters, baseline defaults, and audit history...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* 1. Header & Breadcrumb */}
@@ -540,8 +559,8 @@ export default function CollegeConfigurationPage() {
           <span>/</span>
           <Link to="/colleges" style={{ color: '#64748b', textDecoration: 'none' }}>Colleges</Link>
           <span>/</span>
-          <Link to={`/colleges/${college.college_id}`} style={{ color: '#64748b', textDecoration: 'none' }}>
-            {college.name}
+          <Link to={`/colleges/${college?.college_id || collegeId}`} style={{ color: '#64748b', textDecoration: 'none' }}>
+            {college?.name || 'College Details'}
           </Link>
           <span>/</span>
           <span style={{ color: '#0f172a', fontWeight: '600' }}>Configuration</span>
@@ -551,12 +570,12 @@ export default function CollegeConfigurationPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
-                {college.name}
+                {college?.name || 'College Configuration'}
               </h1>
               <span
                 style={{
-                  background: college.status === 'ACTIVE' ? '#ecfdf5' : '#eff6ff',
-                  color: college.status === 'ACTIVE' ? '#065f46' : '#1e40af',
+                  background: college?.status === 'ACTIVE' ? '#ecfdf5' : '#eff6ff',
+                  color: college?.status === 'ACTIVE' ? '#065f46' : '#1e40af',
                   padding: '4px 10px',
                   borderRadius: '12px',
                   fontSize: '0.75rem',
@@ -564,29 +583,26 @@ export default function CollegeConfigurationPage() {
                   letterSpacing: '0.5px',
                 }}
               >
-                ● {college.status}
+                ● {college?.status || 'ACTIVE'}
               </span>
             </div>
             <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: '#64748b', alignItems: 'center' }}>
-              <span>Tenant Code: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{college.college_code}</strong></span>
+              <span>Tenant Code: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{college?.college_code || '—'}</strong></span>
               <span>•</span>
-              <span>UUID: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{college.college_id}</span></span>
+              <span>UUID: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{college?.college_id || collegeId}</span></span>
               <span>•</span>
               <span>Precedence: <strong style={{ color: '#2563eb' }}>Global Baseline → Tenant Overrides</strong></span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px' }}>
-            {college.status === 'ONBOARDING' && (
-              <Link to={`/colleges/${college.college_id}/onboarding`} className="btn btn-primary" id="btn-resume-onboarding">
-                Resume Onboarding 🚀
-              </Link>
-            )}
-            <Link to={`/colleges/${college.college_id}`} className="btn btn-outline" id="btn-back-to-details">
-              ← Back to College Details
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <Link to={`/colleges/${college?.college_id || collegeId}`} className="btn-enterprise btn-outline-soft btn-sm" id="btn-back-to-details">
+              <ArrowLeft size={14} />
+              <span>Back to College Details</span>
             </Link>
-            <button className="btn btn-outline" onClick={loadConfigurationData} disabled={loading} id="btn-refresh-config" title="Refresh authoritative configuration">
-              🔄 Refresh
+            <button className="btn-enterprise btn-outline-soft btn-sm" onClick={loadConfigurationData} disabled={loading} id="btn-refresh-config" title="Refresh authoritative configuration">
+              <RotateCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
             </button>
           </div>
         </div>
@@ -595,27 +611,37 @@ export default function CollegeConfigurationPage() {
       {/* Action Notices */}
       {actionNotice && (
         <div style={{ padding: '12px 16px', background: '#ecfdf5', borderLeft: '4px solid #10b981', color: '#065f46', fontSize: '0.875rem', marginBottom: '20px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>✓ {actionNotice}</span>
-          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontWeight: 'bold' }} onClick={() => setActionNotice(null)}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CheckCircle2 size={16} className="text-emerald-600" />
+            <span>{actionNotice}</span>
+          </div>
+          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#065f46', fontWeight: 'bold' }} onClick={() => setActionNotice(null)}>
+            <X size={15} />
+          </button>
         </div>
       )}
       {actionError && (
         <div style={{ padding: '12px 16px', background: '#fef2f2', borderLeft: '4px solid #ef4444', color: '#991b1b', fontSize: '0.875rem', marginBottom: '20px', borderRadius: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>✕ {actionError}</span>
-          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b', fontWeight: 'bold' }} onClick={() => setActionError(null)}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} className="text-rose-600" />
+            <span>{actionError}</span>
+          </div>
+          <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#991b1b', fontWeight: 'bold' }} onClick={() => setActionError(null)}>
+            <X size={15} />
+          </button>
         </div>
       )}
 
       {/* Tab Navigation */}
       <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', gap: '4px', marginBottom: '24px' }}>
         {[
-          { id: 'overview', label: '1. Overview', icon: '📊', isDirty: false },
-          { id: 'general', label: '2. General', icon: '🏛️', isDirty: isGeneralDirty },
-          { id: 'security', label: '3. Security & Policy', icon: '🛡️', isDirty: isSecurityDirty },
-          { id: 'retention', label: '4. Data Retention', icon: '🗄️', isDirty: isRetentionDirty },
-          { id: 'notifications', label: '5. Notification Channels', icon: '📢', isDirty: isNotificationDirty },
-          { id: 'compare', label: '6. Defaults & Comparison', icon: '⚖️', isDirty: false },
-          { id: 'history', label: '7. History & Rollback', icon: '📜', isDirty: false },
+          { id: 'overview', label: '1. Overview', icon: <BarChart2 size={16} />, isDirty: false },
+          { id: 'general', label: '2. General', icon: <Building2 size={16} />, isDirty: isGeneralDirty },
+          { id: 'security', label: '3. Security & Policy', icon: <Shield size={16} />, isDirty: isSecurityDirty },
+          { id: 'retention', label: '4. Data Retention', icon: <Database size={16} />, isDirty: isRetentionDirty },
+          { id: 'notifications', label: '5. Notification Channels', icon: <Bell size={16} />, isDirty: isNotificationDirty },
+          { id: 'compare', label: '6. Defaults & Comparison', icon: <GitCompare size={16} />, isDirty: false },
+          { id: 'history', label: '7. History & Rollback', icon: <History size={16} />, isDirty: false },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -659,50 +685,122 @@ export default function CollegeConfigurationPage() {
         <div>
           {/* Key Metrics */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #3b82f6' }}>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>
-                Platform Settings Catalog
+            <div
+              className="card"
+              style={{
+                padding: '20px 22px',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                position: 'relative',
+                overflow: 'hidden',
+                background: '#ffffff',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
+                    Platform Settings Catalog
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '800', color: '#0f172a', marginTop: '6px', letterSpacing: '-0.02em' }}>
+                    {totalCount}
+                  </div>
+                </div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Sliders size={20} />
+                </div>
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#0f172a', marginTop: '4px' }}>
-                {totalCount}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '8px' }}>
                 Permitted platform tenant keys
               </div>
             </div>
 
-            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #10b981' }}>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>
-                Inherited Baseline Defaults
+            <div
+              className="card"
+              style={{
+                padding: '20px 22px',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                position: 'relative',
+                overflow: 'hidden',
+                background: '#ffffff',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
+                    Inherited Baseline Defaults
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '800', color: '#059669', marginTop: '6px', letterSpacing: '-0.02em' }}>
+                    {inheritedCount}
+                  </div>
+                </div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CheckCircle2 size={20} />
+                </div>
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#059669', marginTop: '4px' }}>
-                {inheritedCount}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '8px' }}>
                 Adhering to company standard baseline
               </div>
             </div>
 
-            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #f59e0b' }}>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>
-                Explicit Tenant Overrides
+            <div
+              className="card"
+              style={{
+                padding: '20px 22px',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                position: 'relative',
+                overflow: 'hidden',
+                background: '#ffffff',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
+                    Explicit Tenant Overrides
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '800', color: '#d97706', marginTop: '6px', letterSpacing: '-0.02em' }}>
+                    {overriddenCount}
+                  </div>
+                </div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fffbeb', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Settings2 size={20} />
+                </div>
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#d97706', marginTop: '4px' }}>
-                {overriddenCount}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '8px' }}>
                 Customized institution overrides
               </div>
             </div>
 
-            <div className="card" style={{ padding: '20px', borderLeft: '4px solid #8b5cf6' }}>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '600' }}>
-                Pending Approvals
+            <div
+              className="card"
+              style={{
+                padding: '20px 22px',
+                borderRadius: '16px',
+                border: '1px solid #e2e8f0',
+                boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)',
+                position: 'relative',
+                overflow: 'hidden',
+                background: '#ffffff',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', textTransform: 'uppercase', fontWeight: '700', letterSpacing: '0.04em' }}>
+                    Pending Approvals
+                  </div>
+                  <div style={{ fontSize: '2rem', fontWeight: '800', color: '#7c3aed', marginTop: '6px', letterSpacing: '-0.02em' }}>
+                    {pendingApprovalsCount}
+                  </div>
+                </div>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#f5f3ff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={20} />
+                </div>
               </div>
-              <div style={{ fontSize: '2rem', fontWeight: '700', color: '#7c3aed', marginTop: '4px' }}>
-                {pendingApprovalsCount}
-              </div>
-              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '8px' }}>
                 {pendingApprovalsCount > 0 ? 'Awaiting reviewer decision' : 'All change requests clear'}
               </div>
             </div>
@@ -728,37 +826,42 @@ export default function CollegeConfigurationPage() {
           )}
 
           {/* Architecture Precedence Diagram */}
-          <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#0f172a', marginBottom: '8px' }}>
-              📐 Configuration Precedence & Layering Architecture
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '16px' }}>
+          <div className="card" style={{ padding: '24px', borderRadius: '16px', border: '1px solid #e2e8f0', marginBottom: '24px', background: '#ffffff', boxShadow: '0 1px 3px rgba(15, 23, 42, 0.03)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Layers size={18} />
+              </div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+                Configuration Precedence & Layering Architecture
+              </h3>
+            </div>
+            <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '20px', lineHeight: 1.5 }}>
               Platform configuration enforces strict hierarchical layering. Global company standards establish mandatory security floors; colleges may customize permitted overrides, but security rules can never weaken company minimums.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', alignItems: 'center' }}>
-              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>Layer 1</div>
-                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', marginTop: '4px' }}>Global Defaults</div>
-                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Company security floors & default policies</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', alignItems: 'stretch' }}>
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px 18px', textAlign: 'left' }}>
+                <div style={{ display: 'inline-block', fontSize: '0.68rem', color: '#475569', background: '#e2e8f0', fontWeight: '700', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', letterSpacing: '0.05em' }}>Layer 1</div>
+                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>Global Defaults</div>
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>Company security floors & default policies</div>
               </div>
 
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: '700', textTransform: 'uppercase' }}>Layer 2</div>
-                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1e40af', marginTop: '4px' }}>College Profile</div>
-                <div style={{ fontSize: '0.75rem', color: '#1e3a8a', marginTop: '4px' }}>Root college record attributes</div>
+              <div style={{ background: '#f0f7ff', border: '1px solid #bfdbfe', borderRadius: '12px', padding: '16px 18px', textAlign: 'left' }}>
+                <div style={{ display: 'inline-block', fontSize: '0.68rem', color: '#1e40af', background: '#dbeafe', fontWeight: '700', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', letterSpacing: '0.05em' }}>Layer 2</div>
+                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#1e40af', marginTop: '8px' }}>College Profile</div>
+                <div style={{ fontSize: '0.78rem', color: '#2563eb', marginTop: '4px', lineHeight: 1.4 }}>Root college record attributes</div>
               </div>
 
-              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: '700', textTransform: 'uppercase' }}>Layer 3</div>
-                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#b45309', marginTop: '4px' }}>Tenant Overrides</div>
-                <div style={{ fontSize: '0.75rem', color: '#92400e', marginTop: '4px' }}>Explicit custom overrides per college</div>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '16px 18px', textAlign: 'left' }}>
+                <div style={{ display: 'inline-block', fontSize: '0.68rem', color: '#92400e', background: '#fef3c7', fontWeight: '700', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', letterSpacing: '0.05em' }}>Layer 3</div>
+                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#b45309', marginTop: '8px' }}>Tenant Overrides</div>
+                <div style={{ fontSize: '0.78rem', color: '#92400e', marginTop: '4px', lineHeight: 1.4 }}>Explicit custom overrides per college</div>
               </div>
 
-              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: '700', textTransform: 'uppercase' }}>Layer 4</div>
-                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#065f46', marginTop: '4px' }}>Effective Value</div>
-                <div style={{ fontSize: '0.75rem', color: '#047857', marginTop: '4px' }}>Authoritative runtime configuration</div>
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '12px', padding: '16px 18px', textAlign: 'left' }}>
+                <div style={{ display: 'inline-block', fontSize: '0.68rem', color: '#065f46', background: '#d1fae5', fontWeight: '700', textTransform: 'uppercase', padding: '2px 8px', borderRadius: '999px', letterSpacing: '0.05em' }}>Layer 4</div>
+                <div style={{ fontSize: '1rem', fontWeight: '700', color: '#065f46', marginTop: '8px' }}>Effective Value</div>
+                <div style={{ fontSize: '0.78rem', color: '#047857', marginTop: '4px', lineHeight: 1.4 }}>Authoritative runtime configuration</div>
               </div>
             </div>
           </div>
@@ -768,16 +871,16 @@ export default function CollegeConfigurationPage() {
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>
-                  🏛️ General Institution Parameters
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><Building2 size={18} className="text-blue-600" /><span>General Institution Parameters</span></span>
                 </h4>
-                <button className="btn btn-outline btn-sm" onClick={() => setActiveTab('general')}>
+                <button className="btn-enterprise btn-outline-soft btn-sm" onClick={() => setActiveTab('general')}>
                   Manage General →
                 </button>
               </div>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.85rem' }}>
                 <li style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748b' }}>Timezone:</span>
-                  <strong style={{ color: '#0f172a' }}>{findSetting('timezone')?.value || college.timezone || 'Asia/Kolkata'}</strong>
+                  <strong style={{ color: '#0f172a' }}>{findSetting('timezone')?.value || college?.timezone || 'Asia/Kolkata'}</strong>
                 </li>
                 <li style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748b' }}>Default Locale:</span>
@@ -793,9 +896,9 @@ export default function CollegeConfigurationPage() {
             <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>
-                  🛡️ Security & Session Baseline
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><Shield size={18} className="text-emerald-600" /><span>Security & Session Baseline</span></span>
                 </h4>
-                <button className="btn btn-outline btn-sm" onClick={() => setActiveTab('security')}>
+                <button className="btn-enterprise btn-outline-soft btn-sm" onClick={() => setActiveTab('security')}>
                   Manage Security →
                 </button>
               </div>
@@ -1050,7 +1153,7 @@ export default function CollegeConfigurationPage() {
                 {findSetting('timezone')?.is_overridden ? (
                   <span style={{ marginLeft: '8px', color: '#d97706', fontSize: '0.75rem', fontWeight: 'normal' }}>[Explicit Override]</span>
                 ) : (
-                  <span style={{ marginLeft: '8px', color: '#059669', fontSize: '0.75rem', fontWeight: 'normal' }}>[Inherited: {college.timezone || 'Asia/Kolkata'}]</span>
+                  <span style={{ marginLeft: '8px', color: '#059669', fontSize: '0.75rem', fontWeight: 'normal' }}>[Inherited: {college?.timezone || 'Asia/Kolkata'}]</span>
                 )}
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>

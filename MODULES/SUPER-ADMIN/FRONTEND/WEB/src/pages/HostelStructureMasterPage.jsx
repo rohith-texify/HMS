@@ -1,5 +1,34 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import {
+  Building2,
+  Layers,
+  AlignJustify,
+  DoorOpen,
+  Bed,
+  Lock,
+  Unlock,
+  Sliders,
+  History,
+  ArrowLeft,
+  Plus,
+  Zap,
+  FileSpreadsheet,
+  Copy,
+  ChevronRight,
+  ChevronDown,
+  ChevronsDown,
+  ChevronsUp,
+  Search,
+  X,
+  Edit3,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  Users,
+  UserCheck,
+} from 'lucide-react';
 import { fetchCollegeById } from '../services/collegeService';
 import {
   fetchStructureOverview,
@@ -41,7 +70,7 @@ export default function HostelStructureMasterPage() {
   const [tree, setTree] = useState([]);
   const [policy, setPolicy] = useState(null);
   const [audits, setAudits] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [successNotice, setSuccessNotice] = useState(null);
 
@@ -535,7 +564,7 @@ export default function HostelStructureMasterPage() {
     }
   };
 
-  if (loading && !college) {
+  if (loading || !college) {
     return (
       <div className="main-content" style={{ padding: '32px' }}>
         <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
@@ -548,60 +577,70 @@ export default function HostelStructureMasterPage() {
   }
 
   return (
-    <div className="main-content" style={{ padding: '24px 32px' }}>
-      {/* Breadcrumb Header */}
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-          <Link to="/colleges" style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>Colleges</Link>
-          {' > '}
-          <Link to={`/colleges/${collegeId}`} style={{ color: 'var(--primary-color)', textDecoration: 'none' }}>
+    <div className="main-content hostel-master-container" style={{ padding: '24px 32px' }}>
+      {/* Hero Header */}
+      <div className="hostel-master-hero">
+        <div className="hostel-hero-breadcrumb-bar">
+          <Link to="/colleges" className="hostel-hero-breadcrumb-link">Colleges</Link>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <Link to={`/colleges/${collegeId}`} className="hostel-hero-breadcrumb-link">
             {college?.name || 'College Details'}
           </Link>
-          {' > '}
-          <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Hostel Structure Master</span>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <span style={{ fontWeight: '600', color: '#0f172a' }}>Hostel Structure Master</span>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>🏰</span>
+        <div className="hostel-hero-main-row">
+          <div className="hostel-hero-title-group">
+            <h1 className="hostel-hero-title">
+              <span className="hostel-hero-icon-badge">
+                <Building2 size={22} />
+              </span>
               <span>Hostel Structure Master</span>
               {policy?.is_locked ? (
-                <span className="badge badge-danger" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>🔒 Structure Locked</span>
+                <span className="badge-status-locked">
+                  <Lock size={12} /> Structure Locked
+                </span>
               ) : (
-                <span className="badge badge-success" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>🔓 Structure Editable</span>
+                <span className="badge-status-active">
+                  <Unlock size={12} /> Structure Editable
+                </span>
               )}
             </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '4px 0 0 0' }}>
+            <p className="hostel-hero-subtitle">
               Physical facilities, buildings, floors, rooms, and beds for <strong>{college?.name}</strong> ({college?.college_code})
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div className="hostel-hero-actions">
             <button
-              className={`btn btn-sm ${policy?.is_locked ? 'btn-success' : 'btn-outline'}`}
+              className={`btn-enterprise ${policy?.is_locked ? 'btn-emerald' : 'btn-outline-soft'}`}
               onClick={handleToggleLockQuick}
               title={policy?.is_locked ? 'Click to unlock structure' : 'Click to lock structure against edits'}
               id="btn-lock-toggle"
             >
-              {policy?.is_locked ? '🔓 Unlock Structure' : '🔒 Lock Structure'}
+              {policy?.is_locked ? <Unlock size={14} /> : <Lock size={14} />}
+              <span>{policy?.is_locked ? 'Unlock Structure' : 'Lock Structure'}</span>
             </button>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft"
               onClick={() => setModalType('POLICY')}
               id="btn-policy-settings"
             >
-              ⚙️ Edit Policy
+              <Sliders size={14} />
+              <span>Edit Policy</span>
             </button>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft"
               onClick={openAuditsModal}
               id="btn-audit-logs"
             >
-              📜 Audit History
+              <History size={14} />
+              <span>Audit History</span>
             </button>
-            <Link to={`/colleges/${collegeId}`} className="btn btn-outline btn-sm">
-              ← Back to College
+            <Link to={`/colleges/${collegeId}`} className="btn-enterprise btn-outline-soft">
+              <ArrowLeft size={14} />
+              <span>Back to College</span>
             </Link>
           </div>
         </div>
@@ -610,105 +649,169 @@ export default function HostelStructureMasterPage() {
       {/* Notifications */}
       {successNotice && (
         <div
-          className="card"
           style={{
-            marginBottom: '16px',
-            backgroundColor: 'var(--success-bg, #ecfdf5)',
-            borderColor: 'var(--success-border, #a7f3d0)',
-            color: 'var(--success-text, #065f46)',
-            padding: '12px 16px',
+            backgroundColor: '#ecfdf5',
+            border: '1px solid #a7f3d0',
+            color: '#065f46',
+            borderRadius: '12px',
+            padding: '12px 18px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            boxShadow: '0 1px 3px rgba(6, 95, 70, 0.05)',
           }}
         >
-          <span>✓ {successNotice}</span>
-          <button className="btn btn-outline btn-sm" onClick={() => setSuccessNotice(null)} style={{ padding: '2px 8px' }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', fontSize: '0.9rem' }}>
+            <CheckCircle2 size={16} className="text-emerald-600" />
+            <span>{successNotice}</span>
+          </div>
+          <button
+            className="btn-icon-action"
+            onClick={() => setSuccessNotice(null)}
+            style={{ width: '24px', height: '24px', border: 'none', background: 'transparent' }}
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 
       {error && (
         <div
-          className="card"
           style={{
-            marginBottom: '16px',
             backgroundColor: '#fef2f2',
-            borderColor: '#fecaca',
+            border: '1px solid #fecaca',
             color: '#991b1b',
-            padding: '12px 16px',
+            borderRadius: '12px',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontWeight: '500',
+            fontSize: '0.9rem',
+            boxShadow: '0 1px 3px rgba(153, 27, 27, 0.05)',
           }}
         >
-          ⚠️ {error}
+          <AlertCircle size={16} className="text-rose-600" />
+          <span>{error}</span>
         </div>
       )}
 
       {/* Aggregate Occupancy & Physical Summary Metrics */}
-      <div className="card" style={{ marginBottom: '24px', padding: '16px 20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-          <div style={{ fontWeight: '700', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>📊</span>
+      <div className="hostel-kpi-panel">
+        <div className="hostel-kpi-panel-header">
+          <div className="hostel-kpi-title-block">
+            <span style={{ display: 'flex', alignItems: 'center', color: '#2563eb' }}>
+              <Building2 size={18} />
+            </span>
             <span>Real Aggregate Occupancy & Physical Capacity Metrics</span>
-            <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>Verified Live Data</span>
+            <span className="badge-category-boys" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <ShieldCheck size={11} /> Verified Live Data
+            </span>
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
             Physical capacity vs verified student bed allocations
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '14px', textAlign: 'center' }}>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Hostels</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--primary-color)' }}>{overview?.total_hostels ?? 0}</div>
+        <div className="hostel-kpi-grid">
+          {/* Card 1: Hostels */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap blue">
+              <Building2 size={16} />
+            </div>
+            <span className="hostel-stat-label">Hostels</span>
+            <span className="hostel-stat-value blue">{overview?.total_hostels ?? 0}</span>
+            <span className="hostel-stat-subtext">Facilities</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Blocks</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0284c7' }}>{overview?.total_blocks ?? 0}</div>
+
+          {/* Card 2: Blocks */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap cyan">
+              <Layers size={16} />
+            </div>
+            <span className="hostel-stat-label">Blocks</span>
+            <span className="hostel-stat-value cyan">{overview?.total_blocks ?? 0}</span>
+            <span className="hostel-stat-subtext">Wings / Units</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Floors</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#4f46e5' }}>{overview?.total_floors ?? 0}</div>
+
+          {/* Card 3: Floors */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap indigo">
+              <AlignJustify size={16} />
+            </div>
+            <span className="hostel-stat-label">Floors</span>
+            <span className="hostel-stat-value indigo">{overview?.total_floors ?? 0}</span>
+            <span className="hostel-stat-subtext">Levels</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Active Rooms</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#16a34a' }}>{overview?.active_rooms ?? 0}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>of {overview?.total_rooms ?? 0} Total</div>
+
+          {/* Card 4: Active Rooms */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap emerald">
+              <DoorOpen size={16} />
+            </div>
+            <span className="hostel-stat-label">Active Rooms</span>
+            <span className="hostel-stat-value emerald">{overview?.active_rooms ?? 0}</span>
+            <span className="hostel-stat-subtext">of {overview?.total_rooms ?? 0} Total</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Vacant Rooms</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#059669' }}>{overview?.vacant_rooms ?? 0}</div>
+
+          {/* Card 5: Vacant Rooms */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap teal">
+              <CheckCircle2 size={16} />
+            </div>
+            <span className="hostel-stat-label">Vacant Rooms</span>
+            <span className="hostel-stat-value teal">{overview?.vacant_rooms ?? 0}</span>
+            <span className="hostel-stat-subtext">Zero Occupancy</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Total Capacity</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#7c3aed' }}>{overview?.total_bed_capacity ?? 0}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{overview?.total_beds ?? 0} Beds Made</div>
+
+          {/* Card 6: Total Capacity */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap purple">
+              <Users size={16} />
+            </div>
+            <span className="hostel-stat-label">Total Capacity</span>
+            <span className="hostel-stat-value purple">{overview?.total_bed_capacity ?? 0}</span>
+            <span className="hostel-stat-subtext">{overview?.total_beds ?? 0} Beds Made</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Occupied Beds</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#ea580c' }}>{overview?.occupied_beds ?? 0}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{overview?.occupancy_percentage?.toFixed(1) ?? '0.0'}% Occupied</div>
+
+          {/* Card 7: Occupied Beds */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap orange">
+              <UserCheck size={16} />
+            </div>
+            <span className="hostel-stat-label">Occupied Beds</span>
+            <span className="hostel-stat-value orange">{overview?.occupied_beds ?? 0}</span>
+            <span className="hostel-stat-subtext">{overview?.occupancy_percentage?.toFixed(1) ?? '0.0'}% Occupied</span>
           </div>
-          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Available Beds</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0d9488' }}>{overview?.available_beds ?? 0}</div>
+
+          {/* Card 8: Available Beds */}
+          <div className="hostel-stat-box">
+            <div className="hostel-stat-icon-wrap emerald">
+              <Bed size={16} />
+            </div>
+            <span className="hostel-stat-label">Available Beds</span>
+            <span className="hostel-stat-value emerald">{overview?.available_beds ?? 0}</span>
+            <span className="hostel-stat-subtext">Ready for Allocation</span>
           </div>
         </div>
       </div>
 
       {/* Main Structural Actions Bar */}
-      <div className="card" style={{ marginBottom: '20px', padding: '14px 18px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="hostel-toolbar-panel">
+        <div className="hostel-toolbar-controls">
+          <div className="hostel-btn-group">
             <button
-              className="btn btn-primary btn-sm"
+              className="btn-enterprise btn-primary-blue"
               onClick={() => openEntityModal('HOSTEL', 'CREATE')}
               disabled={policy?.is_locked}
               title={policy?.is_locked ? 'Locked by policy' : 'Create a new physical hostel facility'}
               id="btn-add-hostel"
             >
-              + Add Hostel
+              <Plus size={15} />
+              <span>Add Hostel</span>
             </button>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft"
               onClick={() => {
                 if (tree.length === 0) {
                   alert('Please create at least one hostel before generating structure.');
@@ -723,10 +826,11 @@ export default function HostelStructureMasterPage() {
               title={policy?.is_locked ? 'Locked' : 'Procedural structure builder'}
               id="btn-bulk-generate"
             >
-              ⚡ Bulk Generate
+              <Zap size={14} className="text-amber-500" />
+              <span>Bulk Generate</span>
             </button>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft"
               onClick={() => {
                 setCsvFile(null);
                 setCsvResult(null);
@@ -736,10 +840,11 @@ export default function HostelStructureMasterPage() {
               title="Import physical structure via CSV"
               id="btn-csv-import"
             >
-              📁 CSV Import
+              <FileSpreadsheet size={14} className="text-emerald-600" />
+              <span>CSV Import</span>
             </button>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft"
               onClick={() => {
                 if (tree.length === 0) {
                   alert('No hostels available to clone.');
@@ -758,165 +863,178 @@ export default function HostelStructureMasterPage() {
               title="Clone an existing hostel hierarchy"
               id="btn-clone-structure"
             >
-              🧬 Clone Structure
+              <Copy size={14} className="text-purple-600" />
+              <span>Clone Structure</span>
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', margin: 0 }}>
+          <div className="hostel-view-options">
+            <label className="hostel-toggle-pill">
               <input
                 type="checkbox"
                 checked={hideOptionalBlocks}
                 onChange={(e) => setHideOptionalBlocks(e.target.checked)}
+                style={{ accentColor: '#2563eb', cursor: 'pointer' }}
               />
               <span>Collapse Blocks (Direct Floor View)</span>
             </label>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft btn-sm"
               onClick={() => setAllExpanded(true)}
               title="Expand all tree nodes"
             >
-              Expand All
+              <ChevronsDown size={13} />
+              <span>Expand All</span>
             </button>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft btn-sm"
               onClick={() => setAllExpanded(false)}
               title="Collapse all tree nodes"
             >
-              Collapse All
+              <ChevronsUp size={13} />
+              <span>Collapse All</span>
             </button>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div style={{ marginTop: '12px' }}>
+        <div className="hostel-search-wrapper">
+          <Search size={16} className="hostel-search-icon" />
           <input
             type="text"
-            className="form-control"
-            placeholder="🔍 Filter structure by hostel name, block code, floor number, room number (e.g. 101), or bed code..."
+            className="hostel-search-input"
+            placeholder="Filter structure by hostel name, block code, floor number, room number (e.g. 101), or bed code..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: '100%', fontSize: '0.9rem' }}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              className="hostel-search-clear"
+              onClick={() => setSearchQuery('')}
+              title="Clear search"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main Structural View (Split Tree + Details Drawer) */}
       <div style={{ display: 'grid', gridTemplateColumns: selectedEntity ? '1fr 340px' : '1fr', gap: '20px' }}>
         {/* Tree View */}
-        <div className="card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: '700', margin: 0 }}>
-              Physical Hierarchy Browser
+        <div className="hostel-browser-panel">
+          <div className="hostel-browser-header">
+            <h2 className="hostel-browser-title">
+              <Building2 size={20} className="text-blue-600" />
+              <span>Physical Hierarchy Browser</span>
             </h2>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '500' }}>
               Showing {filteredTree.length} Hostels
             </span>
           </div>
 
           {filteredTree.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>🏢</div>
-              <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)' }}>No hostel structures found</div>
+            <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                <Building2 size={28} />
+              </div>
+              <div style={{ fontWeight: '700', fontSize: '1.05rem', color: '#0f172a' }}>No hostel structures found</div>
               <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>
                 {searchQuery ? 'No elements match your search filter.' : 'This college does not have any physical hostels defined yet.'}
               </p>
               {!searchQuery && !policy?.is_locked && (
                 <button
-                  className="btn btn-primary btn-sm"
+                  className="btn-enterprise btn-primary-blue btn-sm"
                   onClick={() => openEntityModal('HOSTEL', 'CREATE')}
                   style={{ marginTop: '12px' }}
                 >
-                  + Add First Hostel
+                  <Plus size={14} /> Add First Hostel
                 </button>
               )}
             </div>
           ) : (
-            <div className="structure-tree" style={{ fontFamily: 'var(--font-sans, inherit)' }}>
+            <div className="structure-tree">
               {filteredTree.map((hostel) => {
                 const hExpanded = expandedNodes[`hostel-${hostel.id}`];
                 return (
-                  <div key={hostel.id} style={{ marginBottom: '14px', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div key={hostel.id} className="hostel-tree-card">
                     {/* Hostel Node Row */}
                     <div
-                      style={{
-                        backgroundColor: '#f1f5f9',
-                        padding: '10px 14px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
-                      }}
+                      className="hostel-node-header"
                       onClick={() => toggleExpand(`hostel-${hostel.id}`)}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{hExpanded ? '▼' : '▶'}</span>
-                        <span style={{ fontSize: '1.1rem' }}>🏰</span>
-                        <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>{hostel.name}</strong>
-                        <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>({hostel.code})</span>
-                        <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>{hostel.category}</span>
-                        <span className={`badge ${hostel.status === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.7rem' }}>
+                      <div className="hostel-node-title-cluster">
+                        <span className="hostel-node-chevron">
+                          {hExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                        </span>
+                        <div className="hostel-node-icon">
+                          <Building2 size={16} />
+                        </div>
+                        <strong className="hostel-node-name">{hostel.name}</strong>
+                        <span className="hostel-node-code">{hostel.code}</span>
+                        <span className={`badge-category-${hostel.category?.toLowerCase() || 'boys'}`}>
+                          {hostel.category}
+                        </span>
+                        <span className={hostel.status === 'ACTIVE' ? 'badge-status-active' : 'badge-status-inactive'}>
                           {hostel.status}
                         </span>
                         {hostel.is_locked && (
-                          <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>🔒 Locked</span>
+                          <span className="badge-status-locked">
+                            <Lock size={11} /> Locked
+                          </span>
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '8px' }}>
+                      <div className="hostel-action-cluster" onClick={(e) => e.stopPropagation()}>
+                        <span className="hostel-occ-pill">
                           Cap: <strong>{hostel.total_capacity}</strong> | Occ: <strong>{hostel.occupied_beds}</strong>
                         </span>
                         <button
-                          className="btn btn-outline btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                          className="btn-enterprise btn-outline-soft btn-sm"
                           onClick={() => openEntityModal('BLOCK', 'CREATE', null, hostel)}
                           disabled={policy?.is_locked || hostel.is_locked}
                           title="Add a block to this hostel"
                         >
-                          + Block
+                          <Plus size={12} /> Block
                         </button>
                         <button
-                          className="btn btn-outline btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-                          onClick={() => {
-                            setSelectedEntity({ type: 'Hostel', data: hostel });
-                          }}
+                          className="btn-enterprise btn-outline-soft btn-sm"
+                          onClick={() => setSelectedEntity({ type: 'Hostel', data: hostel })}
                         >
                           Details
                         </button>
                         <button
-                          className="btn btn-outline btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                          className="btn-icon-action"
                           onClick={() => openEntityModal('HOSTEL', 'EDIT', hostel)}
                           disabled={policy?.is_locked || hostel.is_locked}
+                          title="Edit Hostel"
                         >
-                          ✏️
+                          <Edit3 size={13} />
                         </button>
                         <button
-                          className="btn btn-outline btn-sm"
-                          style={{ padding: '2px 8px', fontSize: '0.75rem', color: 'var(--danger-color)' }}
+                          className="btn-icon-action danger"
                           onClick={() => handleDeleteEntity('Hostel', hostel.id, hostel.name)}
                           disabled={policy?.is_locked || hostel.is_locked}
+                          title="Delete Hostel"
                         >
-                          🗑️
+                          <Trash2 size={13} />
                         </button>
                       </div>
                     </div>
 
                     {/* Blocks Container */}
                     {hExpanded && (
-                      <div style={{ padding: '8px 12px 12px 24px', backgroundColor: '#ffffff' }}>
+                      <div style={{ padding: '8px 14px 14px 28px', backgroundColor: '#ffffff' }}>
                         {(hostel.blocks || []).length === 0 ? (
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '8px' }}>
-                            No blocks or wings defined yet.{' '}
+                          <div style={{ color: '#64748b', fontSize: '0.85rem', padding: '10px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>No blocks or wings defined yet.</span>
                             <button
-                              className="btn btn-link btn-sm"
-                              style={{ padding: 0 }}
+                              className="btn-enterprise btn-outline-soft btn-sm"
                               onClick={() => openEntityModal('BLOCK', 'CREATE', null, hostel)}
                               disabled={policy?.is_locked || hostel.is_locked}
                             >
-                              Add Block
+                              <Plus size={12} /> Add Block
                             </button>
                           </div>
                         ) : (
@@ -924,56 +1042,49 @@ export default function HostelStructureMasterPage() {
                             const bID = block.ID || block.id;
                             const bExpanded = expandedNodes[`block-${bID}`];
                             return (
-                              <div key={bID} style={{ marginTop: '8px', borderLeft: '3px solid #cbd5e1', paddingLeft: '12px' }}>
-                                {/* Block Header Row (or transparent if collapsed) */}
+                              <div key={bID} className="block-node-item">
+                                {/* Block Header Row */}
                                 {!hideOptionalBlocks && (
                                   <div
-                                    style={{
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '6px 10px',
-                                      backgroundColor: '#f8fafc',
-                                      borderRadius: '6px',
-                                      cursor: 'pointer',
-                                    }}
+                                    className="block-node-header"
                                     onClick={() => toggleExpand(`block-${bID}`)}
                                   >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{bExpanded ? '▼' : '▶'}</span>
-                                      <span style={{ fontSize: '0.95rem' }}>🏢</span>
-                                      <strong style={{ fontSize: '0.9rem' }}>{block.name}</strong>
-                                      <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>({block.code})</span>
-                                      <span className={`badge ${block.status === 'ACTIVE' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                                      <span style={{ color: '#64748b', display: 'flex' }}>
+                                        {bExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                      </span>
+                                      <Layers size={15} className="text-slate-500" />
+                                      <strong style={{ fontSize: '0.9rem', color: '#0f172a' }}>{block.name}</strong>
+                                      <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#64748b' }}>({block.code})</span>
+                                      <span className={block.status === 'ACTIVE' ? 'badge-status-active' : 'badge-status-inactive'} style={{ fontSize: '0.65rem' }}>
                                         {block.status}
                                       </span>
                                     </div>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }} onClick={(e) => e.stopPropagation()}>
                                       <button
-                                        className="btn btn-outline btn-sm"
-                                        style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                                        className="btn-enterprise btn-outline-soft btn-sm"
                                         onClick={() => openEntityModal('FLOOR', 'CREATE', null, block)}
                                         disabled={policy?.is_locked || hostel.is_locked}
                                         title="Add floor to block"
                                       >
-                                        + Floor
+                                        <Plus size={12} /> Floor
                                       </button>
                                       <button
-                                        className="btn btn-outline btn-sm"
-                                        style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                                        className="btn-icon-action"
                                         onClick={() => openEntityModal('BLOCK', 'EDIT', block)}
                                         disabled={policy?.is_locked || hostel.is_locked}
+                                        title="Edit Block"
                                       >
-                                        ✏️
+                                        <Edit3 size={13} />
                                       </button>
                                       <button
-                                        className="btn btn-outline btn-sm"
-                                        style={{ padding: '2px 6px', fontSize: '0.7rem', color: 'var(--danger-color)' }}
+                                        className="btn-icon-action danger"
                                         onClick={() => handleDeleteEntity('Block', bID, block.name)}
                                         disabled={policy?.is_locked || hostel.is_locked}
+                                        title="Delete Block"
                                       >
-                                        🗑️
+                                        <Trash2 size={13} />
                                       </button>
                                     </div>
                                   </div>
@@ -983,141 +1094,120 @@ export default function HostelStructureMasterPage() {
                                 {(bExpanded || hideOptionalBlocks) && (
                                   <div style={{ paddingLeft: hideOptionalBlocks ? '0px' : '16px', marginTop: '6px' }}>
                                     {(block.floors || []).length === 0 ? (
-                                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', padding: '6px 0' }}>
-                                        No floors on this block.{' '}
+                                      <div style={{ color: '#64748b', fontSize: '0.8rem', padding: '6px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span>No floors on this block.</span>
                                         <button
-                                          className="btn btn-link btn-sm"
-                                          style={{ padding: 0 }}
+                                          className="btn-enterprise btn-outline-soft btn-sm"
                                           onClick={() => openEntityModal('FLOOR', 'CREATE', null, block)}
                                           disabled={policy?.is_locked || hostel.is_locked}
                                         >
-                                          Add Floor
+                                          <Plus size={11} /> Add Floor
                                         </button>
                                       </div>
                                     ) : (
                                       block.floors.map((floor) => {
                                         const fExpanded = expandedNodes[`floor-${floor.id}`];
                                         return (
-                                          <div key={floor.id} style={{ marginTop: '6px', borderLeft: '2px solid #e2e8f0', paddingLeft: '10px' }}>
+                                          <div key={floor.id} className="floor-node-item">
                                             {/* Floor Node Row */}
                                             <div
-                                              style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                padding: '4px 8px',
-                                                cursor: 'pointer',
-                                              }}
+                                              className="floor-node-header"
                                               onClick={() => toggleExpand(`floor-${floor.id}`)}
                                             >
-                                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{fExpanded ? '▼' : '▶'}</span>
-                                                <span>🪜</span>
-                                                <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{floor.name}</span>
-                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>(Floor #{floor.floor_number})</span>
-                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>({floor.rooms?.length || 0} rooms)</span>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                                <span style={{ color: '#94a3b8', display: 'flex' }}>
+                                                  {fExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                                </span>
+                                                <AlignJustify size={14} className="text-slate-500" />
+                                                <span style={{ fontSize: '0.86rem', fontWeight: '600', color: '#0f172a' }}>{floor.name}</span>
+                                                <span style={{ fontSize: '0.74rem', color: '#64748b' }}>(Floor #{floor.floor_number})</span>
+                                                <span className="hostel-occ-pill" style={{ padding: '1px 6px', fontSize: '0.7rem' }}>
+                                                  {floor.rooms?.length || 0} rooms
+                                                </span>
                                               </div>
 
-                                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }} onClick={(e) => e.stopPropagation()}>
                                                 <button
-                                                  className="btn btn-outline btn-sm"
-                                                  style={{ padding: '1px 6px', fontSize: '0.7rem' }}
+                                                  className="btn-enterprise btn-outline-soft btn-sm"
                                                   onClick={() => openEntityModal('ROOM', 'CREATE', null, floor)}
                                                   disabled={policy?.is_locked || hostel.is_locked}
                                                 >
-                                                  + Room
+                                                  <Plus size={11} /> Room
                                                 </button>
                                                 <button
-                                                  className="btn btn-outline btn-sm"
-                                                  style={{ padding: '1px 6px', fontSize: '0.7rem' }}
+                                                  className="btn-icon-action"
                                                   onClick={() => openEntityModal('FLOOR', 'EDIT', floor)}
                                                   disabled={policy?.is_locked || hostel.is_locked}
+                                                  title="Edit Floor"
                                                 >
-                                                  ✏️
+                                                  <Edit3 size={12} />
                                                 </button>
                                                 <button
-                                                  className="btn btn-outline btn-sm"
-                                                  style={{ padding: '1px 6px', fontSize: '0.7rem', color: 'var(--danger-color)' }}
+                                                  className="btn-icon-action danger"
                                                   onClick={() => handleDeleteEntity('Floor', floor.id, floor.name)}
                                                   disabled={policy?.is_locked || hostel.is_locked}
+                                                  title="Delete Floor"
                                                 >
-                                                  🗑️
+                                                  <Trash2 size={12} />
                                                 </button>
                                               </div>
                                             </div>
 
                                             {/* Rooms Grid */}
                                             {fExpanded && (
-                                              <div
-                                                style={{
-                                                  display: 'grid',
-                                                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                                                  gap: '8px',
-                                                  marginTop: '6px',
-                                                  paddingLeft: '14px',
-                                                  marginBottom: '10px',
-                                                }}
-                                              >
+                                              <div className="rooms-grid-container">
                                                 {(floor.rooms || []).length === 0 ? (
-                                                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', gridColumn: '1 / -1' }}>
-                                                    No rooms yet.{' '}
+                                                  <div style={{ color: '#64748b', fontSize: '0.75rem', gridColumn: '1 / -1', padding: '6px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span>No rooms yet.</span>
                                                     <button
-                                                      className="btn btn-link btn-sm"
-                                                      style={{ padding: 0, fontSize: '0.75rem' }}
+                                                      className="btn-enterprise btn-outline-soft btn-sm"
                                                       onClick={() => openEntityModal('ROOM', 'CREATE', null, floor)}
                                                       disabled={policy?.is_locked || hostel.is_locked}
                                                     >
-                                                      Add Room
+                                                      <Plus size={11} /> Add Room
                                                     </button>
                                                   </div>
                                                 ) : (
                                                   floor.rooms.map((room) => {
                                                     const isFull = room.occupied_beds >= room.capacity && room.capacity > 0;
                                                     const isPartial = room.occupied_beds > 0 && room.occupied_beds < room.capacity;
+                                                    const isSelected = selectedEntity?.data?.id === room.id;
                                                     return (
                                                       <div
                                                         key={room.id}
-                                                        style={{
-                                                          backgroundColor: isFull ? '#fff7ed' : isPartial ? '#fefce8' : '#ffffff',
-                                                          border: `1px solid ${selectedEntity?.data?.id === room.id ? 'var(--primary-color)' : '#e2e8f0'}`,
-                                                          borderRadius: '6px',
-                                                          padding: '8px 10px',
-                                                          cursor: 'pointer',
-                                                          transition: 'all 0.15s ease',
-                                                        }}
+                                                        className={`room-card-item ${isSelected ? 'selected' : ''} ${isFull ? 'is-full' : ''}`}
                                                         onClick={() => setSelectedEntity({ type: 'Room', data: room, parent: floor })}
                                                       >
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                            <span>🚪</span>
-                                                            <strong style={{ fontSize: '0.85rem' }}>{room.name}</strong>
+                                                        <div className="room-card-top">
+                                                          <div className="room-card-title">
+                                                            <DoorOpen size={14} className="text-slate-500" />
+                                                            <span>{room.name}</span>
                                                           </div>
-                                                          <span className="badge badge-info" style={{ fontSize: '0.65rem' }}>{room.room_type}</span>
+                                                          <span className="badge-category-boys" style={{ fontSize: '0.65rem' }}>{room.room_type}</span>
                                                         </div>
 
-                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '0.75rem' }}>
-                                                          <span style={{ color: 'var(--text-secondary)' }}>
-                                                            Cap: <strong>{room.capacity}</strong>
+                                                        <div className="room-card-meta">
+                                                          <span style={{ color: '#64748b' }}>
+                                                            Cap: <strong style={{ color: '#0f172a' }}>{room.capacity}</strong>
                                                           </span>
                                                           <span>
                                                             {room.occupied_beds > 0 ? (
                                                               <span style={{ color: '#ea580c', fontWeight: 'bold' }}>{room.occupied_beds} Occ</span>
                                                             ) : (
-                                                              <span style={{ color: '#16a34a' }}>Vacant</span>
+                                                              <span style={{ color: '#059669', fontWeight: '600' }}>Vacant</span>
                                                             )}
                                                           </span>
                                                         </div>
 
                                                         {/* Bed Chips Preview */}
-                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '6px' }}>
+                                                        <div className="room-beds-cluster">
                                                           {(room.beds || []).map((bed) => (
                                                             <span
                                                               key={bed.id}
-                                                              className={`badge ${bed.is_occupied ? 'badge-warning' : bed.status === 'AVAILABLE' ? 'badge-success' : 'badge-secondary'}`}
-                                                              style={{ fontSize: '0.65rem', padding: '2px 5px' }}
+                                                              className={`bed-chip-badge ${bed.is_occupied ? 'occupied' : 'available'}`}
                                                               title={`${bed.code} - ${bed.status}`}
                                                             >
-                                                              🛏️ {bed.code}
+                                                              <Bed size={10} /> {bed.code}
                                                             </span>
                                                           ))}
                                                         </div>
@@ -1148,60 +1238,61 @@ export default function HostelStructureMasterPage() {
 
         {/* Selected Entity Details Drawer */}
         {selectedEntity && (
-          <div className="card" style={{ padding: '18px', height: 'fit-content', position: 'sticky', top: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <div style={{ fontWeight: '700', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span>{selectedEntity.type === 'Hostel' ? '🏰' : selectedEntity.type === 'Room' ? '🚪' : '🛏️'}</span>
+          <div className="hostel-drawer-panel">
+            <div className="hostel-drawer-header">
+              <div className="hostel-drawer-title">
+                {selectedEntity.type === 'Hostel' ? <Building2 size={18} className="text-blue-600" /> : selectedEntity.type === 'Room' ? <DoorOpen size={18} className="text-emerald-600" /> : <Bed size={18} className="text-indigo-600" />}
                 <span>{selectedEntity.type} Details</span>
               </div>
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-icon-action"
                 onClick={() => setSelectedEntity(null)}
-                style={{ padding: '2px 8px' }}
+                title="Close Drawer"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
 
             <div style={{ fontSize: '0.85rem' }}>
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Name / Label</div>
-                <div style={{ fontWeight: '700', fontSize: '1rem' }}>{selectedEntity.data.name}</div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase' }}>Name / Label</div>
+                <div style={{ fontWeight: '700', fontSize: '1.05rem', color: '#0f172a', marginTop: '2px' }}>{selectedEntity.data.name}</div>
               </div>
 
-              <div style={{ marginBottom: '10px' }}>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Code</div>
-                <div style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{selectedEntity.data.code}</div>
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase' }}>Code</div>
+                <div style={{ fontFamily: 'monospace', fontWeight: 'bold', color: '#334155', marginTop: '2px' }}>{selectedEntity.data.code}</div>
               </div>
 
               {selectedEntity.type === 'Room' && (
                 <>
-                  <div style={{ marginBottom: '10px' }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Room Type</div>
-                    <div><span className="badge badge-info">{selectedEntity.data.room_type}</span></div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase' }}>Room Type</div>
+                    <div style={{ marginTop: '4px' }}><span className="badge-category-boys">{selectedEntity.data.room_type}</span></div>
                   </div>
 
-                  <div style={{ marginBottom: '10px' }}>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Capacity & Occupancy</div>
-                    <div>Capacity: <strong>{selectedEntity.data.capacity}</strong> | Occupied: <strong>{selectedEntity.data.occupied_beds || 0}</strong></div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ color: '#64748b', fontSize: '0.72rem', fontWeight: '600', textTransform: 'uppercase' }}>Capacity & Occupancy</div>
+                    <div style={{ color: '#334155', marginTop: '2px' }}>
+                      Capacity: <strong>{selectedEntity.data.capacity}</strong> | Occupied: <strong>{selectedEntity.data.occupied_beds || 0}</strong>
+                    </div>
                   </div>
 
-                  <div style={{ marginTop: '14px', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <strong style={{ fontSize: '0.85rem' }}>Beds in Room ({selectedEntity.data.beds?.length || 0})</strong>
+                  <div style={{ marginTop: '16px', borderTop: '1px solid #f1f5f9', paddingTop: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <strong style={{ fontSize: '0.85rem', color: '#0f172a' }}>Beds in Room ({selectedEntity.data.beds?.length || 0})</strong>
                       <button
-                        className="btn btn-outline btn-sm"
-                        style={{ padding: '2px 6px', fontSize: '0.75rem' }}
+                        className="btn-enterprise btn-outline-soft btn-sm"
                         onClick={() => openEntityModal('BED', 'CREATE', null, selectedEntity.data)}
                         disabled={policy?.is_locked}
                       >
-                        + Add Bed
+                        <Plus size={11} /> Bed
                       </button>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {(selectedEntity.data.beds || []).length === 0 ? (
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No individual bed records created yet.</span>
+                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>No individual bed records created yet.</span>
                       ) : (
                         selectedEntity.data.beds.map((b) => (
                           <div
@@ -1210,32 +1301,36 @@ export default function HostelStructureMasterPage() {
                               display: 'flex',
                               justifyContent: 'space-between',
                               alignItems: 'center',
-                              padding: '4px 8px',
+                              padding: '6px 10px',
                               backgroundColor: '#f8fafc',
-                              borderRadius: '4px',
+                              borderRadius: '6px',
                               border: '1px solid #e2e8f0',
                             }}
                           >
-                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>🛏️ {b.code}</span>
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                              <Bed size={12} className="text-slate-500" /> {b.code}
+                            </span>
                             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                              <span className={`badge ${b.is_occupied ? 'badge-warning' : b.status === 'AVAILABLE' ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '0.65rem' }}>
+                              <span className={b.is_occupied ? 'badge-status-inactive' : 'badge-status-active'} style={{ fontSize: '0.65rem' }}>
                                 {b.is_occupied ? 'Occupied' : b.status}
                               </span>
                               <button
-                                className="btn btn-outline btn-sm"
-                                style={{ padding: '1px 5px', fontSize: '0.65rem' }}
+                                className="btn-icon-action"
+                                style={{ width: '22px', height: '22px' }}
                                 onClick={() => openEntityModal('BED', 'EDIT', b, selectedEntity.data)}
                                 disabled={policy?.is_locked}
+                                title="Edit Bed"
                               >
-                                ✏️
+                                <Edit3 size={11} />
                               </button>
                               <button
-                                className="btn btn-outline btn-sm"
-                                style={{ padding: '1px 5px', fontSize: '0.65rem', color: 'var(--danger-color)' }}
+                                className="btn-icon-action danger"
+                                style={{ width: '22px', height: '22px' }}
                                 onClick={() => handleDeleteEntity('Bed', b.id, b.code)}
                                 disabled={policy?.is_locked}
+                                title="Delete Bed"
                               >
-                                🗑️
+                                <Trash2 size={11} />
                               </button>
                             </div>
                           </div>
@@ -1247,22 +1342,22 @@ export default function HostelStructureMasterPage() {
               )}
 
               {/* Actions Footer */}
-              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid #f1f5f9', paddingTop: '14px' }}>
                 <button
-                  className="btn btn-outline btn-sm"
-                  style={{ flex: 1 }}
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  style={{ flex: 1, justifyContent: 'center' }}
                   onClick={() => openEntityModal(selectedEntity.type.toUpperCase(), 'EDIT', selectedEntity.data, selectedEntity.parent)}
                   disabled={policy?.is_locked}
                 >
-                  ✏️ Edit
+                  <Edit3 size={13} /> Edit
                 </button>
                 <button
-                  className="btn btn-outline btn-sm"
-                  style={{ flex: 1, color: 'var(--danger-color)' }}
-                  onClick={() => handleDeleteEntity(selectedEntity.type, selectedEntity.data.id, selectedEntity.data.name)}
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  style={{ flex: 1, justifyContent: 'center', color: '#dc2626' }}
+                  onClick={() => handleDeleteEntity(selectedEntity.type, selectedEntity.data.id, selectedEntity.data.name || selectedEntity.data.code)}
                   disabled={policy?.is_locked}
                 >
-                  🗑️ Delete
+                  <Trash2 size={13} /> Delete
                 </button>
               </div>
             </div>

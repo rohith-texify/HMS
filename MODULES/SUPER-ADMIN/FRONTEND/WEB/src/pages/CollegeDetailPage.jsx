@@ -8,6 +8,9 @@ import {
   updateCollegeStatus,
   updateCollegeAdminPassword,
   createStatusApprovalRequest,
+  fetchCollegeStats,
+  fetchCollegeActivity,
+  updateCollegeQuotas,
 } from '../services/collegeService';
 
 import {
@@ -18,6 +21,7 @@ import {
 import {
   Rocket,
   ChevronLeft,
+  ChevronRight,
   SlidersHorizontal,
   Boxes,
   AppWindow,
@@ -48,6 +52,18 @@ import {
   Sparkles,
   UserCheck,
   Lock,
+  Users,
+  Sliders,
+  FileSpreadsheet,
+  Download,
+  Activity,
+  LifeBuoy,
+  FileText,
+  DoorOpen,
+  Layers,
+  Zap,
+  Info,
+  Phone,
 } from 'lucide-react';
 
 export default function CollegeDetailPage() {
@@ -58,6 +74,22 @@ export default function CollegeDetailPage() {
   const [onboardingSteps, setOnboardingSteps] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  // College Stats & Activity Dashboard
+  const [collegeStats, setCollegeStats] = useState(null);
+  const [collegeActivity, setCollegeActivity] = useState(null);
+
+  // Quotas / Limits Configuration Modal
+  const [showLimitsModal, setShowLimitsModal] = useState(false);
+  const [limitsForm, setLimitsForm] = useState({
+    max_students: 500,
+    max_parents: 500,
+    max_blocks: 5,
+    max_incharges: 5,
+    max_security: 10,
+  });
+  const [limitsSubmitting, setLimitsSubmitting] = useState(false);
+  const [limitsError, setLimitsError] = useState(null);
 
   // College Admin state
   const [adminAccount, setAdminAccount] = useState(null);
@@ -156,6 +188,30 @@ export default function CollegeDetailPage() {
         }
       }
 
+      // Load authoritative account statistics
+      try {
+        const stats = await fetchCollegeStats(collegeId, controller.signal);
+        if (reqCounterRef.current === reqId) {
+          setCollegeStats(stats);
+        }
+      } catch (statsErr) {
+        if (statsErr?.name !== 'CanceledError' && !controller.signal.aborted) {
+          console.warn('Could not load college stats:', statsErr.message);
+        }
+      }
+
+      // Load operational activity & recent logins
+      try {
+        const act = await fetchCollegeActivity(collegeId, controller.signal);
+        if (reqCounterRef.current === reqId) {
+          setCollegeActivity(act);
+        }
+      } catch (actErr) {
+        if (actErr?.name !== 'CanceledError' && !controller.signal.aborted) {
+          console.warn('Could not load college activity:', actErr.message);
+        }
+      }
+
       // Attempt to load college admin account
       try {
         const admin = await fetchCollegeAdmin(collegeId, controller.signal);
@@ -204,6 +260,48 @@ export default function CollegeDetailPage() {
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleOpenLimitsModal = () => {
+    setLimitsError(null);
+    setLimitsForm({
+      max_students: college?.max_students ?? 500,
+      max_parents: college?.max_parents ?? 500,
+      max_blocks: college?.max_blocks ?? 5,
+      max_incharges: college?.max_incharges ?? 5,
+      max_security: college?.max_security ?? 10,
+    });
+    setShowLimitsModal(true);
+  };
+
+  const handleSaveLimits = async (e) => {
+    e.preventDefault();
+    setLimitsSubmitting(true);
+    setLimitsError(null);
+    try {
+      const updated = await updateCollegeQuotas(college.college_id, {
+        max_students: parseInt(limitsForm.max_students, 10) || 500,
+        max_parents: parseInt(limitsForm.max_parents, 10) || 500,
+        max_blocks: parseInt(limitsForm.max_blocks, 10) || 5,
+        max_incharges: parseInt(limitsForm.max_incharges, 10) || 5,
+        max_security: parseInt(limitsForm.max_security, 10) || 10,
+      });
+      if (updated) {
+        setCollege((prev) => ({ ...prev, ...updated }));
+      }
+      setShowLimitsModal(false);
+      setActionSuccessNotice('College account quotas updated successfully.');
+      setTimeout(() => setActionSuccessNotice(null), 3500);
+
+      try {
+        const stats = await fetchCollegeStats(college.college_id);
+        setCollegeStats(stats);
+      } catch (err) {}
+    } catch (err) {
+      setLimitsError(err.response?.data?.error?.message || err.message || 'Failed to update quotas');
+    } finally {
+      setLimitsSubmitting(false);
+    }
   };
 
   const handleEditSubmit = async (e) => {
@@ -554,26 +652,35 @@ export default function CollegeDetailPage() {
 
         {/* Action Hub Toolbar */}
         <div className="college-hero-toolbar">
-          {college.status === 'ONBOARDING' ? (
-            <Link
-              to={`/colleges/${college.college_id}/onboarding`}
-              className="hero-cta-btn"
-              id="btn-onboarding-wizard"
-            >
-              <Rocket size={15} />
-              <span>Resume Onboarding Checklist</span>
-            </Link>
-          ) : (
-            <Link
-              to={`/colleges/${college.college_id}/onboarding`}
-              className="hero-nav-btn"
-              id="btn-onboarding-wizard"
-              title="View onboarding workspace and setup checklist"
-            >
-              <Rocket size={14} />
-              <span>Onboarding Workspace</span>
-            </Link>
-          )}
+          <button
+            className="hero-cta-btn"
+            onClick={handleOpenLimitsModal}
+            id="btn-hero-limits"
+            title="Configure college account quotas and limits"
+          >
+            <Sliders size={14} />
+            <span>Configure Limits</span>
+          </button>
+
+          <Link
+            to={`/colleges/${college.college_id}/admins`}
+            className="hero-nav-btn"
+            id="btn-college-admins"
+            title="Manage all college administrator accounts, status, unlock, and login history"
+          >
+            <Key size={14} />
+            <span>Administrator Accounts</span>
+          </Link>
+
+          <Link
+            to={`/colleges/${college.college_id}/hostel-structure`}
+            className="hero-nav-btn"
+            id="btn-college-hostel-structure"
+            title="Manage physical hostel facilities, buildings, floors, rooms, and beds"
+          >
+            <Building2 size={14} />
+            <span>Hostel Structure</span>
+          </Link>
 
           <Link
             to={`/colleges/${college.college_id}/configuration`}
@@ -605,26 +712,6 @@ export default function CollegeDetailPage() {
             <span>Applications Access</span>
           </Link>
 
-          <Link
-            to={`/colleges/${college.college_id}/hostel-structure`}
-            className="hero-nav-btn"
-            id="btn-college-hostel-structure"
-            title="Manage physical hostel facilities, buildings, floors, rooms, and beds"
-          >
-            <Building2 size={14} />
-            <span>Hostel Structure</span>
-          </Link>
-
-          <Link
-            to={`/colleges/${college.college_id}/admins`}
-            className="hero-nav-btn"
-            id="btn-college-admins"
-            title="Manage all college administrator accounts, status, unlock, and login history"
-          >
-            <Key size={14} />
-            <span>Administrator Accounts</span>
-          </Link>
-
           <button
             className="hero-nav-btn"
             onClick={() => setShowEditModal(true)}
@@ -638,46 +725,230 @@ export default function CollegeDetailPage() {
         </div>
       </div>
 
-      {/* Onboarding in Progress Banner */}
-      {college.status === 'ONBOARDING' && (
-        <div className="college-onboarding-banner">
-          <div className="college-onboarding-left">
-            <div className="college-onboarding-icon-wrap">
-              <Rocket size={24} />
+      {/* 1. Account Statistics KPIs */}
+      <div className="card enterprise-card">
+        <div className="card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+          <div className="card-title">
+            <Users size={18} style={{ color: '#2563eb' }} />
+            <span>Account Statistics &amp; User Distribution</span>
+          </div>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Authoritative platform user counts (Active accounts vs Deactivated)
+          </span>
+        </div>
+
+        <div className="college-kpi-grid" style={{ marginTop: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
+          {/* Students KPI */}
+          <div className="college-kpi-card" style={{ padding: '16px' }}>
+            <div className="kpi-icon-squircle blue">
+              <Users size={18} />
             </div>
-            <div className="college-onboarding-content">
-              <div className="college-onboarding-title-wrap">
-                <h3 className="college-onboarding-heading">
-                  Institution Tenant Onboarding in Progress
-                </h3>
-                <span className="badge badge-blue">
-                  {completedStepsCount} of {onboardingSteps.length || 6} Stages Completed ({Math.round((completedStepsCount / (onboardingSteps.length || 6)) * 100)}%)
+            <div className="kpi-content">
+              <div className="kpi-label">Student Accounts</div>
+              <div className="kpi-val" style={{ color: '#1e40af' }}>
+                {collegeStats?.students?.active ?? 0}
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginLeft: '6px' }}>
+                  / {collegeStats?.students?.quota ?? college?.max_students ?? 500} limit
                 </span>
               </div>
-              <p className="college-onboarding-sub">
-                This institution tenant is undergoing phased onboarding. Complete canonical checklist stages (Hostel Structure, Entitlements, Room Inventory, Bed Allocations) to promote this tenant to Active operational status.
-              </p>
-              <div className="college-onboarding-progress-bar">
-                <div
-                  className="college-onboarding-progress-fill"
-                  style={{
-                    width: `${Math.max(10, Math.round((completedStepsCount / (onboardingSteps.length || 6)) * 100))}%`,
-                  }}
-                />
+              <div className="kpi-sub" style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                <span style={{ color: '#059669', fontWeight: 600 }}>Active: {collegeStats?.students?.active ?? 0}</span>
+                <span>·</span>
+                <span style={{ color: '#dc2626' }}>Deactivated: {collegeStats?.students?.deactivated ?? 0}</span>
+                <span>·</span>
+                <span>Total: {collegeStats?.students?.total ?? 0}</span>
               </div>
             </div>
           </div>
-          <Link
-            to={`/colleges/${college.college_id}/onboarding`}
-            className="hero-cta-btn"
-            id="btn-banner-resume-wizard"
-            style={{ padding: '10px 18px', fontSize: '0.85rem' }}
-          >
-            <span>Open Onboarding Workspace</span>
-            <span>→</span>
-          </Link>
+
+          {/* Parents KPI */}
+          <div className="college-kpi-card" style={{ padding: '16px' }}>
+            <div className="kpi-icon-squircle emerald">
+              <UserCheck size={18} />
+            </div>
+            <div className="kpi-content">
+              <div className="kpi-label">Parent Accounts</div>
+              <div className="kpi-val" style={{ color: '#059669' }}>
+                {collegeStats?.parents?.active ?? 0}
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginLeft: '6px' }}>
+                  / {collegeStats?.parents?.quota ?? college?.max_parents ?? 500} limit
+                </span>
+              </div>
+              <div className="kpi-sub" style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                <span style={{ color: '#059669', fontWeight: 600 }}>Active: {collegeStats?.parents?.active ?? 0}</span>
+                <span>·</span>
+                <span style={{ color: '#dc2626' }}>Deactivated: {collegeStats?.parents?.deactivated ?? 0}</span>
+                <span>·</span>
+                <span>Total: {collegeStats?.parents?.total ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Hostel Incharges KPI */}
+          <div className="college-kpi-card" style={{ padding: '16px' }}>
+            <div className="kpi-icon-squircle purple">
+              <Building2 size={18} />
+            </div>
+            <div className="kpi-content">
+              <div className="kpi-label">Hostel Incharges</div>
+              <div className="kpi-val" style={{ color: '#7c3aed' }}>
+                {collegeStats?.incharges?.active ?? 0}
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginLeft: '6px' }}>
+                  / {collegeStats?.incharges?.quota ?? college?.max_incharges ?? 5} limit
+                </span>
+              </div>
+              <div className="kpi-sub" style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                <span style={{ color: '#059669', fontWeight: 600 }}>Active: {collegeStats?.incharges?.active ?? 0}</span>
+                <span>·</span>
+                <span style={{ color: '#dc2626' }}>Deactivated: {collegeStats?.incharges?.deactivated ?? 0}</span>
+                <span>·</span>
+                <span>Total: {collegeStats?.incharges?.total ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Security KPI */}
+          <div className="college-kpi-card" style={{ padding: '16px' }}>
+            <div className="kpi-icon-squircle amber">
+              <ShieldCheck size={18} />
+            </div>
+            <div className="kpi-content">
+              <div className="kpi-label">Security Accounts</div>
+              <div className="kpi-val" style={{ color: '#d97706' }}>
+                {collegeStats?.security?.active ?? 0}
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginLeft: '6px' }}>
+                  / {collegeStats?.security?.quota ?? college?.max_security ?? 10} limit
+                </span>
+              </div>
+              <div className="kpi-sub" style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                <span style={{ color: '#059669', fontWeight: 600 }}>Active: {collegeStats?.security?.active ?? 0}</span>
+                <span>·</span>
+                <span style={{ color: '#dc2626' }}>Deactivated: {collegeStats?.security?.deactivated ?? 0}</span>
+                <span>·</span>
+                <span>Total: {collegeStats?.security?.total ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Hostel Blocks KPI */}
+          <div className="college-kpi-card" style={{ padding: '16px' }}>
+            <div className="kpi-icon-squircle indigo">
+              <Layers size={18} />
+            </div>
+            <div className="kpi-content">
+              <div className="kpi-label">Hostel Blocks</div>
+              <div className="kpi-val" style={{ color: '#4f46e5' }}>
+                {collegeStats?.blocks?.active ?? 0}
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500, marginLeft: '6px' }}>
+                  / {collegeStats?.blocks?.quota ?? college?.max_blocks ?? 5} limit
+                </span>
+              </div>
+              <div className="kpi-sub" style={{ display: 'flex', gap: '8px', fontSize: '0.72rem' }}>
+                <span style={{ color: '#059669', fontWeight: 600 }}>Active: {collegeStats?.blocks?.active ?? 0}</span>
+                <span>·</span>
+                <span>Total: {collegeStats?.blocks?.total ?? 0}</span>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+
+      {/* 2. Resource Quotas & Account Limits Configuration Card */}
+      <div className="card enterprise-card">
+        <div className="card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+          <div className="card-title">
+            <Sliders size={18} style={{ color: '#2563eb' }} />
+            <span>College Resource Quotas &amp; Limits</span>
+          </div>
+          <button
+            type="button"
+            className="btn-enterprise btn-primary-blue btn-sm"
+            onClick={handleOpenLimitsModal}
+            id="btn-open-limits-modal"
+          >
+            <Sliders size={13} />
+            <span>Configure Limits</span>
+          </button>
+        </div>
+
+        <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '14px 0 16px' }}>
+          Super Admin controls exactly how many accounts and structural units this college may provision. Quotas apply strictly to active accounts. If a limit is decreased below current usage, existing accounts remain active while new additions are locked.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          {[
+            {
+              label: 'Student Account Limit',
+              category: 'students',
+              active: collegeStats?.students?.active ?? 0,
+              quota: collegeStats?.students?.quota ?? college?.max_students ?? 500,
+              remaining: collegeStats?.students?.remaining ?? Math.max(0, (college?.max_students ?? 500) - (collegeStats?.students?.active ?? 0)),
+              percentage: collegeStats?.students?.usage_percentage ?? 0,
+            },
+            {
+              label: 'Parent Account Limit',
+              category: 'parents',
+              active: collegeStats?.parents?.active ?? 0,
+              quota: collegeStats?.parents?.quota ?? college?.max_parents ?? 500,
+              remaining: collegeStats?.parents?.remaining ?? Math.max(0, (college?.max_parents ?? 500) - (collegeStats?.parents?.active ?? 0)),
+              percentage: collegeStats?.parents?.usage_percentage ?? 0,
+            },
+            {
+              label: 'Hostel Block Limit',
+              category: 'blocks',
+              active: collegeStats?.blocks?.active ?? 0,
+              quota: collegeStats?.blocks?.quota ?? college?.max_blocks ?? 5,
+              remaining: collegeStats?.blocks?.remaining ?? Math.max(0, (college?.max_blocks ?? 5) - (collegeStats?.blocks?.active ?? 0)),
+              percentage: collegeStats?.blocks?.usage_percentage ?? 0,
+            },
+            {
+              label: 'Hostel Incharge Limit',
+              category: 'incharges',
+              active: collegeStats?.incharges?.active ?? 0,
+              quota: collegeStats?.incharges?.quota ?? college?.max_incharges ?? 5,
+              remaining: collegeStats?.incharges?.remaining ?? Math.max(0, (college?.max_incharges ?? 5) - (collegeStats?.incharges?.active ?? 0)),
+              percentage: collegeStats?.incharges?.usage_percentage ?? 0,
+            },
+            {
+              label: 'Security Account Limit',
+              category: 'security',
+              active: collegeStats?.security?.active ?? 0,
+              quota: collegeStats?.security?.quota ?? college?.max_security ?? 10,
+              remaining: collegeStats?.security?.remaining ?? Math.max(0, (college?.max_security ?? 10) - (collegeStats?.security?.active ?? 0)),
+              percentage: collegeStats?.security?.usage_percentage ?? 0,
+            },
+          ].map((item, idx) => {
+            const pct = Math.min(100, Math.round(item.percentage));
+            const barColor = pct >= 90 ? '#ef4444' : pct >= 75 ? '#f59e0b' : '#2563eb';
+            return (
+              <div
+                key={idx}
+                style={{
+                  padding: '14px 16px',
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0f172a' }}>{item.label}</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: barColor }}>{pct}%</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#64748b' }}>
+                  <span>Active: <strong>{item.active}</strong> of <strong>{item.quota}</strong></span>
+                  <span>Remaining: <strong>{item.remaining}</strong></span>
+                </div>
+                <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: '4px', transition: 'width 0.4s ease' }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Executive 4-KPI Overview Strip */}
       <div className="college-kpi-grid">
@@ -1450,66 +1721,55 @@ export default function CollegeDetailPage() {
         </div>
       </div>
 
-      {/* Onboarding Checklist Summary */}
+      {/* 3. Recent Authentication Events (Recent Logins) */}
       <div className="card enterprise-card">
-        <div className="card-header">
+        <div className="card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
           <div className="card-title">
-            <Rocket size={18} style={{ color: '#2563eb' }} />
-            <span>Canonical Onboarding Checklist</span>
-            {onboardingSteps.length > 0 && (
-              <span className="badge badge-blue">
-                {completedStepsCount} / {onboardingSteps.length} Completed
-              </span>
-            )}
+            <Activity size={18} style={{ color: '#2563eb' }} />
+            <span>Recent Authentication Events &amp; Logins</span>
           </div>
-          <Link to={`/colleges/${college.college_id}/onboarding`} className="card-header-link">
-            <span>Open Onboarding Workspace</span>
-            <span>→</span>
-          </Link>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Latest identity sessions authenticated for this college tenant
+          </span>
         </div>
 
-        {onboardingSteps.length === 0 ? (
-          <div className="empty-state-clean">
-            <p style={{ color: '#64748b', fontSize: '0.88rem' }}>No onboarding checklist items recorded for this institution.</p>
+        {!collegeActivity?.recent_logins || collegeActivity.recent_logins.length === 0 ? (
+          <div className="empty-state-clean" style={{ padding: '28px 16px', textAlign: 'center' }}>
+            <p style={{ color: '#64748b', fontSize: '0.86rem', margin: 0 }}>
+              No recent login events recorded for this college yet.
+            </p>
           </div>
         ) : (
-          <div className="table-responsive" style={{ border: '1px solid #edf2f7', borderRadius: '10px', overflow: 'hidden' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="table-responsive" style={{ border: '1px solid #edf2f7', borderRadius: '10px', overflow: 'hidden', marginTop: '12px' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #edf2f7' }}>
-                  <th style={{ padding: '12px 16px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left' }}>Step Sequence &amp; Code</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left' }}>Status</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left' }}>Completed At</th>
-                  <th style={{ padding: '12px 16px', fontSize: '0.74rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'left' }}>Notes / Context</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>User / Account</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Assigned Role</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Login Timestamp</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Device / Browser</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>IP Address</th>
                 </tr>
               </thead>
               <tbody>
-                {onboardingSteps.map((step, idx) => (
-                  <tr key={step.onboarding_id || step.step_code} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', width: '20px' }}>#{idx + 1}</span>
-                        <span style={{ fontWeight: 600, color: '#0f172a', fontFamily: 'monospace' }}>{step.step_code}</span>
-                      </div>
+                {collegeActivity.recent_logins.map((evt, idx) => (
+                  <tr key={evt.event_id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#0f172a' }}>
+                      {evt.account_name || 'System User'}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
-                      <span
-                        className={`badge ${step.status === 'COMPLETED'
-                          ? 'badge-success'
-                          : step.status === 'IN_PROGRESS'
-                            ? 'badge-warning'
-                            : 'badge-muted'
-                          }`}
-                      >
-                        <span className="badge-dot" />
-                        <span>{step.status}</span>
+                      <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
+                        {evt.role}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: '0.82rem', color: '#64748b' }}>
-                      {step.completed_at ? new Date(step.completed_at).toLocaleString() : '—'}
+                    <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.8rem' }}>
+                      {evt.login_at ? new Date(evt.login_at).toLocaleString() : '—'}
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: '0.84rem', color: '#334155' }}>
-                      {step.notes || '—'}
+                    <td style={{ padding: '12px 16px', color: '#475569', fontSize: '0.8rem' }}>
+                      {evt.device_browser || 'Browser / Platform Web'}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#64748b', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                      {evt.ip_address || '127.0.0.1'}
                     </td>
                   </tr>
                 ))}
@@ -1517,6 +1777,194 @@ export default function CollegeDetailPage() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* 4. Platform Audit Logs Stream */}
+      <div className="card enterprise-card">
+        <div className="card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+          <div className="card-title">
+            <Clock size={18} style={{ color: '#4f46e5' }} />
+            <span>College Platform Audit Logs</span>
+          </div>
+          <Link to="/audit-logs" className="card-header-link" style={{ fontSize: '0.78rem' }}>
+            <span>Full Audit Trail</span>
+            <span>→</span>
+          </Link>
+        </div>
+
+        {!collegeActivity?.audit_logs || collegeActivity.audit_logs.length === 0 ? (
+          <div className="empty-state-clean" style={{ padding: '28px 16px', textAlign: 'center' }}>
+            <p style={{ color: '#64748b', fontSize: '0.86rem', margin: 0 }}>
+              No audit logs logged for this college tenant yet.
+            </p>
+          </div>
+        ) : (
+          <div className="table-responsive" style={{ border: '1px solid #edf2f7', borderRadius: '10px', overflow: 'hidden', marginTop: '12px' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #edf2f7' }}>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Action Performed</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Entity &amp; Target</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Actor</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Timestamp</th>
+                </tr>
+              </thead>
+              <tbody>
+                {collegeActivity.audit_logs.map((log, idx) => (
+                  <tr key={log.log_id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span className="badge badge-muted" style={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#0f172a', fontWeight: 500 }}>
+                      {log.entity_type} {log.entity_id ? `(${log.entity_id.slice(0, 8)}...)` : ''}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#475569' }}>
+                      {log.actor_name || 'Super Admin'}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#64748b', fontSize: '0.8rem' }}>
+                      {log.created_at ? new Date(log.created_at).toLocaleString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 5. Support Tickets & Complaints */}
+      <div className="card enterprise-card">
+        <div className="card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+          <div className="card-title">
+            <LifeBuoy size={18} style={{ color: '#059669' }} />
+            <span>Support Tickets &amp; Grievance Status</span>
+          </div>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Overview of hostel maintenance &amp; student service tickets
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginTop: '14px' }}>
+          <div style={{ padding: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+              {collegeActivity?.support_tickets?.total ?? 0}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Total Tickets</div>
+          </div>
+          <div style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#dc2626' }}>
+              {collegeActivity?.support_tickets?.open ?? 0}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#dc2626', fontWeight: 600, textTransform: 'uppercase' }}>Open</div>
+          </div>
+          <div style={{ padding: '12px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#d97706' }}>
+              {collegeActivity?.support_tickets?.in_progress ?? 0}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#d97706', fontWeight: 600, textTransform: 'uppercase' }}>In Progress</div>
+          </div>
+          <div style={{ padding: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', textAlign: 'center' }}>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#059669' }}>
+              {collegeActivity?.support_tickets?.resolved ?? 0}
+            </div>
+            <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 600, textTransform: 'uppercase' }}>Resolved</div>
+          </div>
+        </div>
+
+        {collegeActivity?.support_tickets?.recent_tickets && collegeActivity.support_tickets.recent_tickets.length > 0 && (
+          <div className="table-responsive" style={{ border: '1px solid #edf2f7', borderRadius: '10px', overflow: 'hidden', marginTop: '14px' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #edf2f7' }}>
+                  <th style={{ padding: '10px 14px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Ticket / Grievance</th>
+                  <th style={{ padding: '10px 14px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Category</th>
+                  <th style={{ padding: '10px 14px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Student</th>
+                  <th style={{ padding: '10px 14px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Status</th>
+                  <th style={{ padding: '10px 14px', fontWeight: 700, color: '#64748b', textAlign: 'left' }}>Logged</th>
+                </tr>
+              </thead>
+              <tbody>
+                {collegeActivity.support_tickets.recent_tickets.map((t, idx) => (
+                  <tr key={t.complaint_id || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 600, color: '#0f172a' }}>{t.title}</td>
+                    <td style={{ padding: '10px 14px', color: '#64748b' }}>{t.category || 'General'}</td>
+                    <td style={{ padding: '10px 14px', color: '#334155' }}>{t.student_name || 'Hostel Scholar'}</td>
+                    <td style={{ padding: '10px 14px' }}>
+                      <span className={`badge ${t.status === 'RESOLVED' ? 'badge-success' : t.status === 'IN_PROGRESS' ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: '0.72rem' }}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 14px', color: '#64748b', fontSize: '0.78rem' }}>
+                      {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* 6. Operational Reports & Compliance Exports */}
+      <div className="card enterprise-card">
+        <div className="card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid #f1f5f9' }}>
+          <div className="card-title">
+            <FileSpreadsheet size={18} style={{ color: '#2563eb' }} />
+            <span>Operational Reports &amp; Compliance Exports</span>
+          </div>
+          <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+            Instant audit and usage summaries
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', marginTop: '14px' }}>
+          <div style={{ padding: '14px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: '#0f172a', fontSize: '0.86rem' }}>
+              <FileText size={16} style={{ color: '#2563eb' }} />
+              <span>Account Usage &amp; Limit Audit</span>
+            </div>
+            <p style={{ fontSize: '0.76rem', color: '#64748b', margin: 0 }}>
+              Summary of all student, parent, incharge, security, and block allocations vs enforced thresholds.
+            </p>
+            <button
+              type="button"
+              className="btn-enterprise btn-outline-soft btn-sm"
+              style={{ marginTop: 'auto', alignSelf: 'flex-start' }}
+              onClick={() => {
+                const csv = `Category,Active,Deactivated,Total,Configured Quota,Usage Pct\nStudents,${collegeStats?.students?.active ?? 0},${collegeStats?.students?.deactivated ?? 0},${collegeStats?.students?.total ?? 0},${collegeStats?.students?.quota ?? college?.max_students ?? 500},${collegeStats?.students?.usage_percentage ?? 0}%\nParents,${collegeStats?.parents?.active ?? 0},${collegeStats?.parents?.deactivated ?? 0},${collegeStats?.parents?.total ?? 0},${collegeStats?.parents?.quota ?? college?.max_parents ?? 500},${collegeStats?.parents?.usage_percentage ?? 0}%\nHostel Blocks,${collegeStats?.blocks?.active ?? 0},${collegeStats?.blocks?.deactivated ?? 0},${collegeStats?.blocks?.total ?? 0},${collegeStats?.blocks?.quota ?? college?.max_blocks ?? 5},${collegeStats?.blocks?.usage_percentage ?? 0}%\nIncharges,${collegeStats?.incharges?.active ?? 0},${collegeStats?.incharges?.deactivated ?? 0},${collegeStats?.incharges?.total ?? 0},${collegeStats?.incharges?.quota ?? college?.max_incharges ?? 5},${collegeStats?.incharges?.usage_percentage ?? 0}%\nSecurity,${collegeStats?.security?.active ?? 0},${collegeStats?.security?.deactivated ?? 0},${collegeStats?.security?.total ?? 0},${collegeStats?.security?.quota ?? college?.max_security ?? 10},${collegeStats?.security?.usage_percentage ?? 0}%`;
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${college.college_code}_account_quota_audit.csv`;
+                a.click();
+              }}
+            >
+              <Download size={12} />
+              <span>Export CSV</span>
+            </button>
+          </div>
+
+          <div style={{ padding: '14px 16px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: '#0f172a', fontSize: '0.86rem' }}>
+              <Building2 size={16} style={{ color: '#059669' }} />
+              <span>Campus Hostel Occupancy Report</span>
+            </div>
+            <p style={{ fontSize: '0.76rem', color: '#64748b', margin: 0 }}>
+              Physical structural allocations, floors, room inventory, and active bed allocations.
+            </p>
+            <Link
+              to={`/colleges/${college.college_id}/hostel-structure`}
+              className="btn-enterprise btn-outline-soft btn-sm"
+              style={{ marginTop: 'auto', alignSelf: 'flex-start' }}
+            >
+              <ExternalLink size={12} />
+              <span>View Structure Master</span>
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* Fast Platform Governance Navigation Hub */}
@@ -1970,74 +2418,86 @@ export default function CollegeDetailPage() {
       {/* Password Reset / Update Modal */}
       {showPasswordModal && (
         <div className="modal-overlay" onClick={() => setShowPasswordModal(false)}>
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
             <div className="modal-header">
-              <h2 className="modal-title">
-                {adminAccount ? 'Reset Administrator Password' : 'Initialize Administrator Credentials'}
-              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Key size={18} />
+                </div>
+                <div>
+                  <h2 className="modal-title" style={{ fontSize: '1.15rem' }}>
+                    {adminAccount ? 'Reset Administrator Password' : 'Initialize Administrator Credentials'}
+                  </h2>
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '2px' }}>
+                    {college.name} ({college.college_code})
+                  </div>
+                </div>
+              </div>
               <button
-                className="btn btn-outline btn-sm"
+                className="btn-icon-action"
                 onClick={() => setShowPasswordModal(false)}
                 disabled={passwordSubmitting}
-                style={{ padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+                style={{ width: '28px', height: '28px' }}
                 aria-label="Close password modal"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
 
             <form onSubmit={handlePasswordSubmit}>
               <div className="modal-body">
                 {passwordError && (
-                  <div className="error-box" style={{ marginBottom: '16px', padding: '10px', textAlign: 'left' }}>
-                    <strong>Error:</strong> {passwordError}
+                  <div style={{ backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: '8px', padding: '10px 14px', fontSize: '0.84rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={15} className="text-rose-600" />
+                    <span>{passwordError}</span>
                   </div>
                 )}
-
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-                  Configure credentials for <strong>{college.name}</strong> ({college.college_code}). The college administrator uses this identity and password to log in and administer the Admin Module.
-                </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="modal-admin-email">
                     Administrator Login Email / Username
                   </label>
-                  <input
-                    id="modal-admin-email"
-                    type="email"
-                    className="form-control"
-                    placeholder={
-                      adminAccount?.email ||
-                      college.contact_email ||
-                      `${college.college_code.toLowerCase()}.admin@hms.local`
-                    }
-                    value={passwordFormData.admin_email}
-                    onChange={(e) =>
-                      setPasswordFormData((prev) => ({ ...prev, admin_email: e.target.value }))
-                    }
-                    disabled={passwordSubmitting}
-                  />
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      id="modal-admin-email"
+                      type="email"
+                      className="form-control"
+                      placeholder={
+                        adminAccount?.email ||
+                        college.contact_email ||
+                        `${college.college_code.toLowerCase()}.admin@hms.local`
+                      }
+                      value={passwordFormData.admin_email}
+                      onChange={(e) =>
+                        setPasswordFormData((prev) => ({ ...prev, admin_email: e.target.value }))
+                      }
+                      disabled={passwordSubmitting}
+                      style={{ paddingLeft: '36px' }}
+                    />
+                    <Mail size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  </div>
                   <div className="form-hint">
-                    Current/New login email. Defaults to {adminAccount?.email || college.contact_email || `${college.college_code.toLowerCase()}.admin@hms.local`}.
+                    Authorized email for College Administrator authentication.
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                     <label className="form-label" htmlFor="modal-new-password" style={{ margin: 0 }}>
                       New Password <span className="required">*</span>
                     </label>
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className="btn-enterprise btn-outline-soft btn-sm"
                       onClick={generateModalRandomPassword}
                       disabled={passwordSubmitting}
-                      style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                      style={{ fontSize: '0.74rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563eb' }}
                     >
-                      ⚡ Generate Password
+                      <Zap size={12} className="text-amber-500" />
+                      <span>Generate Password</span>
                     </button>
                   </div>
-                  <div style={{ position: 'relative' }}>
+                  <div className="form-input-group">
                     <input
                       id="modal-new-password"
                       type={showNewPassword ? 'text' : 'password'}
@@ -2048,35 +2508,24 @@ export default function CollegeDetailPage() {
                         setPasswordFormData((prev) => ({ ...prev, password: e.target.value }))
                       }
                       disabled={passwordSubmitting}
-                      style={{ paddingRight: '42px' }}
                     />
                     <button
                       type="button"
+                      className="form-input-action-btn"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                      }}
                       title={showNewPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showNewPassword ? '🙈' : '👁️'}
+                      {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
-                  <div className="form-hint">Minimum 8 characters. Required to access the Admin Module.</div>
+                  <div className="form-hint">Must be at least 8 characters with letters, numbers, and symbols.</div>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="modal-confirm-password">
                     Confirm New Password <span className="required">*</span>
                   </label>
-                  <div style={{ position: 'relative' }}>
+                  <div className="form-input-group">
                     <input
                       id="modal-confirm-password"
                       type={showConfirmNewPassword ? 'text' : 'password'}
@@ -2087,38 +2536,30 @@ export default function CollegeDetailPage() {
                         setPasswordFormData((prev) => ({ ...prev, confirm_password: e.target.value }))
                       }
                       disabled={passwordSubmitting}
-                      style={{ paddingRight: '42px' }}
                     />
                     <button
                       type="button"
+                      className="form-input-action-btn"
                       onClick={() => setShowConfirmNewPassword(!showConfirmNewPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '0.9rem',
-                        color: 'var(--text-secondary)',
-                      }}
                       title={showConfirmNewPassword ? 'Hide password' : 'Show password'}
                     >
-                      {showConfirmNewPassword ? '🙈' : '👁️'}
+                      {showConfirmNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
                 </div>
 
-                <div className="notice-box" style={{ marginTop: '12px' }}>
-                  ℹ️ Updating this password updates the College Administrator account in <code>app.users</code> and logs the action in the platform audit logs. The administrator can log in using either the College Code (<strong>{college.college_code}</strong>) or their Admin Email.
+                <div className="modal-notice-banner">
+                  <Info size={16} className="modal-notice-banner-icon" />
+                  <div>
+                    Updating this password updates the College Administrator account in <code>app.users</code> and logs the action in the platform audit logs. The administrator can log in using either the College Code (<strong>{college.college_code}</strong>) or their Admin Email.
+                  </div>
                 </div>
               </div>
 
               <div className="modal-footer">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="btn-enterprise btn-outline-soft btn-sm"
                   onClick={() => setShowPasswordModal(false)}
                   disabled={passwordSubmitting}
                 >
@@ -2126,11 +2567,132 @@ export default function CollegeDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="btn-enterprise btn-primary-blue btn-sm"
                   id="btn-submit-password-update"
                   disabled={passwordSubmitting}
                 >
                   {passwordSubmitting ? 'Updating Password...' : 'Save Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Configure Limits Quotas Modal */}
+      {showLimitsModal && (
+        <div className="modal-overlay" onClick={() => !limitsSubmitting && setShowLimitsModal(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Configure College Resource Quotas</h2>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setShowLimitsModal(false)}
+                disabled={limitsSubmitting}
+                style={{ padding: '4px 6px', display: 'inline-flex', alignItems: 'center' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveLimits}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: '0.84rem', color: '#475569' }}>
+                  Manage account and resource caps for <strong>{college.name}</strong> ({college.college_code}). Quotas apply strictly to active accounts. Decreasing a limit below current active usage will block new account additions without deactivating existing users.
+                </div>
+                {limitsError && (
+                  <div className="alert alert-danger" style={{ padding: '8px 12px', fontSize: '0.82rem' }}>
+                    {limitsError}
+                  </div>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="detail-quota-students">Student Account Limit</label>
+                    <input
+                      id="detail-quota-students"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_students}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_students: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                    <div className="form-hint" style={{ fontSize: '0.72rem' }}>Currently active: {collegeStats?.students?.active ?? 0}</div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="detail-quota-parents">Parent Account Limit</label>
+                    <input
+                      id="detail-quota-parents"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_parents}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_parents: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                    <div className="form-hint" style={{ fontSize: '0.72rem' }}>Currently active: {collegeStats?.parents?.active ?? 0}</div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="detail-quota-blocks">Hostel Block Limit</label>
+                    <input
+                      id="detail-quota-blocks"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_blocks}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_blocks: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                    <div className="form-hint" style={{ fontSize: '0.72rem' }}>Currently active: {collegeStats?.blocks?.active ?? 0}</div>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="detail-quota-incharges">Hostel Incharge Limit</label>
+                    <input
+                      id="detail-quota-incharges"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_incharges}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_incharges: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                    <div className="form-hint" style={{ fontSize: '0.72rem' }}>Currently active: {collegeStats?.incharges?.active ?? 0}</div>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="detail-quota-security">Security Guard Limit</label>
+                  <input
+                    id="detail-quota-security"
+                    type="number"
+                    min="1"
+                    className="form-control"
+                    value={limitsForm.max_security}
+                    onChange={(e) => setLimitsForm((p) => ({ ...p, max_security: e.target.value }))}
+                    disabled={limitsSubmitting}
+                    required
+                  />
+                  <div className="form-hint" style={{ fontSize: '0.72rem' }}>Currently active: {collegeStats?.security?.active ?? 0}</div>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 18px', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  onClick={() => setShowLimitsModal(false)}
+                  disabled={limitsSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary-blue btn-sm"
+                  disabled={limitsSubmitting}
+                >
+                  {limitsSubmitting ? 'Saving...' : 'Save Limits'}
                 </button>
               </div>
             </form>

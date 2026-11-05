@@ -19,8 +19,20 @@ import {
   ShieldCheck,
   ShieldAlert,
   SlidersHorizontal,
+  Copy,
+  Check,
+  Edit3,
+  Sliders,
+  Users,
+  Shield,
+  Eye,
 } from 'lucide-react';
-import { fetchCollegesList } from '../services/collegeService';
+import {
+  fetchCollegesList,
+  updateCollege,
+  updateCollegeStatus,
+  updateCollegeQuotas,
+} from '../services/collegeService';
 import { loginSuperAdmin } from '../services/dashboardService';
 
 /**
@@ -90,6 +102,131 @@ export default function CollegesPage() {
     onboardingCount: 0,
     suspendedCount: 0,
   });
+
+  // Action Modals State
+  const [copiedTenantId, setCopiedTenantId] = useState(null);
+
+  // 1. Edit College Modal
+  const [editingCollege, setEditingCollege] = useState(null);
+  const [editForm, setEditForm] = useState({ name: '', timezone: 'Asia/Kolkata', contact_email: '' });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editError, setEditError] = useState(null);
+
+  // 2. Configure Limits Modal
+  const [limitsCollege, setLimitsCollege] = useState(null);
+  const [limitsForm, setLimitsForm] = useState({
+    max_students: 500,
+    max_parents: 500,
+    max_blocks: 5,
+    max_incharges: 5,
+    max_security: 10,
+  });
+  const [limitsSubmitting, setLimitsSubmitting] = useState(false);
+  const [limitsError, setLimitsError] = useState(null);
+
+  // 3. Lifecycle Transition Modal (Activate / Suspend)
+  const [lifecycleCollege, setLifecycleCollege] = useState(null);
+  const [targetLifecycleStatus, setTargetLifecycleStatus] = useState('ACTIVE');
+  const [lifecycleReason, setLifecycleReason] = useState('');
+  const [lifecycleSubmitting, setLifecycleSubmitting] = useState(false);
+  const [lifecycleError, setLifecycleError] = useState(null);
+
+  const handleCopyTenantId = (collegeId) => {
+    navigator.clipboard.writeText(collegeId);
+    setCopiedTenantId(collegeId);
+    setTimeout(() => setCopiedTenantId(null), 2000);
+  };
+
+  const handleOpenEdit = (col) => {
+    setEditError(null);
+    setEditingCollege(col);
+    setEditForm({
+      name: col.name || '',
+      timezone: col.timezone || 'Asia/Kolkata',
+      contact_email: col.contact_email || '',
+    });
+  };
+
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim()) {
+      setEditError('College name is required');
+      return;
+    }
+    setEditSubmitting(true);
+    setEditError(null);
+    try {
+      await updateCollege(editingCollege.college_id, editForm);
+      setEditingCollege(null);
+      await loadColleges(appliedSearch, statusFilter, limit, offset);
+    } catch (err) {
+      setEditError(err.response?.data?.error?.message || err.message || 'Failed to update college');
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleOpenLimits = (col) => {
+    setLimitsError(null);
+    setLimitsCollege(col);
+    setLimitsForm({
+      max_students: col.max_students ?? 500,
+      max_parents: col.max_parents ?? 500,
+      max_blocks: col.max_blocks ?? 5,
+      max_incharges: col.max_incharges ?? 5,
+      max_security: col.max_security ?? 10,
+    });
+  };
+
+  const handleSaveLimits = async (e) => {
+    e.preventDefault();
+    setLimitsSubmitting(true);
+    setLimitsError(null);
+    try {
+      await updateCollegeQuotas(limitsCollege.college_id, {
+        max_students: parseInt(limitsForm.max_students, 10) || 500,
+        max_parents: parseInt(limitsForm.max_parents, 10) || 500,
+        max_blocks: parseInt(limitsForm.max_blocks, 10) || 5,
+        max_incharges: parseInt(limitsForm.max_incharges, 10) || 5,
+        max_security: parseInt(limitsForm.max_security, 10) || 10,
+      });
+      setLimitsCollege(null);
+      await loadColleges(appliedSearch, statusFilter, limit, offset);
+    } catch (err) {
+      setLimitsError(err.response?.data?.error?.message || err.message || 'Failed to update quotas');
+    } finally {
+      setLimitsSubmitting(false);
+    }
+  };
+
+  const handleOpenLifecycle = (col, status) => {
+    setLifecycleError(null);
+    setLifecycleCollege(col);
+    setTargetLifecycleStatus(status);
+    setLifecycleReason('');
+  };
+
+  const handleSaveLifecycle = async (e) => {
+    e.preventDefault();
+    if (!lifecycleReason.trim()) {
+      setLifecycleError('A mandatory justification reason is required for lifecycle transitions.');
+      return;
+    }
+    setLifecycleSubmitting(true);
+    setLifecycleError(null);
+    try {
+      await updateCollegeStatus(lifecycleCollege.college_id, {
+        status: targetLifecycleStatus,
+        reason: lifecycleReason.trim(),
+      });
+      setLifecycleCollege(null);
+      await loadColleges(appliedSearch, statusFilter, limit, offset);
+    } catch (err) {
+      setLifecycleError(err.response?.data?.error?.message || err.message || 'Failed to transition college lifecycle status');
+    } finally {
+      setLifecycleSubmitting(false);
+    }
+  };
 
   // Stale request prevention
   const requestCounter = useRef(0);
@@ -442,6 +579,7 @@ export default function CollegesPage() {
                 <tr>
                   <th>College Name</th>
                   <th>Code</th>
+                  <th>Tenant ID</th>
                   <th>Status</th>
                   <th>Timezone</th>
                   <th>Location</th>
@@ -471,7 +609,7 @@ export default function CollegesPage() {
                               {col.name}
                             </Link>
                             <div className="college-meta-sub">
-                              ID: #{col.college_id ? col.college_id.slice(0, 8) : '—'}
+                              {col.city ? `${col.city}, ` : ''}{col.state || 'India'}
                             </div>
                           </div>
                         </div>
@@ -481,6 +619,29 @@ export default function CollegesPage() {
                         <span className="code-pill">
                           {col.college_code}
                         </span>
+                      </td>
+
+                      <td>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <code style={{ fontSize: '0.76rem', color: '#1e40af', background: '#eff6ff', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                            {col.college_id ? `${col.college_id.slice(0, 8)}...` : '—'}
+                          </code>
+                          {col.college_id && (
+                            <button
+                              type="button"
+                              className="btn-icon-action"
+                              style={{ width: '22px', height: '22px', padding: 0 }}
+                              onClick={() => handleCopyTenantId(col.college_id)}
+                              title={copiedTenantId === col.college_id ? 'Copied UUID!' : 'Copy Tenant ID'}
+                            >
+                              {copiedTenantId === col.college_id ? (
+                                <Check size={11} style={{ color: '#059669' }} />
+                              ) : (
+                                <Copy size={11} />
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       <td>
@@ -540,27 +701,79 @@ export default function CollegesPage() {
                       </td>
 
                       <td style={{ textAlign: 'right' }}>
-                        <div className="action-buttons-wrap">
-                          {isOnboarding && (
-                            <button
-                              type="button"
-                              className="btn-enterprise btn-primary-blue btn-sm"
-                              onClick={() => navigate(`/colleges/${col.college_id}/onboarding`)}
-                              title="Resume college onboarding wizard"
-                            >
-                              <span>Resume</span>
-                              <Rocket size={12} />
-                            </button>
-                          )}
+                        <div className="action-buttons-wrap" style={{ display: 'inline-flex', gap: '4px', alignItems: 'center', justifyContent: 'flex-end' }}>
+                          {/* 1. View College */}
                           <button
                             type="button"
                             className="btn-enterprise btn-outline-soft btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.74rem' }}
                             onClick={() => navigate(`/colleges/${col.college_id}`)}
-                            title="View college profile and configuration"
+                            title="View College Details & Dashboard"
                           >
-                            <span>Details</span>
-                            <ArrowRight size={12} />
+                            <Eye size={12} />
+                            <span>View</span>
                           </button>
+
+                          {/* 2. Edit College */}
+                          <button
+                            type="button"
+                            className="btn-enterprise btn-outline-soft btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                            onClick={() => handleOpenEdit(col)}
+                            title="Edit College Profile"
+                          >
+                            <Edit3 size={12} />
+                            <span>Edit</span>
+                          </button>
+
+                          {/* 3. Configure Limits */}
+                          <button
+                            type="button"
+                            className="btn-enterprise btn-outline-soft btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                            onClick={() => handleOpenLimits(col)}
+                            title="Configure Account & Resource Limits"
+                          >
+                            <Sliders size={12} style={{ color: '#2563eb' }} />
+                            <span>Limits</span>
+                          </button>
+
+                          {/* 4. Manage Account */}
+                          <button
+                            type="button"
+                            className="btn-enterprise btn-outline-soft btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                            onClick={() => navigate(`/colleges/${col.college_id}/admins`)}
+                            title="Manage College Administrators"
+                          >
+                            <Users size={12} />
+                            <span>Admins</span>
+                          </button>
+
+                          {/* 5. Activate / Suspend */}
+                          {col.status === 'ACTIVE' ? (
+                            <button
+                              type="button"
+                              className="btn-enterprise btn-outline-soft btn-sm"
+                              style={{ padding: '4px 8px', fontSize: '0.74rem', color: '#d97706', borderColor: '#fde68a' }}
+                              onClick={() => handleOpenLifecycle(col, 'SUSPENDED')}
+                              title="Suspend this college tenant"
+                            >
+                              <Shield size={12} />
+                              <span>Suspend</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-enterprise btn-outline-soft btn-sm"
+                              style={{ padding: '4px 8px', fontSize: '0.74rem', color: '#059669', borderColor: '#a7f3d0' }}
+                              onClick={() => handleOpenLifecycle(col, 'ACTIVE')}
+                              title="Activate this college tenant"
+                            >
+                              <ShieldCheck size={12} />
+                              <span>Activate</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -604,6 +817,281 @@ export default function CollegesPage() {
           </div>
         )}
       </div>
+
+      {/* Edit College Profile Modal */}
+      {editingCollege && (
+        <div className="modal-overlay" onClick={() => !editSubmitting && setEditingCollege(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Edit College Profile</h2>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setEditingCollege(null)}
+                disabled={editSubmitting}
+                style={{ padding: '4px 6px' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveEdit}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {editError && (
+                  <div className="alert alert-danger" style={{ padding: '8px 12px', fontSize: '0.82rem' }}>
+                    {editError}
+                  </div>
+                )}
+                <div className="form-group">
+                  <label className="form-label">College Code (Immutable)</label>
+                  <input type="text" className="form-control" value={editingCollege.college_code} disabled />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-col-name">College Name *</label>
+                  <input
+                    id="edit-col-name"
+                    type="text"
+                    className="form-control"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
+                    disabled={editSubmitting}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-col-email">Contact Email</label>
+                  <input
+                    id="edit-col-email"
+                    type="email"
+                    className="form-control"
+                    value={editForm.contact_email}
+                    onChange={(e) => setEditForm((p) => ({ ...p, contact_email: e.target.value }))}
+                    disabled={editSubmitting}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="edit-col-tz">Timezone</label>
+                  <select
+                    id="edit-col-tz"
+                    className="form-control"
+                    value={editForm.timezone}
+                    onChange={(e) => setEditForm((p) => ({ ...p, timezone: e.target.value }))}
+                    disabled={editSubmitting}
+                  >
+                    <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 18px', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  onClick={() => setEditingCollege(null)}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary-blue btn-sm"
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Configure Limits Quotas Modal */}
+      {limitsCollege && (
+        <div className="modal-overlay" onClick={() => !limitsSubmitting && setLimitsCollege(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Configure Account &amp; Resource Limits</h2>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setLimitsCollege(null)}
+                disabled={limitsSubmitting}
+                style={{ padding: '4px 6px' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveLimits}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: '0.84rem', color: '#475569' }}>
+                  Setting capacity limits for <strong>{limitsCollege.name}</strong> ({limitsCollege.college_code}). Quotas apply to active accounts; reducing below current active usage will block new creations but preserves existing accounts.
+                </div>
+                {limitsError && (
+                  <div className="alert alert-danger" style={{ padding: '8px 12px', fontSize: '0.82rem' }}>
+                    {limitsError}
+                  </div>
+                )}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="quota-students">Max Students</label>
+                    <input
+                      id="quota-students"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_students}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_students: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="quota-parents">Max Parents</label>
+                    <input
+                      id="quota-parents"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_parents}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_parents: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="quota-blocks">Max Hostel Blocks</label>
+                    <input
+                      id="quota-blocks"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_blocks}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_blocks: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="quota-incharges">Max Hostel Incharges</label>
+                    <input
+                      id="quota-incharges"
+                      type="number"
+                      min="1"
+                      className="form-control"
+                      value={limitsForm.max_incharges}
+                      onChange={(e) => setLimitsForm((p) => ({ ...p, max_incharges: e.target.value }))}
+                      disabled={limitsSubmitting}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="quota-security">Max Security Personnel</label>
+                  <input
+                    id="quota-security"
+                    type="number"
+                    min="1"
+                    className="form-control"
+                    value={limitsForm.max_security}
+                    onChange={(e) => setLimitsForm((p) => ({ ...p, max_security: e.target.value }))}
+                    disabled={limitsSubmitting}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 18px', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  onClick={() => setLimitsCollege(null)}
+                  disabled={limitsSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-enterprise btn-primary-blue btn-sm"
+                  disabled={limitsSubmitting}
+                >
+                  {limitsSubmitting ? 'Updating...' : 'Save Quotas'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lifecycle Status Modal (Activate / Suspend) */}
+      {lifecycleCollege && (
+        <div className="modal-overlay" onClick={() => !lifecycleSubmitting && setLifecycleCollege(null)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                {targetLifecycleStatus === 'ACTIVE' ? 'Activate College Tenant' : 'Suspend College Tenant'}
+              </h2>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                onClick={() => setLifecycleCollege(null)}
+                disabled={lifecycleSubmitting}
+                style={{ padding: '4px 6px' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <form onSubmit={handleSaveLifecycle}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <p style={{ fontSize: '0.84rem', color: '#334155', margin: 0 }}>
+                  You are changing the lifecycle state of <strong>{lifecycleCollege.name}</strong> to{' '}
+                  <strong style={{ color: targetLifecycleStatus === 'ACTIVE' ? '#059669' : '#d97706' }}>
+                    {targetLifecycleStatus}
+                  </strong>.
+                </p>
+                {lifecycleError && (
+                  <div className="alert alert-danger" style={{ padding: '8px 12px', fontSize: '0.82rem' }}>
+                    {lifecycleError}
+                  </div>
+                )}
+                <div className="form-group">
+                  <label className="form-label" htmlFor="lifecycle-reason-input">
+                    Mandatory Authorization Reason <span className="required">*</span>
+                  </label>
+                  <textarea
+                    id="lifecycle-reason-input"
+                    className="form-control"
+                    rows="3"
+                    placeholder="Enter compliance or administrative justification..."
+                    value={lifecycleReason}
+                    onChange={(e) => setLifecycleReason(e.target.value)}
+                    disabled={lifecycleSubmitting}
+                    required
+                  />
+                  <div className="form-hint" style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                    This justification will be permanently immutably logged in platform.audit_logs.
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 18px', borderTop: '1px solid #e2e8f0' }}>
+                <button
+                  type="button"
+                  className="btn-enterprise btn-outline-soft btn-sm"
+                  onClick={() => setLifecycleCollege(null)}
+                  disabled={lifecycleSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`btn-enterprise ${targetLifecycleStatus === 'ACTIVE' ? 'btn-primary-blue' : 'btn-outline-soft'} btn-sm`}
+                  style={targetLifecycleStatus === 'SUSPENDED' ? { color: '#dc2626', borderColor: '#fca5a5' } : {}}
+                  disabled={lifecycleSubmitting}
+                >
+                  {lifecycleSubmitting ? 'Processing...' : `Confirm ${targetLifecycleStatus}`}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

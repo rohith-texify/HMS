@@ -70,11 +70,7 @@ export default function EmptyState({
         <button
           type="button"
           onClick={onAction}
-          className="btn-enterprise-primary"
-          style={{
-            fontSize: '0.82rem',
-            padding: '7px 14px',
-          }}
+          className="btn-enterprise btn-primary-blue btn-sm"
         >
           {actionText}
         </button>
