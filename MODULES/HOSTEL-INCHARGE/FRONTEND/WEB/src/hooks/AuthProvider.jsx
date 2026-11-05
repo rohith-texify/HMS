@@ -30,7 +30,10 @@ export function AuthProvider({ children }) {
 
     if (activeToken && currentUser) {
       const role = String(currentUser.role || '').toUpperCase();
-      const isAllowedRole = role === 'HOSTEL_INCHARGE' || role === 'INCHARGE';
+      const isAllowedRole =
+        role === 'HOSTEL_INCHARGE' ||
+        role === 'INCHARGE' ||
+        role === 'COLLEGE_ADMIN';
       const isAllowedScope = currentUser.scope === 'COLLEGE';
 
       if (isAllowedRole && isAllowedScope) {

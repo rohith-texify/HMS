@@ -19,6 +19,7 @@ import (
 	"github.com/yourusername/hostel-management-system/API/internal/service"
 	superadminroutes "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/routes"
 	adminroutes "github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/routes"
+	inchargeroutes "github.com/yourusername/hostel-management-system/MODULES/HOSTEL-INCHARGE/BACKEND/routes"
 )
 
 func NewRouter(
@@ -871,25 +872,25 @@ func NewRouter(
 		)
 
 		collegeProtected.GET(
-			"/incharges/my-hostel",
+			"/incharges/my-hostel/legacy",
 			permissionMiddleware.RequirePermission("people.view"),
 			inchargeHostelHandler.GetMyHostel,
 		)
 
 		collegeProtected.GET(
-			"/incharges/my-hostel/residents",
+			"/incharges/my-hostel/residents/legacy",
 			permissionMiddleware.RequirePermission("people.view"),
 			inchargeHostelHandler.ListResidents,
 		)
 
 		collegeProtected.GET(
-			"/incharges/my-hostel/vacant-beds",
+			"/incharges/my-hostel/vacant-beds/legacy",
 			permissionMiddleware.RequirePermission("people.view"),
 			inchargeHostelHandler.ListVacantBeds,
 		)
 
 		collegeProtected.GET(
-			"/incharges/unallocated-students",
+			"/incharges/unallocated-students/legacy",
 			permissionMiddleware.RequirePermission("people.view"),
 			inchargeHostelHandler.ListUnallocatedStudents,
 		)
@@ -1180,6 +1181,14 @@ func NewRouter(
 
 		// Dedicated College Admin module routes
 		adminroutes.RegisterCollegeAdminRoutes(
+			collegeProtected,
+			db,
+			permissionMiddleware.RequirePermission("people.view"),
+			permissionMiddleware.RequirePermission("people.manage"),
+		)
+
+		// Dedicated Hostel In-Charge module routes
+		inchargeroutes.RegisterHostelInchargeRoutes(
 			collegeProtected,
 			db,
 			permissionMiddleware.RequirePermission("people.view"),

@@ -10,10 +10,9 @@ import {
   X,
   Building2,
   BedDouble,
-  User,
   LogOut,
   ChevronDown,
-  ShieldCheck,
+  ShieldCheck
 } from 'lucide-react';
 import '../styles/layout.css';
 

@@ -139,7 +139,7 @@ func (r *Repository) FindAuthIdentityByEmail(
 
 			c.college_code,
 			c.name,
-			c.logo_url
+			NULL::text AS logo_url
 
 		FROM platform.user_roles ur
 
@@ -227,14 +227,31 @@ type PublicCollegeBranding struct {
 
 // ListPublicColleges returns public branding information for all active/onboarding colleges.
 func (r *Repository) ListPublicColleges(ctx context.Context) ([]PublicCollegeBranding, error) {
-	rows, err := r.Executor(ctx).Query(ctx, `
-		SELECT college_id, college_code, name, logo_url, status
+	executor := r.Executor(ctx)
+	if r.PlatformPool != nil {
+		executor = r.PlatformPool
+	}
+
+	rows, err := executor.Query(ctx, `
+		SELECT college_id, college_code, name, NULL::text AS logo_url, status
 		FROM platform.colleges
 		WHERE status IN ('ACTIVE', 'ONBOARDING')
 		ORDER BY name ASC
 	`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list public colleges: %w", err)
+		if r.PlatformPool != nil && r.Pool != nil && r.PlatformPool != r.Pool {
+			rows, err = r.Pool.Query(ctx, `
+				SELECT college_id, college_code, name, NULL::text AS logo_url, status
+				FROM platform.colleges
+				WHERE status IN ('ACTIVE', 'ONBOARDING')
+				ORDER BY name ASC
+			`)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list public colleges: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to list public colleges: %w", err)
+		}
 	}
 	defer rows.Close()
 
@@ -263,16 +280,27 @@ func (r *Repository) GetPublicCollegeBranding(ctx context.Context, identifier st
 		prefix = prefix[:dotAdminIdx]
 	}
 
+	executor := r.Executor(ctx)
+	if r.PlatformPool != nil {
+		executor = r.PlatformPool
+	}
+
 	var b PublicCollegeBranding
-	err := r.Executor(ctx).QueryRow(ctx, `
-		SELECT college_id, college_code, name, logo_url, status
+	query := `
+		SELECT college_id, college_code, name, NULL::text AS logo_url, status
 		FROM platform.colleges
 		WHERE LOWER(college_code) = $1
 		   OR LOWER(college_code) = $2
 		   OR college_id::text = $1
 		   OR LOWER(name) ILIKE $1
 		LIMIT 1
-	`, idLower, prefix).Scan(&b.CollegeID, &b.CollegeCode, &b.Name, &b.LogoURL, &b.Status)
+	`
+	err := executor.QueryRow(ctx, query, idLower, prefix).Scan(&b.CollegeID, &b.CollegeCode, &b.Name, &b.LogoURL, &b.Status)
+	if err != nil {
+		if r.PlatformPool != nil && r.Pool != nil && r.PlatformPool != r.Pool {
+			err = r.Pool.QueryRow(ctx, query, idLower, prefix).Scan(&b.CollegeID, &b.CollegeCode, &b.Name, &b.LogoURL, &b.Status)
+		}
+	}
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound

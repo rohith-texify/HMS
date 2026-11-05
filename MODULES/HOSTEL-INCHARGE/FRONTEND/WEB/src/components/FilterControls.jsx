@@ -1,5 +1,5 @@
 import React from 'react';
-import { Filter, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 /**
  * Enterprise Filter Controls Bar with search, dropdown selectors, and reset action.

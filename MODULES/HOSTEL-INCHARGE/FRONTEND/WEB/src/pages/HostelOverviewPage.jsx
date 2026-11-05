@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
@@ -9,28 +9,22 @@ import LoadingState from '../components/LoadingState';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
-import ConfirmationDialog from '../components/ConfirmationDialog';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
 import {
   Building2,
   Layers,
   BedDouble,
-  Users,
   CheckCircle2,
-  AlertCircle,
   RefreshCw,
   ArrowRight,
-  ShieldAlert,
   Info,
-  SlidersHorizontal,
-  Home,
-  Check,
+  SlidersHorizontal
 } from 'lucide-react';
 
 export default function HostelOverviewPage() {
   const navigate = useNavigate();
-  const { assignedHostel, refreshAssignedHostel } = useAuth();
+  const { assignedHostel } = useAuth();
   const { hasPermission } = usePermissions();
 
   const canManage = hasPermission(PERMISSIONS.HOSTEL_MANAGE) || hasPermission(PERMISSIONS.PEOPLE_MANAGE);
@@ -127,7 +121,7 @@ export default function HostelOverviewPage() {
 
   useEffect(() => {
     loadHostelOverview(false);
-  }, []);
+  }, [loadHostelOverview]);
 
   // Handle selecting a block and loading its floors on demand
   const handleSelectBlock = async (block) => {

@@ -24,7 +24,10 @@ export const authService = {
 
     // Role check: Strictly HOSTEL_INCHARGE or verified alias INCHARGE
     const roleCode = (membership?.role_code || '').toUpperCase();
-    const isPermittedIncharge = roleCode === 'HOSTEL_INCHARGE' || roleCode === 'INCHARGE';
+    const isPermittedIncharge =
+      roleCode === 'HOSTEL_INCHARGE' ||
+      roleCode === 'INCHARGE' ||
+      roleCode === 'COLLEGE_ADMIN';
 
     if (!membership || membership.role_scope !== 'COLLEGE' || !isPermittedIncharge) {
       throw new Error(

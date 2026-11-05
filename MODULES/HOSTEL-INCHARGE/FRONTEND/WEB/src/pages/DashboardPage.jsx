@@ -19,16 +19,14 @@ import {
   RefreshCw,
   Clock,
   ArrowRight,
-  AlertCircle,
   Bell,
   CheckCircle2,
   ShieldCheck,
-  ChevronRight,
-  Calendar,
+  ChevronRight
 } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, assignedHostel, refreshAssignedHostel } = useAuth();
+  const { assignedHostel } = useAuth();
   const navigate = useNavigate();
 
   // Master Data State

@@ -13,8 +13,6 @@ import { exportToCSV } from '../utils/exportUtils';
 import { formatDate, truncateUUID } from '../utils/formatUtils';
 import {
   Users,
-  Search,
-  Filter,
   Download,
   RefreshCw,
   Building2,
@@ -24,17 +22,14 @@ import {
   Phone,
   Mail,
   HeartPulse,
-  ShieldCheck,
   User,
   Eye,
   AlertCircle,
   CheckCircle2,
   PhoneCall,
   UserCheck,
-  X,
   FileText,
-  MapPin,
-  Calendar,
+  Footprints
 } from 'lucide-react';
 
 export default function StudentsPage() {
@@ -67,7 +62,7 @@ export default function StudentsPage() {
   const [profileLoading, setProfileLoading] = useState(false);
   const [studentParents, setStudentParents] = useState([]);
   const [studentEmergencyContacts, setStudentEmergencyContacts] = useState([]);
-  const [studentFullDetails, setStudentFullDetails] = useState(null);
+  const [, setStudentFullDetails] = useState(null);
 
   // Load residents assigned strictly to the authenticated hostel
   const loadResidents = useCallback(
@@ -912,6 +907,42 @@ export default function StudentsPage() {
                 >
                   <ClipboardList size={14} />
                   <span>Attendance</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate(`/leaves?studentId=${selectedResident.student_id}`);
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.82rem',
+                    padding: '6px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                  title="View student leave requests"
+                >
+                  <FileText size={14} />
+                  <span>Leaves</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate(`/gate-passes?studentId=${selectedResident.student_id}`);
+                  }}
+                  className="btn btn-secondary"
+                  style={{
+                    fontSize: '0.82rem',
+                    padding: '6px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                  title="View student gate clearance vouchers"
+                >
+                  <Footprints size={14} />
+                  <span>Gate Passes</span>
                 </button>
               </div>
             )}

@@ -232,58 +232,191 @@ export const inchargeService = {
     return this.submitAttendanceCorrection(payload);
   },
 
-  // 6. Leaves
+  // 6. Leaves & Gate Pass Coordination
   async getLeaves(params = {}) {
     const res = await api.get('/college/leaves', { params });
     const data = res.data || res;
     return Array.isArray(data) ? data : data?.leaves || data?.data || [];
   },
 
-  async approveLeave(leaveId, payload = {}) {
-    const res = await api.put(`/college/leaves/${leaveId}/approve`, payload);
+  async getLeaveRequests(params = {}) {
+    return this.getLeaves(params);
+  },
+
+  async getLeaveRequestById(leaveId) {
+    const res = await api.get(`/college/leaves/${leaveId}`);
+    const data = res.data || res;
+    return data?.data || data;
+  },
+
+  async getLeaveSummary() {
+    const res = await api.get('/college/leaves/reports/summary');
+    const data = res.data || res;
+    return data?.data || data;
+  },
+
+  async processLeaveDecision(leaveId, payload) {
+    // API endpoint: POST /college/leaves/:leave_id/decision
+    const res = await api.post(`/college/leaves/${leaveId}/decision`, payload);
     return res.data || res;
+  },
+
+  async cancelLeaveRequest(leaveId) {
+    // API endpoint: POST /college/leaves/:leave_id/cancel
+    const res = await api.post(`/college/leaves/${leaveId}/cancel`);
+    return res.data || res;
+  },
+
+  async createLeaveRequest(payload) {
+    // API endpoint: POST /college/leaves
+    const res = await api.post('/college/leaves', payload);
+    return res.data || res;
+  },
+
+  async approveLeave(leaveId, payload = {}) {
+    return this.processLeaveDecision(leaveId, {
+      decision: 'APPROVED',
+      remarks: payload.remarks || payload.reason || 'Approved by Hostel In-Charge',
+    });
   },
 
   async rejectLeave(leaveId, payload = {}) {
-    const res = await api.put(`/college/leaves/${leaveId}/reject`, payload);
-    return res.data || res;
+    return this.processLeaveDecision(leaveId, {
+      decision: 'REJECTED',
+      remarks: payload.remarks || payload.reason || 'Rejected by Hostel In-Charge',
+    });
   },
 
-  // 7. Complaints
+  // Campus Gates & Security Coordination (Read-only for In-Charge)
+  async getGates() {
+    const res = await api.get('/college/gates');
+    const data = res.data || res;
+    return Array.isArray(data) ? data : data?.gates || data?.data || [];
+  },
+
+  async getSecurityAssignments() {
+    const res = await api.get('/college/security-assignments');
+    const data = res.data || res;
+    return Array.isArray(data) ? data : data?.assignments || data?.data || [];
+  },
+
+  async getStaff() {
+    const res = await api.get('/college/staff');
+    const data = res.data || res;
+    return Array.isArray(data) ? data : data?.staff || data?.data || [];
+  },
+
+  // 7. Complaints Operations
   async getComplaints(params = {}) {
     const res = await api.get('/college/complaints', { params });
     const data = res.data || res;
     return Array.isArray(data) ? data : data?.complaints || data?.data || [];
   },
 
-  async updateComplaintStatus(complaintId, payload) {
-    const res = await api.put(`/college/complaints/${complaintId}/status`, payload);
+  async getComplaintById(complaintId) {
+    const res = await api.get(`/college/complaints/${complaintId}`);
+    const data = res.data || res;
+    return data?.data || data;
+  },
+
+  async getComplaintSummary() {
+    const res = await api.get('/college/complaints/reports/summary');
+    const data = res.data || res;
+    return Array.isArray(data) ? data : data?.data || [];
+  },
+
+  async createComplaint(payload) {
+    const res = await api.post('/college/complaints', payload);
     return res.data || res;
   },
 
-  // 8. Maintenance
+  async updateComplaintStatus(complaintId, payload) {
+    // API endpoint: PATCH /college/complaints/:complaint_id/status
+    const res = await api.patch(`/college/complaints/${complaintId}/status`, payload);
+    return res.data || res;
+  },
+
+  async assignComplaint(complaintId, payload) {
+    // API endpoint: PATCH /college/complaints/:complaint_id/assign
+    const res = await api.patch(`/college/complaints/${complaintId}/assign`, payload);
+    return res.data || res;
+  },
+
+  async resolveComplaint(complaintId, payload) {
+    // API endpoint: PATCH /college/complaints/:complaint_id/resolve
+    const res = await api.patch(`/college/complaints/${complaintId}/resolve`, payload);
+    return res.data || res;
+  },
+
+  async getComplaintUpdates(complaintId) {
+    // API endpoint: GET /college/complaints/:complaint_id/updates
+    const res = await api.get(`/college/complaints/${complaintId}/updates`);
+    const data = res.data || res;
+    return Array.isArray(data) ? data : data?.updates || data?.data || [];
+  },
+
+  // 8. Maintenance Operations
   async getMaintenance(params = {}) {
     const res = await api.get('/college/maintenance', { params });
     const data = res.data || res;
     return Array.isArray(data) ? data : data?.maintenance || data?.data || [];
   },
 
-  async updateMaintenanceStatus(maintenanceId, payload) {
-    const res = await api.put(`/college/maintenance/${maintenanceId}/status`, payload);
+  async getMaintenanceById(maintenanceId) {
+    const res = await api.get(`/college/maintenance/${maintenanceId}`);
+    const data = res.data || res;
+    return data?.data || data;
+  },
+
+  async createMaintenance(payload) {
+    // API endpoint: POST /college/maintenance
+    const res = await api.post('/college/maintenance', payload);
     return res.data || res;
   },
 
-  // 9. Mess & Food
+  async resolveMaintenance(maintenanceId, payload) {
+    // API endpoint: PATCH /college/maintenance/:maintenance_id/resolve
+    const res = await api.patch(`/college/maintenance/${maintenanceId}/resolve`, payload);
+    return res.data || res;
+  },
+
+  // Backwards compatibility alias
+  async updateMaintenanceStatus(maintenanceId, payload) {
+    return this.resolveMaintenance(maintenanceId, payload);
+  },
+
+  // 9. Mess & Food Operations
   async getMessTimings(hostelId) {
     const res = await api.get(`/college/hostels/${hostelId}/mess/timings`);
     const data = res.data || res;
-    return Array.isArray(data) ? data : data?.timings || [];
+    return Array.isArray(data) ? data : data?.timings || data?.data || [];
+  },
+
+  async createMealTiming(hostelId, payload) {
+    const res = await api.post(`/college/hostels/${hostelId}/mess/timings`, payload);
+    return res.data || res;
   },
 
   async getMessMenus(hostelId) {
     const res = await api.get(`/college/hostels/${hostelId}/mess/menus`);
     const data = res.data || res;
-    return Array.isArray(data) ? data : data?.menus || [];
+    return Array.isArray(data) ? data : data?.menus || data?.data || [];
+  },
+
+  async createMealMenu(hostelId, payload) {
+    const res = await api.post(`/college/hostels/${hostelId}/mess/menus`, payload);
+    return res.data || res;
+  },
+
+  async getTodayMenus() {
+    const res = await api.get('/college/mess/today');
+    const data = res.data || res;
+    return Array.isArray(data) ? data : data?.data || [];
+  },
+
+  async createFoodFeedback(payload) {
+    const res = await api.post('/college/mess/feedback', payload);
+    return res.data || res;
   },
 
   // 10. Announcements & Notifications
@@ -293,14 +426,84 @@ export const inchargeService = {
     return Array.isArray(data) ? data : data?.notifications || data?.data || [];
   },
 
-  async broadcastNotification(payload) {
-    const res = await api.post('/college/notifications/broadcast', payload);
+  async getUnreadNotificationCount() {
+    const res = await api.get('/college/notifications/unread-count');
+    const data = res.data || res;
+    return typeof data?.count === 'number' ? data.count : data?.data?.count || 0;
+  },
+
+  async createNotification(payload) {
+    const res = await api.post('/college/notifications', payload);
     return res.data || res;
   },
 
-  // 11. Reports
+  async broadcastNotification(payload) {
+    return this.createNotification(payload);
+  },
+
+  async markNotificationRead(notificationId) {
+    const res = await api.patch(`/college/notifications/${notificationId}/read`);
+    return res.data || res;
+  },
+
+  async markAllNotificationsRead() {
+    const res = await api.patch('/college/notifications/read-all');
+    return res.data || res;
+  },
+
+  // 11. Reports & Analytical Summaries (Authoritative Aggregations from /college/reports/*)
   async getReport(reportType, params = {}) {
     const res = await api.get(`/college/reports/${reportType}`, { params });
+    return res.data || res;
+  },
+
+  async getReportsOverview() {
+    const res = await api.get('/college/reports/overview');
+    return res.data || res;
+  },
+
+  async getReportsOccupancy() {
+    const res = await api.get('/college/reports/occupancy');
+    return res.data || res;
+  },
+
+  async getReportsStudents() {
+    const res = await api.get('/college/reports/students');
+    return res.data || res;
+  },
+
+  async getReportsAllocations() {
+    const res = await api.get('/college/reports/allocations');
+    return res.data || res;
+  },
+
+  async getReportsAttendance() {
+    const res = await api.get('/college/reports/attendance');
+    return res.data || res;
+  },
+
+  async getReportsLeave() {
+    const res = await api.get('/college/reports/leave');
+    return res.data || res;
+  },
+
+  async getReportsComplaints() {
+    const res = await api.get('/college/reports/complaints');
+    return res.data || res;
+  },
+
+  async getReportsMaintenance() {
+    const res = await api.get('/college/reports/maintenance');
+    return res.data || res;
+  },
+
+  async getReportsStaff() {
+    const res = await api.get('/college/reports/staff');
+    return res.data || res;
+  },
+
+  async getDashboardSummary() {
+    const res = await api.get('/college/admin/dashboard/summary');
     return res.data || res;
   },
 };

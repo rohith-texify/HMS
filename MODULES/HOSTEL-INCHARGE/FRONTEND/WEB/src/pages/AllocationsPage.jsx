@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import inchargeService from '../services/inchargeService';
@@ -10,39 +10,24 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
-import ConfirmationDialog from '../components/ConfirmationDialog';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
 import SearchInput from '../components/SearchInput';
 import { formatDate, truncateUUID } from '../utils/formatUtils';
 import {
   KeyRound,
-  Building2,
-  BedDouble,
-  Users,
-  Search,
-  Filter,
   RefreshCw,
   Plus,
   ArrowRightLeft,
   LogOut,
   History,
   CheckCircle2,
-  AlertCircle,
-  Info,
-  Calendar,
-  UserCheck,
-  User,
-  SlidersHorizontal,
-  DoorOpen,
-  ArrowRight,
-  ShieldCheck,
+  Info
 } from 'lucide-react';
 
 export default function AllocationsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { assignedHostel } = useAuth();
+    const { assignedHostel } = useAuth();
   const { hasPermission } = usePermissions();
 
   const canManage = hasPermission(PERMISSIONS.HOSTEL_MANAGE) || hasPermission(PERMISSIONS.PEOPLE_MANAGE);
@@ -58,7 +43,7 @@ export default function AllocationsPage() {
   const [residents, setResidents] = useState([]);
   const [vacantBeds, setVacantBeds] = useState([]);
   const [unallocatedStudents, setUnallocatedStudents] = useState([]);
-  const [blocks, setBlocks] = useState([]);
+  const [, setBlocks] = useState([]);
 
   // Loading & State flags
   const [loading, setLoading] = useState(true);
@@ -74,7 +59,7 @@ export default function AllocationsPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize] = useState(12);
 
   // Modals & Action State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -178,7 +163,7 @@ export default function AllocationsPage() {
   }, [loadAllocationData]);
 
   // High-Efficiency Algorithmic Maps for O(1) Lookups
-  const { residentMap, residentByBedMap, residentByAllocMap } = useMemo(() => {
+  const { residentMap, residentByAllocMap } = useMemo(() => {
     const byStudent = new Map();
     const byBed = new Map();
     const byAlloc = new Map();

@@ -10,34 +10,24 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
-import ConfirmationDialog from '../components/ConfirmationDialog';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
 import SearchInput from '../components/SearchInput';
 import {
   BedDouble,
   Building2,
-  Layers,
-  Search,
-  Filter,
   RefreshCw,
   LayoutGrid,
   List,
   Eye,
   SlidersHorizontal,
   CheckCircle2,
-  AlertCircle,
-  Users,
   Info,
-  ShieldCheck,
-  DoorOpen,
-  Wrench,
-  Check,
-  User,
+  DoorOpen
 } from 'lucide-react';
 
 export default function RoomsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { assignedHostel } = useAuth();
   const { hasPermission } = usePermissions();
@@ -61,8 +51,7 @@ export default function RoomsPage() {
   // Loading & State flags
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingRooms, setLoadingRooms] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
+    const [error, setError] = useState(null);
   const [successBanner, setSuccessBanner] = useState(null);
 
   // View & Filter State
@@ -74,7 +63,7 @@ export default function RoomsPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [pageSize] = useState(12);
 
   // Room Detail Modal State
   const [selectedRoom, setSelectedRoom] = useState(null);
@@ -164,7 +153,7 @@ export default function RoomsPage() {
 
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
 
   // 2. Fetch rooms for a specific floor
   const fetchRoomsForFloor = async (hostelId, blockId, floorId) => {
@@ -219,7 +208,7 @@ export default function RoomsPage() {
   };
 
   // 3. Algorithmic High-Efficiency Mappings (O(n) construction, O(1) lookups)
-  const { residentBedMap, residentRoomCountMap, vacantBedCountMap } = useMemo(() => {
+  const { residentBedMap, residentRoomCountMap } = useMemo(() => {
     const resBedMap = new Map();
     const resRoomMap = new Map();
     residents.forEach((r) => {
@@ -349,8 +338,7 @@ export default function RoomsPage() {
     }
   };
 
-  const activeHostel = hostelData || assignedHostel;
-  const activeBlock = blocks.find((b) => b.id === selectedBlockId);
+    const activeBlock = blocks.find((b) => b.id === selectedBlockId);
   const activeFloor = floors.find((f) => f.id === selectedFloorId);
 
   return (

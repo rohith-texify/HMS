@@ -1,48 +1,31 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import inchargeService from '../services/inchargeService';
 import { PERMISSIONS } from '../constants/permissions';
 import PageHeader from '../components/PageHeader';
 import LoadingState from '../components/LoadingState';
-import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorState from '../components/ErrorState';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import Badge from '../components/Badge';
 import Button from '../components/Button';
 import SearchInput from '../components/SearchInput';
-import { formatDate, formatDateTime, truncateUUID, getStatusBadgeVariant } from '../utils/formatUtils';
+import { formatDate, formatDateTime, truncateUUID } from '../utils/formatUtils';
 import {
   ClipboardList,
-  Building2,
-  Users,
   CheckCircle2,
-  XCircle,
-  Clock,
-  Calendar,
-  Search,
-  Filter,
   RefreshCw,
   Plus,
   SlidersHorizontal,
-  Check,
-  AlertCircle,
   FileCheck,
-  UserCheck,
-  ShieldCheck,
-  DoorOpen,
-  Info,
-  Sparkles,
-  ArrowRight,
-  User,
+  Info
 } from 'lucide-react';
 
 export default function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { assignedHostel } = useAuth();
+    const { assignedHostel } = useAuth();
   const { hasPermission } = usePermissions();
 
   const canManage = hasPermission(PERMISSIONS.MOVEMENT_MANAGE) || hasPermission(PERMISSIONS.PEOPLE_MANAGE);
@@ -54,7 +37,7 @@ export default function AttendancePage() {
   const [hostelData, setHostelData] = useState(null);
   const [residents, setResidents] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
-  const [blocks, setBlocks] = useState([]);
+  const [, setBlocks] = useState([]);
 
   // Active Date Filter (Defaults to Today YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -72,7 +55,7 @@ export default function AttendancePage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize] = useState(15);
 
   // Modals & Action State
   const [bulkModalOpen, setBulkModalOpen] = useState(false);
@@ -167,7 +150,7 @@ export default function AttendancePage() {
   }, [loadAttendanceData]);
 
   // High-Efficiency Algorithmic Maps for O(1) Lookups
-  const { residentAttendanceMap, attendanceByRecordMap } = useMemo(() => {
+  const { residentAttendanceMap } = useMemo(() => {
     const resAttMap = new Map();
     const attRecMap = new Map();
 
