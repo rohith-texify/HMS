@@ -1,22 +1,27 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP, getAuthorizedRedirectPath } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP, getAuthorizedRedirectPath, normalizeRoleCode, PORTAL_URL } from '../hooks/portalAuthService';
+import { ShieldAlert, ArrowRight, LogOut } from 'lucide-react';
 
 export default function UnauthorizedPage() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const userRole = (user?.role || '').toUpperCase();
+  const userRole = normalizeRoleCode(user?.role || user?.roleName || '');
   const authorizedPath = getAuthorizedRedirectPath(userRole, null);
 
   // Automatically redirect authenticated institutional accounts away from the error page to their authorized home dashboard
   useEffect(() => {
+    if (PORTAL_URL && ['HOSTEL_INCHARGE', 'SECURITY', 'STUDENT', 'PARENT'].includes(userRole)) {
+      window.location.replace(`${PORTAL_URL}${authorizedPath}`);
+      return;
+    }
     if (authorizedPath && authorizedPath !== '/login' && authorizedPath !== '/unauthorized') {
       navigate(authorizedPath, { replace: true });
     }
-  }, [authorizedPath, navigate]);
+  }, [authorizedPath, userRole, navigate]);
 
   return (
     <div
@@ -25,39 +30,54 @@ export default function UnauthorizedPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0f172a',
+        backgroundColor: '#f8fafc',
         padding: '24px',
       }}
     >
       <div
+        className="enterprise-card"
         style={{
           maxWidth: '520px',
           width: '100%',
-          backgroundColor: '#1e293b',
-          border: '1px solid #334155',
-          borderRadius: '12px',
-          padding: '36px',
+          backgroundColor: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: '16px',
+          padding: '40px 32px',
           textAlign: 'center',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.4)',
+          boxShadow: '0 20px 45px -10px rgba(15, 23, 42, 0.08), 0 8px 16px -6px rgba(15, 23, 42, 0.04)',
         }}
       >
-        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🚫</div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f8fafc', marginBottom: '8px' }}>
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '16px',
+            backgroundColor: '#fee2e2',
+            color: '#dc2626',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: '20px',
+          }}
+        >
+          <ShieldAlert size={34} />
+        </div>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px', letterSpacing: '-0.02em' }}>
           Access Restricted
         </h1>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '24px' }}>
+        <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.6, marginBottom: '24px' }}>
           Your current account role (<strong>{user?.roleName || user?.role || 'Guest'}</strong>) is not authorized to access the requested module.
         </p>
 
         {location.state?.attemptedPath && (
           <div
             style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
               borderRadius: '8px',
               padding: '10px 14px',
-              fontSize: '0.85rem',
-              color: '#fca5a5',
+              fontSize: '0.82rem',
+              color: '#991b1b',
               marginBottom: '24px',
               fontFamily: 'monospace',
             }}
@@ -68,35 +88,27 @@ export default function UnauthorizedPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button
-            onClick={() => navigate(authorizedPath, { replace: true })}
-            style={{
-              padding: '12px 20px',
-              backgroundColor: '#0284c7',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 600,
-              fontSize: '0.95rem',
-              cursor: 'pointer',
+            onClick={() => {
+              if (PORTAL_URL && ['HOSTEL_INCHARGE', 'SECURITY', 'STUDENT', 'PARENT'].includes(userRole)) {
+                window.location.replace(`${PORTAL_URL}${authorizedPath}`);
+              } else {
+                navigate(authorizedPath, { replace: true });
+              }
             }}
+            className="btn-enterprise btn-primary-blue"
+            style={{ padding: '11px 20px', fontSize: '0.92rem' }}
           >
-            Return to Your Authorized Dashboard →
+            <span>Return to Your Authorized Dashboard</span>
+            <ArrowRight size={15} />
           </button>
 
           <button
             onClick={logout}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: 'transparent',
-              color: '#cbd5e1',
-              border: '1px solid #475569',
-              borderRadius: '8px',
-              fontWeight: 500,
-              fontSize: '0.9rem',
-              cursor: 'pointer',
-            }}
+            className="btn-enterprise btn-outline-soft"
+            style={{ padding: '10px 20px', fontSize: '0.88rem' }}
           >
-            Sign Out & Switch Account
+            <LogOut size={15} />
+            <span>Sign Out & Switch Account</span>
           </button>
         </div>
       </div>

@@ -195,9 +195,7 @@ func NewRouter(
 	staffHandler := NewPeopleStaffHandler(staffService)
 
 	inchargeHostelService := service.NewInchargeHostelService(db, repository)
-	inchargeHostelHandler := NewPeopleInchargeHostelHandler(
-		inchargeHostelService,
-	)
+	_ = inchargeHostelService
 
 	securityAssignmentService := service.NewSecurityAssignmentService(
 		repository,
@@ -841,58 +839,12 @@ func NewRouter(
 			gateHandler.UpdateStatus,
 		)
 
-		collegeProtected.GET(
-			"/hostels/:hostel_id/incharges",
+		// Canonical Hostel In-Charge modular routes
+		inchargeroutes.RegisterInchargeRoutes(
+			collegeProtected,
+			db,
 			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.List,
-		)
-
-		collegeProtected.POST(
-			"/hostels/:hostel_id/incharges",
 			permissionMiddleware.RequirePermission("people.manage"),
-			inchargeHostelHandler.Create,
-		)
-
-		collegeProtected.GET(
-			"/hostels/:hostel_id/incharges/:assignment_id",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.Get,
-		)
-
-		collegeProtected.PUT(
-			"/hostels/:hostel_id/incharges/:assignment_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			inchargeHostelHandler.Update,
-		)
-
-		collegeProtected.DELETE(
-			"/hostels/:hostel_id/incharges/:assignment_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			inchargeHostelHandler.Delete,
-		)
-
-		collegeProtected.GET(
-			"/incharges/my-hostel/legacy",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.GetMyHostel,
-		)
-
-		collegeProtected.GET(
-			"/incharges/my-hostel/residents/legacy",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.ListResidents,
-		)
-
-		collegeProtected.GET(
-			"/incharges/my-hostel/vacant-beds/legacy",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.ListVacantBeds,
-		)
-
-		collegeProtected.GET(
-			"/incharges/unallocated-students/legacy",
-			permissionMiddleware.RequirePermission("people.view"),
-			inchargeHostelHandler.ListUnallocatedStudents,
 		)
 
 		collegeProtected.GET(
@@ -1181,14 +1133,6 @@ func NewRouter(
 
 		// Dedicated College Admin module routes
 		adminroutes.RegisterCollegeAdminRoutes(
-			collegeProtected,
-			db,
-			permissionMiddleware.RequirePermission("people.view"),
-			permissionMiddleware.RequirePermission("people.manage"),
-		)
-
-		// Dedicated Hostel In-Charge module routes
-		inchargeroutes.RegisterHostelInchargeRoutes(
 			collegeProtected,
 			db,
 			permissionMiddleware.RequirePermission("people.view"),

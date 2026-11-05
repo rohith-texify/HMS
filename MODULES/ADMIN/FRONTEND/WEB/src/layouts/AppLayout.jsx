@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { Building2, BarChart2, GraduationCap, Users, LogOut } from 'lucide-react';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
@@ -8,26 +9,26 @@ export default function AppLayout() {
   return (
     <div className="app-container">
       <aside className="sidebar">
-        <div className="sidebar-title">
-          <span>🏛️</span>
+        <div className="sidebar-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Building2 size={20} />
           <span>College Admin</span>
         </div>
 
         <nav className="sidebar-nav">
-          <NavLink to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span>📊</span>
+          <NavLink to="/dashboard" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BarChart2 size={16} />
             <span>Dashboard</span>
           </NavLink>
-          <NavLink to="/students" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span>🎓</span>
+          <NavLink to="/students" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <GraduationCap size={16} />
             <span>Students</span>
           </NavLink>
-          <NavLink to="/staff" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span>👥</span>
+          <NavLink to="/staff" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users size={16} />
             <span>Hostel Staff</span>
           </NavLink>
-          <NavLink to="/hostels" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
-            <span>🏢</span>
+          <NavLink to="/hostels" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building2 size={16} />
             <span>Hostels & Blocks</span>
           </NavLink>
         </nav>
@@ -55,7 +56,7 @@ export default function AppLayout() {
               fontWeight: 500,
             }}
           >
-            <span>🚪</span>
+            <LogOut size={16} />
             <span>Sign Out</span>
           </button>
         </div>

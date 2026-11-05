@@ -30,6 +30,18 @@ const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
 
+// Persona Forwarder to Unified Portal
+function ExternalPersonaRedirect({ targetPath }) {
+  React.useEffect(() => {
+    window.location.replace(`http://localhost:5173${targetPath}`);
+  }, [targetPath]);
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <LoadingSpinner message="Redirecting to Unified Campus Portal..." size="md" />
+    </div>
+  );
+}
+
 export default function AppRoutes() {
   return (
     <Suspense
@@ -49,7 +61,12 @@ export default function AppRoutes() {
         <Route path="/student/login" element={<LoginPage initialPersona="STUDENT" />} />
         <Route path="/parent/login" element={<LoginPage initialPersona="PARENT" />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/incharge" element={<Navigate to="/hostel-incharge/dashboard" replace />} />
+        <Route path="/hostel-incharge/*" element={<ExternalPersonaRedirect targetPath="/hostel-incharge/dashboard" />} />
+        <Route path="/security/*" element={<ExternalPersonaRedirect targetPath="/security/dashboard" />} />
+        <Route path="/student/*" element={<ExternalPersonaRedirect targetPath="/student/dashboard" />} />
+        <Route path="/parent/*" element={<ExternalPersonaRedirect targetPath="/parent/dashboard" />} />
+        <Route path="/incharge" element={<ExternalPersonaRedirect targetPath="/hostel-incharge/dashboard" />} />
+        <Route path="/incharges" element={<ExternalPersonaRedirect targetPath="/hostel-incharge/dashboard" />} />
 
         {/* Primary Protected Admin Shell - Supports both / and /admin prefixes */}
         <Route
@@ -65,7 +82,6 @@ export default function AppRoutes() {
           <Route path="/students" element={<Navigate to="/admin/students" replace />} />
           <Route path="/parents" element={<Navigate to="/admin/parents" replace />} />
           <Route path="/staff" element={<Navigate to="/admin/staff" replace />} />
-          <Route path="/incharges" element={<Navigate to="/admin/incharges" replace />} />
           <Route path="/security-assignments" element={<Navigate to="/admin/security-assignments" replace />} />
           <Route path="/passwords" element={<Navigate to="/admin/passwords" replace />} />
           <Route path="/hostels" element={<Navigate to="/admin/hostels" replace />} />

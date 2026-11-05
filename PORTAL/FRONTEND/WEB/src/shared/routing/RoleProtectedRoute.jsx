@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { getAuthorizedRedirectPath } from '../auth/portalAuthService';
+import { getAuthorizedRedirectPath, normalizeRoleCode } from '../auth/portalAuthService';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 /**
@@ -48,8 +48,8 @@ export default function RoleProtectedRoute({
   }
 
   // 3. Verify Role Authorization
-  const userRole = (user.role || '').toUpperCase();
-  const normalizedAllowed = allowedRoles.map((r) => r.toUpperCase());
+  const userRole = normalizeRoleCode(user.role || user.roleName || '');
+  const normalizedAllowed = allowedRoles.map((r) => normalizeRoleCode(r));
 
   if (normalizedAllowed.length > 0 && !normalizedAllowed.includes(userRole)) {
     // Seamlessly redirect authenticated users to their own authorized portal dashboard

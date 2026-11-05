@@ -77,6 +77,15 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON platform.user_roles (user_id);
 		`)
 
+		// Ensure platform.colleges has account quota columns
+		_, _ = pool.Exec(seedCtx, `
+			ALTER TABLE platform.colleges ADD COLUMN IF NOT EXISTS max_incharges INT NOT NULL DEFAULT 5;
+			ALTER TABLE platform.colleges ADD COLUMN IF NOT EXISTS max_students INT NOT NULL DEFAULT 500;
+			ALTER TABLE platform.colleges ADD COLUMN IF NOT EXISTS max_parents INT NOT NULL DEFAULT 500;
+			ALTER TABLE platform.colleges ADD COLUMN IF NOT EXISTS max_security INT NOT NULL DEFAULT 10;
+			ALTER TABLE platform.colleges ADD COLUMN IF NOT EXISTS max_blocks INT NOT NULL DEFAULT 5;
+		`)
+
 		// Ensure SUPER_ADMIN, HOSTEL_INCHARGE, INCHARGE, and WARDEN roles exist in platform.roles
 		_, _ = pool.Exec(seedCtx, `
 			INSERT INTO platform.roles (role_id, role_code, role_name, scope, is_system_role)
@@ -182,6 +191,9 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			CREATE INDEX IF NOT EXISTS idx_floors_college_block ON app.floors (college_id, block_id);
 			CREATE INDEX IF NOT EXISTS idx_rooms_college_floor ON app.rooms (college_id, floor_id);
 			CREATE INDEX IF NOT EXISTS idx_beds_college_room ON app.beds (college_id, room_id);
+			CREATE INDEX IF NOT EXISTS idx_blocks_college_status ON app.blocks (college_id, status);
+			CREATE INDEX IF NOT EXISTS idx_complaints_college_status ON app.complaints (college_id, status, created_at DESC);
+			CREATE INDEX IF NOT EXISTS idx_login_events_college_time ON platform.login_events (college_id, event_at DESC);
 		`)
 
 		logger.Info("baseline schemas, roles, and performance indexes verified")

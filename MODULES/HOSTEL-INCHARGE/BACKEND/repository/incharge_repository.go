@@ -16,7 +16,7 @@ import (
 func (r *Repository) ListInchargeHostels(
 	ctx context.Context,
 	collegeID, hostelID uuid.UUID,
-) ([]models.InchargeHostelAssignment, error) {
+) ([]models.InchargeHostel, error) {
 	rows, err := r.Executor(ctx).Query(ctx, `
 		SELECT
 			id,
@@ -38,9 +38,9 @@ func (r *Repository) ListInchargeHostels(
 	}
 	defer rows.Close()
 
-	var result []models.InchargeHostelAssignment
+	var result []models.InchargeHostel
 	for rows.Next() {
-		var item models.InchargeHostelAssignment
+		var item models.InchargeHostel
 		if err := rows.Scan(
 			&item.ID,
 			&item.CollegeID,
@@ -63,8 +63,8 @@ func (r *Repository) ListInchargeHostels(
 func (r *Repository) GetInchargeHostel(
 	ctx context.Context,
 	collegeID, hostelID, assignmentID uuid.UUID,
-) (models.InchargeHostelAssignment, error) {
-	var item models.InchargeHostelAssignment
+) (models.InchargeHostel, error) {
+	var item models.InchargeHostel
 	err := r.Executor(ctx).QueryRow(ctx, `
 		SELECT
 			id,
@@ -93,11 +93,141 @@ func (r *Repository) GetInchargeHostel(
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return models.InchargeHostelAssignment{}, ErrNotFound
+			return models.InchargeHostel{}, ErrNotFound
 		}
-		return models.InchargeHostelAssignment{}, err
+		return models.InchargeHostel{}, err
 	}
 	return item, nil
+}
+
+// ClearPrimaryIncharge marks existing primary assignments as non-primary.
+func (r *Repository) ClearPrimaryIncharge(
+	ctx context.Context,
+	collegeID, hostelID uuid.UUID,
+) error {
+	_, err := r.Executor(ctx).Exec(ctx, `
+		UPDATE app.incharge_hostels
+		SET
+			is_primary = false,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE college_id = $1
+		  AND hostel_id = $2
+		  AND is_primary = true
+		  AND assigned_until IS NULL
+	`, collegeID, hostelID)
+	return err
+}
+
+// CreateInchargeHostel inserts a new incharge assignment.
+func (r *Repository) CreateInchargeHostel(
+	ctx context.Context,
+	collegeID, staffID, hostelID uuid.UUID,
+	assignedFrom time.Time,
+	assignedUntil *time.Time,
+	isPrimary bool,
+) (models.InchargeHostel, error) {
+	var item models.InchargeHostel
+	err := r.Executor(ctx).QueryRow(ctx, `
+		INSERT INTO app.incharge_hostels (
+			college_id,
+			staff_id,
+			hostel_id,
+			assigned_from,
+			assigned_until,
+			is_primary
+		)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING
+			id,
+			college_id,
+			staff_id,
+			hostel_id,
+			assigned_from,
+			assigned_until,
+			is_primary,
+			created_at,
+			updated_at
+	`, collegeID, staffID, hostelID, assignedFrom, assignedUntil, isPrimary).Scan(
+		&item.ID,
+		&item.CollegeID,
+		&item.StaffID,
+		&item.HostelID,
+		&item.AssignedFrom,
+		&item.AssignedUntil,
+		&item.IsPrimary,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	return item, err
+}
+
+// UpdateInchargeHostel modifies an existing incharge assignment.
+func (r *Repository) UpdateInchargeHostel(
+	ctx context.Context,
+	collegeID, hostelID, assignmentID uuid.UUID,
+	assignedFrom time.Time,
+	assignedUntil *time.Time,
+	isPrimary bool,
+) (models.InchargeHostel, error) {
+	var item models.InchargeHostel
+	err := r.Executor(ctx).QueryRow(ctx, `
+		UPDATE app.incharge_hostels
+		SET
+			assigned_from = $1,
+			assigned_until = $2,
+			is_primary = $3,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE college_id = $4
+		  AND hostel_id = $5
+		  AND id = $6
+		RETURNING
+			id,
+			college_id,
+			staff_id,
+			hostel_id,
+			assigned_from,
+			assigned_until,
+			is_primary,
+			created_at,
+			updated_at
+	`, assignedFrom, assignedUntil, isPrimary, collegeID, hostelID, assignmentID).Scan(
+		&item.ID,
+		&item.CollegeID,
+		&item.StaffID,
+		&item.HostelID,
+		&item.AssignedFrom,
+		&item.AssignedUntil,
+		&item.IsPrimary,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.InchargeHostel{}, ErrNotFound
+		}
+		return models.InchargeHostel{}, err
+	}
+	return item, nil
+}
+
+// DeleteInchargeHostel removes an incharge assignment.
+func (r *Repository) DeleteInchargeHostel(
+	ctx context.Context,
+	collegeID, hostelID, assignmentID uuid.UUID,
+) error {
+	tag, err := r.Executor(ctx).Exec(ctx, `
+		DELETE FROM app.incharge_hostels
+		WHERE college_id = $1
+		  AND hostel_id = $2
+		  AND id = $3
+	`, collegeID, hostelID, assignmentID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // GetMyHostel resolves the assigned hostel profile for the authenticated staff user.
@@ -158,11 +288,23 @@ func (r *Repository) GetMyHostel(
 			if isCollegeAdmin {
 				var adminRes models.MyHostelProfile
 				errAdmin := r.Executor(ctx).QueryRow(ctx, `
-					SELECT id, COALESCE(code::text, ''), name, COALESCE(category, 'RESIDENTIAL'),
-					       COALESCE(total_capacity, 0), COALESCE((SELECT COUNT(*) FROM app.rooms r WHERE r.hostel_id = app.hostels.id), 0)
-					FROM app.hostels
-					WHERE college_id = $1 AND status = 'ACTIVE'
-					ORDER BY name ASC LIMIT 1
+					SELECT 
+						h.id,
+						COALESCE(h.code::text, ''),
+						h.name,
+						COALESCE(h.category, 'RESIDENTIAL'),
+						COALESCE(h.total_capacity, 0),
+						COALESCE((SELECT COUNT(*) FROM app.rooms r WHERE r.hostel_id = h.id), 0),
+						'00000000-0000-0000-0000-000000000000'::uuid,
+						'Administrator Preview',
+						'College Administrator',
+						true,
+						CURRENT_TIMESTAMP,
+						NULL::timestamptz
+					FROM app.hostels h
+					WHERE h.college_id = $1 AND h.status = 'ACTIVE'
+					ORDER BY h.created_at ASC
+					LIMIT 1
 				`, collegeID).Scan(
 					&adminRes.HostelID,
 					&adminRes.HostelCode,
@@ -170,15 +312,18 @@ func (r *Repository) GetMyHostel(
 					&adminRes.HostelType,
 					&adminRes.TotalCapacity,
 					&adminRes.TotalRooms,
+					&adminRes.StaffID,
+					&adminRes.StaffName,
+					&adminRes.Designation,
+					&adminRes.IsPrimary,
+					&adminRes.AssignedFrom,
+					&adminRes.AssignedUntil,
 				)
 				if errAdmin == nil {
-					adminRes.StaffName = "Administrator Preview"
-					adminRes.Designation = "College Administrator"
-					adminRes.IsPrimary = true
-					adminRes.AssignedFrom = time.Now()
 					return &adminRes, nil
 				}
 			}
+
 			return nil, ErrNotFound
 		}
 		return nil, err
@@ -190,7 +335,7 @@ func (r *Repository) GetMyHostel(
 func (r *Repository) ListHostelResidents(
 	ctx context.Context,
 	collegeID, hostelID uuid.UUID,
-) ([]models.ResidentStudent, error) {
+) ([]models.HostelResidentResult, error) {
 	query := `
 		SELECT 
 			s.id,
@@ -230,9 +375,9 @@ func (r *Repository) ListHostelResidents(
 	}
 	defer rows.Close()
 
-	residents := make([]models.ResidentStudent, 0)
+	residents := make([]models.HostelResidentResult, 0)
 	for rows.Next() {
-		var item models.ResidentStudent
+		var item models.HostelResidentResult
 		if err := rows.Scan(
 			&item.StudentID,
 			&item.AdmissionNumber,
@@ -263,11 +408,11 @@ func (r *Repository) ListHostelResidents(
 	return residents, nil
 }
 
-// ListVacantBeds returns available beds in the specified hostel.
+// ListVacantBeds returns all beds not currently occupied in the specified hostel.
 func (r *Repository) ListVacantBeds(
 	ctx context.Context,
 	collegeID, hostelID uuid.UUID,
-) ([]models.VacantBed, error) {
+) ([]models.VacantBedResult, error) {
 	query := `
 		SELECT 
 			b.id,
@@ -295,9 +440,9 @@ func (r *Repository) ListVacantBeds(
 	}
 	defer rows.Close()
 
-	beds := make([]models.VacantBed, 0)
+	beds := make([]models.VacantBedResult, 0)
 	for rows.Next() {
-		var item models.VacantBed
+		var item models.VacantBedResult
 		if err := rows.Scan(
 			&item.BedID,
 			&item.BedName,
@@ -318,7 +463,7 @@ func (r *Repository) ListVacantBeds(
 func (r *Repository) ListUnallocatedStudents(
 	ctx context.Context,
 	collegeID uuid.UUID,
-) ([]models.UnallocatedStudent, error) {
+) ([]models.UnallocatedStudentResult, error) {
 	query := `
 		SELECT 
 			s.id,
@@ -329,8 +474,8 @@ func (r *Repository) ListUnallocatedStudents(
 			COALESCE(s.email::text, ''),
 			COALESCE(s.phone, ''),
 			COALESCE(s.gender, ''),
-			COALESCE(s.year_of_study, 1),
-			COALESCE(s.department, '')
+			1 AS year_of_study,
+			COALESCE(s.department_id::text, '') AS department
 		FROM app.students s
 		WHERE s.college_id = $1
 		  AND s.student_status = 'ACTIVE'
@@ -347,9 +492,9 @@ func (r *Repository) ListUnallocatedStudents(
 	}
 	defer rows.Close()
 
-	students := make([]models.UnallocatedStudent, 0)
+	students := make([]models.UnallocatedStudentResult, 0)
 	for rows.Next() {
-		var item models.UnallocatedStudent
+		var item models.UnallocatedStudentResult
 		if err := rows.Scan(
 			&item.StudentID,
 			&item.AdmissionNumber,

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -143,6 +144,22 @@ func (r *Repository) CreateSecurityAssignment(
 	assignedUntil *time.Time,
 	isActive bool,
 ) (SecurityAssignment, error) {
+	if isActive {
+		var maxSecurity int
+		if err := r.Executor(ctx).QueryRow(ctx, `
+			SELECT COALESCE(max_security, 10) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+		`, collegeID).Scan(&maxSecurity); err == nil {
+			var activeCount int
+			_ = r.Executor(ctx).QueryRow(ctx, `
+				SELECT COUNT(DISTINCT staff_id) FROM app.security_assignments
+				WHERE college_id = $1 AND is_active = true
+			`, collegeID).Scan(&activeCount)
+			if activeCount >= maxSecurity {
+				return SecurityAssignment{}, fmt.Errorf("security assignment quota reached for this college (limit: %d, currently active: %d). Contact Super Admin to increase quota", maxSecurity, activeCount)
+			}
+		}
+	}
+
 	var item SecurityAssignment
 
 	err := r.Executor(ctx).QueryRow(ctx, `

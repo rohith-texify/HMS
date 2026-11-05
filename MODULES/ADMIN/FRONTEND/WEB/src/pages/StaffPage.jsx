@@ -3160,7 +3160,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                     fontWeight: 600,
                     color: staffFormData.password === staffFormData.confirm_password ? '#16a34a' : '#dc2626'
                   }}>
-                    {staffFormData.password === staffFormData.confirm_password ? '✓ Passwords match' : '✗ Passwords do not match'}
+                    {staffFormData.password === staffFormData.confirm_password ? 'Passwords match' : 'Passwords do not match'}
                   </span>
                 )}
               </div>
@@ -4343,7 +4343,7 @@ export default function AdminStaffPage({ defaultTab = 'staff' }) {
                   const isSec = s.role_code === 'SECURITY' || s.role_code === 'SECURITY_GUARD' || (s.designation || '').toLowerCase().includes('security') || (s.designation || '').toLowerCase().includes('guard');
                   return (
                     <option key={s.id} value={s.id}>
-                      {isSec ? '🛡️ ' : ''}{getStaffFullName(s)} ({s.employee_number || 'No Code'} - {s.designation || 'Staff'})
+                      {isSec ? '[Security] ' : ''}{getStaffFullName(s)} ({s.employee_number || 'No Code'} - {s.designation || 'Staff'})
                     </option>
                   );
                 })}

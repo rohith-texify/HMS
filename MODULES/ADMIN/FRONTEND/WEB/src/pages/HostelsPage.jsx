@@ -1537,10 +1537,19 @@ export default function AdminHostelsPage() {
                 </h2>
                 <div className="context-banner-meta">
                   {selectedHostel.address && (
-                    <span>📍 {selectedHostel.address}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={13} />
+                      <span>{selectedHostel.address}</span>
+                    </span>
                   )}
-                  <span>🏢 Total Designed Capacity: <strong>{selectedHostel.total_capacity || 0} Beds</strong></span>
-                  <span>📦 Structural Wings: <strong>{blocks.length} Blocks</strong></span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Building2 size={13} />
+                    <span>Total Designed Capacity: <strong>{selectedHostel.total_capacity || 0} Beds</strong></span>
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Layers size={13} />
+                    <span>Structural Wings: <strong>{blocks.length} Blocks</strong></span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -1770,9 +1779,18 @@ export default function AdminHostelsPage() {
                   {renderStatusBadge(selectedBlock.status)}
                 </h2>
                 <div className="context-banner-meta">
-                  <span>🏢 Facility: <strong>{selectedHostel?.name}</strong> ({selectedHostel?.code})</span>
-                  <span>📦 Block Capacity: <strong>{selectedBlock.total_capacity || 'Dynamic'} Beds</strong></span>
-                  <span>🪜 Floor Levels: <strong>{floors.length} Floors</strong></span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Building2 size={13} />
+                    <span>Facility: <strong>{selectedHostel?.name}</strong> ({selectedHostel?.code})</span>
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <BedDouble size={13} />
+                    <span>Block Capacity: <strong>{selectedBlock.total_capacity || 'Dynamic'} Beds</strong></span>
+                  </span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <Layers size={13} />
+                    <span>Floor Levels: <strong>{floors.length} Floors</strong></span>
+                  </span>
                 </div>
               </div>
             </div>

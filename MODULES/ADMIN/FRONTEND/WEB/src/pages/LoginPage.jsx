@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { ROLE_ROUTE_MAP, portalAuthService, getAuthorizedRedirectPath } from '../hooks/portalAuthService';
+import { ROLE_ROUTE_MAP, portalAuthService, getAuthorizedRedirectPath, normalizeRoleCode, PORTAL_URL } from '../hooks/portalAuthService';
 import {
   Shield,
   ShieldCheck,
@@ -212,17 +212,28 @@ export default function SharedLoginPage({ initialPersona = null }) {
       }
 
       // Check role mapping across all supported institutional roles
-      const role = result.user?.role || '';
-      const roleConfig = ROLE_ROUTE_MAP[role];
+      const role = normalizeRoleCode(result.user?.role || '');
+      const roleConfig = ROLE_ROUTE_MAP[role] || ROLE_ROUTE_MAP[result.user?.role];
       if (!roleConfig) {
-        setError(`Your account role '${role}' is not configured for institutional portal access. Please contact your college administrator.`);
+        setError(`Your account role '${result.user?.role || role}' is not configured for institutional portal access. Please contact your college administrator.`);
         setLoading(false);
         return;
       }
 
       // Route directly to the validated authorized destination or the role's designated portal dashboard
-      const candidate = location.state?.from?.pathname || result.redirectPath;
-      const targetPath = getAuthorizedRedirectPath(role, candidate);
+      const fromPath = location.state?.from?.pathname;
+      let targetPath = result.redirectPath || roleConfig.path;
+      if (fromPath) {
+        const validatedFrom = getAuthorizedRedirectPath(role, fromPath);
+        if (validatedFrom && validatedFrom !== '/login' && validatedFrom !== '/unauthorized') {
+          targetPath = validatedFrom;
+        }
+      }
+
+      if (PORTAL_URL && ['HOSTEL_INCHARGE', 'SECURITY', 'STUDENT', 'PARENT'].includes(role)) {
+        window.location.replace(`${PORTAL_URL}${targetPath}`);
+        return;
+      }
       navigate(targetPath, { replace: true });
     } catch (err) {
       setError(err.message || 'Authentication failed. Please verify your institutional login credentials.');
@@ -238,6 +249,10 @@ export default function SharedLoginPage({ initialPersona = null }) {
     } else {
       setSelectedPersona(personaId);
       setError(null);
+      // Clean any stale redirect state that may point to an admin page
+      if (location.state?.from) {
+        navigate(location.pathname, { replace: true, state: {} });
+      }
       const cfg = PERSONA_CONFIGS[personaId];
       if (cfg?.quickEmail && !email) {
         setEmail(cfg.quickEmail);

@@ -9,27 +9,36 @@ import (
 	"github.com/yourusername/hostel-management-system/MODULES/HOSTEL-INCHARGE/BACKEND/services"
 )
 
+// RegisterInchargeRoutes registers all Hostel In-Charge backend routes.
+// Mirrors the modular architectural pattern established in Super Admin.
+func RegisterInchargeRoutes(
+	router *gin.RouterGroup,
+	db *database.Database,
+	requireView gin.HandlerFunc,
+	requireManage gin.HandlerFunc,
+) {
+	RegisterHostelInchargeRoutes(router, db, requireView, requireManage)
+}
+
 // RegisterHostelInchargeRoutes registers all Hostel In-Charge domain routes.
-// Modeled symmetrically on RegisterCollegeAdminRoutes and RegisterSuperAdminRoutes.
 func RegisterHostelInchargeRoutes(
 	router *gin.RouterGroup,
 	db *database.Database,
 	requireView gin.HandlerFunc,
 	requireManage gin.HandlerFunc,
 ) {
-	// Initialize repository
+	// Initialize incharge repository
 	repo := repository.New(db)
 
-	// Initialize domain services
+	// Initialize incharge service
 	inchargeService := services.NewInchargeService(db, repo)
 
-	// Initialize handlers
+	// Initialize incharge handler
 	inchargeHandler := handlers.NewInchargeHandler(inchargeService)
 
-	// Dedicated Hostel In-Charge module group: /college/incharges
+	// Dedicated incharge workspace operations
 	inchargeGroup := router.Group("/incharges")
 	{
-		// Module health check & status
 		inchargeGroup.GET("/status", requireView, func(c *gin.Context) {
 			c.JSON(200, gin.H{
 				"module":  "HOSTEL_INCHARGE",
@@ -38,15 +47,19 @@ func RegisterHostelInchargeRoutes(
 			})
 		})
 
-		// Assigned Hostel Operations
 		inchargeGroup.GET("/my-hostel", requireView, inchargeHandler.GetMyHostel)
 		inchargeGroup.GET("/my-hostel/residents", requireView, inchargeHandler.ListResidents)
 		inchargeGroup.GET("/my-hostel/vacant-beds", requireView, inchargeHandler.ListVacantBeds)
 		inchargeGroup.GET("/unallocated-students", requireView, inchargeHandler.ListUnallocatedStudents)
 		inchargeGroup.GET("/dashboard/summary", requireView, inchargeHandler.GetDashboardSummary)
-
-		// Account provisioning
 		inchargeGroup.POST("/create-account", requireManage, inchargeHandler.CreateAccount)
+		inchargeGroup.POST("/accounts", requireManage, inchargeHandler.CreateAccount)
 	}
-}
 
+	// Incharge hostel assignments management
+	router.GET("/hostels/:hostel_id/incharges", requireView, inchargeHandler.List)
+	router.POST("/hostels/:hostel_id/incharges", requireManage, inchargeHandler.Create)
+	router.GET("/hostels/:hostel_id/incharges/:assignment_id", requireView, inchargeHandler.Get)
+	router.PUT("/hostels/:hostel_id/incharges/:assignment_id", requireManage, inchargeHandler.Update)
+	router.DELETE("/hostels/:hostel_id/incharges/:assignment_id", requireManage, inchargeHandler.Delete)
+}

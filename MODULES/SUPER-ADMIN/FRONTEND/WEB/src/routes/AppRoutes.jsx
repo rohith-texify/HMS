@@ -1,8 +1,13 @@
 import React, { lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from './ProtectedRoute';
 import LoginPage from '../pages/LoginPage';
+
+function LegacyOnboardingRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/colleges/${id}`} replace />;
+}
 
 // Code-split all protected module views into on-demand asynchronous chunks
 const DashboardPage = lazy(() => import('../pages/DashboardPage'));
@@ -52,7 +57,7 @@ export default function AppRoutes() {
         <Route path="/colleges/new" element={<CreateCollegePage />} />
         <Route path="/colleges/:id" element={<CollegeDetailPage />} />
         <Route path="/colleges/:id/admins" element={<CollegeAdminsPage />} />
-        <Route path="/colleges/:id/onboarding" element={<CollegeOnboardingWizardPage />} />
+        <Route path="/colleges/:id/onboarding" element={<LegacyOnboardingRedirect />} />
         <Route path="/colleges/:id/configuration" element={<CollegeConfigurationPage />} />
         <Route path="/colleges/:id/settings" element={<CollegeConfigurationPage />} />
         <Route path="/colleges/:id/applications" element={<ApplicationManagementPage />} />

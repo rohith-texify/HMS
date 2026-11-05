@@ -26,39 +26,18 @@ export default function ConfirmationDialog({
         <>
           <button
             type="button"
+            className="btn-enterprise btn-outline-soft btn-sm"
             onClick={onCancel}
             disabled={loading}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '6px',
-              border: '1px solid var(--border-color, #cbd5e1)',
-              backgroundColor: '#ffffff',
-              color: 'var(--text-secondary, #475569)',
-              fontSize: '0.82rem',
-              fontWeight: 500,
-              cursor: loading ? 'not-allowed' : 'pointer',
-            }}
           >
             {cancelText}
           </button>
           <button
             type="button"
+            className={`btn-enterprise btn-sm ${confirmVariant === 'danger' ? 'btn-danger-soft' : 'btn-primary-blue'}`}
+            style={confirmVariant === 'danger' ? { backgroundColor: '#dc2626', color: '#ffffff', borderColor: '#dc2626' } : {}}
             onClick={onConfirm}
             disabled={loading}
-            style={{
-              padding: '7px 16px',
-              borderRadius: '6px',
-              border: 'none',
-              backgroundColor: confirmVariant === 'danger' ? '#dc2626' : '#2563eb',
-              color: '#ffffff',
-              fontSize: '0.82rem',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              opacity: loading ? 0.7 : 1,
-            }}
           >
             {loading ? 'Processing...' : confirmText}
           </button>

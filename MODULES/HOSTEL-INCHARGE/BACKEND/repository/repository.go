@@ -28,6 +28,7 @@ type DBTX interface {
 
 // Repository provides data access methods for the Hostel In-Charge module.
 type Repository struct {
+	db          *database.Database
 	Pool        *pgxpool.Pool
 	CollegePool *pgxpool.Pool
 }
@@ -58,18 +59,23 @@ func New(db *database.Database) *Repository {
 	if db == nil {
 		return &Repository{}
 	}
+	pool := db.Pool
+	if pool == nil {
+		pool = db.CollegePool
+	}
 	return &Repository{
-		Pool:        db.PlatformPool,
+		db:          db,
+		Pool:        pool,
 		CollegePool: db.CollegePool,
 	}
 }
 
-// NewWithPool creates a repository directly bound to an explicit pgxpool.Pool.
-func NewWithPool(pool *pgxpool.Pool) *Repository {
-	return &Repository{
-		Pool:        pool,
-		CollegePool: pool,
+// DB returns the underlying database handle.
+func (r *Repository) DB() *database.Database {
+	if r == nil {
+		return nil
 	}
+	return r.db
 }
 
 // Executor returns the active transaction or configured database pool.
@@ -82,6 +88,9 @@ func (r *Repository) Executor(ctx context.Context) DBTX {
 	}
 	if r != nil && r.Pool != nil {
 		return r.Pool
+	}
+	if r != nil && r.db != nil && r.db.Pool != nil {
+		return r.db.Pool
 	}
 	return &unconfiguredExecutor{err: ErrCollegePoolNotConfigured}
 }
@@ -124,4 +133,3 @@ func (r *emptyErrorRows) Values() ([]any, error)                       { return 
 func (r *emptyErrorRows) RawValues() [][]byte                          { return nil }
 func (r *emptyErrorRows) Conn() *pgx.Conn                              { return nil }
 func (r *emptyErrorRows) TypeMap() *pgtype.Map                         { return nil }
-

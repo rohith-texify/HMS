@@ -175,6 +175,22 @@ func (s *StudentService) CreateStudent(
 
 		if s.db != nil {
 			txErr := s.db.WithTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+				// 0. Concurrency-Safe Student Quota Enforcement
+				var maxStudents int
+				if qErr := tx.QueryRow(txCtx, `
+					SELECT COALESCE(max_students, 500) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+				`, params.CollegeID).Scan(&maxStudents); qErr == nil {
+					var activeStudentsCount int
+					_ = tx.QueryRow(txCtx, `
+						SELECT COUNT(*) FROM app.students s
+						JOIN app.users u ON s.user_id = u.user_id
+						WHERE s.college_id = $1 AND s.student_status = 'ACTIVE' AND u.status = 'ACTIVE'
+					`, params.CollegeID).Scan(&activeStudentsCount)
+					if activeStudentsCount >= maxStudents {
+						return fmt.Errorf("student account limit reached for this college (limit: %d, currently active: %d). Contact Super Admin to increase quota", maxStudents, activeStudentsCount)
+					}
+				}
+
 				// 1. Check or insert into app.users
 				var userID uuid.UUID
 				err := tx.QueryRow(txCtx, `
@@ -263,6 +279,41 @@ func (s *StudentService) CreateStudent(
 		}
 	}
 
+	if s.db != nil {
+		var createdStudent repository.Student
+		txErr := s.db.WithTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+			// Concurrency-Safe Student Quota Enforcement
+			var maxStudents int
+			if qErr := tx.QueryRow(txCtx, `
+				SELECT COALESCE(max_students, 500) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+			`, params.CollegeID).Scan(&maxStudents); qErr == nil {
+				var activeStudentsCount int
+				_ = tx.QueryRow(txCtx, `
+					SELECT COUNT(*) FROM app.students s
+					JOIN app.users u ON s.user_id = u.user_id
+					WHERE s.college_id = $1 AND s.student_status = 'ACTIVE' AND u.status = 'ACTIVE'
+				`, params.CollegeID).Scan(&activeStudentsCount)
+				if activeStudentsCount >= maxStudents {
+					return fmt.Errorf("student account limit reached for this college (limit: %d, currently active: %d). Contact Super Admin to increase quota", maxStudents, activeStudentsCount)
+				}
+			}
+
+			st, err := s.repository.CreateStudent(txCtx, params)
+			if err != nil {
+				return err
+			}
+			createdStudent = st
+			return nil
+		})
+		if txErr != nil {
+			if repository.IsStudentConflict(txErr) {
+				return repository.Student{}, ErrStudentConflict
+			}
+			return repository.Student{}, txErr
+		}
+		return createdStudent, nil
+	}
+
 	student, err := s.repository.CreateStudent(ctx, params)
 	if err != nil {
 		if repository.IsStudentConflict(err) {
@@ -342,6 +393,37 @@ func (s *StudentService) UpdateStudentStatus(
 
 	if !isValidStudentStatus(status) {
 		return repository.Student{}, ErrInvalidStudentStatus
+	}
+
+	// Concurrency-Safe Student Reactivation Quota Enforcement
+	if status == "ACTIVE" && s.db != nil {
+		existing, getErr := s.repository.GetStudentByID(ctx, collegeID, studentID)
+		if getErr == nil && existing.StudentStatus != "ACTIVE" {
+			var quotaErr error
+			txErr := s.db.WithTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+				var maxStudents int
+				if qErr := tx.QueryRow(txCtx, `
+					SELECT COALESCE(max_students, 500) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+				`, collegeID).Scan(&maxStudents); qErr == nil {
+					var activeStudentsCount int
+					_ = tx.QueryRow(txCtx, `
+						SELECT COUNT(*) FROM app.students s
+						JOIN app.users u ON s.user_id = u.user_id
+						WHERE s.college_id = $1 AND s.student_status = 'ACTIVE' AND u.status = 'ACTIVE'
+					`, collegeID).Scan(&activeStudentsCount)
+					if activeStudentsCount >= maxStudents {
+						return fmt.Errorf("cannot reactivate student: college student account limit reached (%d/%d). Increase quota in Super Admin", activeStudentsCount, maxStudents)
+					}
+				}
+				return nil
+			})
+			if txErr != nil {
+				return repository.Student{}, txErr
+			}
+			if quotaErr != nil {
+				return repository.Student{}, quotaErr
+			}
+		}
 	}
 
 	student, err := s.repository.UpdateStudentStatus(

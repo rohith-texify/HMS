@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -30,6 +31,19 @@ func (r *Repository) CreateBlock(
 	name string,
 	description *string,
 ) (Block, error) {
+	var maxBlocks int
+	if err := r.Executor(ctx).QueryRow(ctx, `
+		SELECT COALESCE(max_blocks, 5) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+	`, collegeID).Scan(&maxBlocks); err == nil {
+		var activeBlocks int
+		_ = r.Executor(ctx).QueryRow(ctx, `
+			SELECT COUNT(*) FROM app.blocks WHERE college_id = $1 AND status = 'ACTIVE'
+		`, collegeID).Scan(&activeBlocks)
+		if activeBlocks >= maxBlocks {
+			return Block{}, fmt.Errorf("hostel block limit reached for this college (limit: %d, currently active: %d). Contact Super Admin to increase quota", maxBlocks, activeBlocks)
+		}
+	}
+
 	var item Block
 
 	err := r.Executor(ctx).QueryRow(ctx, `
