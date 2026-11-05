@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import parentService from '../services/parentService';
 import useToast from '../hooks/useToast';
-import { EmptyState, ErrorState, LoadingState } from '../components/PageStates';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  UnauthorizedState,
+} from '../components/PageStates';
 
 const FILTERS = [
   { value: 'ALL', label: 'All' },
@@ -31,6 +36,7 @@ export default function NotificationsPage() {
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [pendingIds, setPendingIds] = useState(() => new Set());
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -38,6 +44,7 @@ export default function NotificationsPage() {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
+    setUnauthorized(false);
 
     parentService.getNotifications({ signal: controller.signal })
       .then((items) => {
@@ -49,6 +56,7 @@ export default function NotificationsPage() {
       })
       .catch((requestError) => {
         if (!controller.signal.aborted) {
+          setUnauthorized(requestError?.status === 403);
           setError(requestError?.message || 'Unable to load notifications.');
         }
       })
@@ -118,6 +126,11 @@ export default function NotificationsPage() {
 
       {loading ? (
         <LoadingState title="Loading notifications..." />
+      ) : unauthorized ? (
+        <UnauthorizedState
+          title="Notifications unavailable"
+          message={error}
+        />
       ) : error ? (
         <ErrorState
           title="Notifications could not be loaded"

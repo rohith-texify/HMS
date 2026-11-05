@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import parentService from '../services/parentService';
-import { EmptyState, ErrorState, LoadingState } from '../components/PageStates';
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  UnauthorizedState,
+} from '../components/PageStates';
 
 function isMenuRecord(record) {
   return record &&
@@ -13,12 +18,14 @@ export default function MessPage() {
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unauthorized, setUnauthorized] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
+    setUnauthorized(false);
 
     parentService.getTodayMessMenu({ signal: controller.signal })
       .then((items) => {
@@ -30,6 +37,7 @@ export default function MessPage() {
       })
       .catch((requestError) => {
         if (!controller.signal.aborted) {
+          setUnauthorized(requestError?.status === 403);
           setError(requestError?.message || "Unable to load today's mess menu.");
         }
       })
@@ -60,6 +68,11 @@ export default function MessPage() {
 
       {loading ? (
         <LoadingState title="Loading today&apos;s menu..." />
+      ) : unauthorized ? (
+        <UnauthorizedState
+          title="Mess menu unavailable"
+          message={error}
+        />
       ) : error ? (
         <ErrorState
           title="The mess menu could not be loaded"
