@@ -32,6 +32,26 @@ export const inchargeService = {
   },
 
   // 2. Student Records & Accommodation Profiles
+  async getStudents(params = {}) {
+    try {
+      // Prioritize assigned hostel residents when scoped
+      const residents = await this.getHostelResidents(params?.hostel_id);
+      if (Array.isArray(residents) && residents.length > 0) {
+        return residents;
+      }
+    } catch {
+      // Fall through to general college students endpoint
+    }
+
+    try {
+      const res = await api.get('/college/students', { params });
+      const data = res.data || res;
+      return Array.isArray(data) ? data : data?.students || data?.data || [];
+    } catch {
+      return [];
+    }
+  },
+
   async getStudentDetails(studentId) {
     const res = await api.get(`/college/students/${studentId}`);
     return res.data || res;

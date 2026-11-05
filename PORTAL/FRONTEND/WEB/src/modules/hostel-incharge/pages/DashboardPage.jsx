@@ -1,521 +1,873 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../../shared/api/api';
-import adminService from '../../admin/services/adminService';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import inchargeService from '../services/inchargeService';
+import PageHeader from '../components/PageHeader';
+import LoadingState from '../components/LoadingState';
+import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
+import { formatDate, getStatusBadgeVariant } from '../utils/formatUtils';
 import {
-  BedDouble,
+  LayoutDashboard,
   Building2,
-  Wrench,
+  BedDouble,
+  Users,
   ClipboardList,
+  FileText,
+  Wrench,
+  KeyRound,
   RefreshCw,
-  Search,
-  CheckCircle2,
-  AlertCircle,
   Clock,
   ArrowRight,
+  Bell,
+  CheckCircle2,
   ShieldCheck,
-  Users,
-  DoorOpen,
-  UserCheck,
-  Phone,
+  ChevronRight
 } from 'lucide-react';
-import { LoadingState, EmptyState } from '../../../shared/components';
 
-export default function InchargeDashboardPage() {
+export default function DashboardPage() {
+  const { assignedHostel } = useAuth();
   const navigate = useNavigate();
-  const [myHostel, setMyHostel] = useState(null);
+
+  // Master Data State
+  const [hostelOverview, setHostelOverview] = useState(null);
   const [residents, setResidents] = useState([]);
   const [vacantBeds, setVacantBeds] = useState([]);
+  const [leaves, setLeaves] = useState([]);
   const [complaints, setComplaints] = useState([]);
+  const [attendanceLogs, setAttendanceLogs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+
+  // Telemetry & UI State
   const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [complaintSearch, setComplaintSearch] = useState('');
-  const [complaintStatusFilter, setComplaintStatusFilter] = useState('ALL');
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState(new Date());
 
-  const loadData = useCallback(async (manual = false) => {
+  // Load live operational data from authorized Go backend endpoints
+  const loadDashboardData = useCallback(async (isSilentRefresh = false) => {
     try {
-      if (manual) setIsRefreshing(true);
-      else setLoading(true);
-
-      // 1. Resolve logged-in incharge's assigned hostel
-      const hostelRes = await adminService.getMyHostel();
-      const hostel = hostelRes.data || hostelRes;
-      setMyHostel(hostel);
-
-      if (hostel?.hostel_id) {
-        // 2. Fetch residents, vacant beds, and complaints for this hostel
-        const [resRes, bedRes, compRes] = await Promise.allSettled([
-          adminService.getHostelResidents(hostel.hostel_id),
-          adminService.getHostelVacantBeds(hostel.hostel_id),
-          api.get('/college/complaints'),
-        ]);
-
-        let residentList = [];
-        if (resRes.status === 'fulfilled') {
-          const d = resRes.value.data || resRes.value;
-          residentList = Array.isArray(d) ? d : [];
-          setResidents(residentList);
-        }
-
-        if (bedRes.status === 'fulfilled') {
-          const d = bedRes.value.data || bedRes.value;
-          setVacantBeds(Array.isArray(d) ? d : []);
-        }
-
-        if (compRes.status === 'fulfilled') {
-          const d = compRes.value.data || compRes.value;
-          const allComplaints = Array.isArray(d) ? d : d?.complaints || [];
-
-          // Scope complaints strictly to this hostel or students residing in this hostel
-          const residentIds = new Set(residentList.map((r) => r.student_id));
-          const scopedComplaints = allComplaints.filter(
-            (c) =>
-              c.hostel_id === hostel.hostel_id ||
-              (c.student_id && residentIds.has(c.student_id))
-          );
-          setComplaints(scopedComplaints);
-        }
+      if (isSilentRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
       }
+      setError(null);
+
+      const [
+        hostelRes,
+        residentsRes,
+        vacantBedsRes,
+        leavesRes,
+        complaintsRes,
+        attendanceRes,
+        notifsRes,
+      ] = await Promise.allSettled([
+        inchargeService.getMyHostel(),
+        inchargeService.getHostelResidents(),
+        inchargeService.getVacantBeds(),
+        inchargeService.getLeaves({ limit: 15 }),
+        inchargeService.getComplaints({ limit: 15 }),
+        inchargeService.getAttendance({ limit: 20 }),
+        inchargeService.getNotifications({ limit: 5 }),
+      ]);
+
+      if (hostelRes.status === 'fulfilled') {
+        setHostelOverview(hostelRes.value);
+      }
+      if (residentsRes.status === 'fulfilled') {
+        const raw = residentsRes.value;
+        setResidents(Array.isArray(raw) ? raw : raw?.data || raw?.residents || []);
+      }
+      if (vacantBedsRes.status === 'fulfilled') {
+        const raw = vacantBedsRes.value;
+        setVacantBeds(Array.isArray(raw) ? raw : raw?.data || raw?.beds || []);
+      }
+      if (leavesRes.status === 'fulfilled') {
+        const raw = leavesRes.value;
+        setLeaves(Array.isArray(raw) ? raw : raw?.data || raw?.leaves || []);
+      }
+      if (complaintsRes.status === 'fulfilled') {
+        const raw = complaintsRes.value;
+        setComplaints(Array.isArray(raw) ? raw : raw?.data || raw?.complaints || []);
+      }
+      if (attendanceRes.status === 'fulfilled') {
+        const raw = attendanceRes.value;
+        setAttendanceLogs(Array.isArray(raw) ? raw : raw?.data || raw?.attendance || []);
+      }
+      if (notifsRes.status === 'fulfilled') {
+        const raw = notifsRes.value;
+        setNotifications(Array.isArray(raw) ? raw : raw?.data || raw?.notifications || []);
+      }
+
+      setLastRefreshedAt(new Date());
     } catch (err) {
-      console.error('Failed to load incharge dashboard data:', err);
+      setError(err.message || 'Failed to refresh live hostel dashboard data.');
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadDashboardData(false);
+  }, [loadDashboardData]);
 
-  const filteredComplaints = useMemo(() => {
-    return complaints.filter((c) => {
-      const matchesSearch =
-        !complaintSearch ||
-        (c.title || '').toLowerCase().includes(complaintSearch.toLowerCase()) ||
-        (c.category || '').toLowerCase().includes(complaintSearch.toLowerCase()) ||
-        (c.complaint_number || '').toLowerCase().includes(complaintSearch.toLowerCase());
-      const matchesStatus =
-        complaintStatusFilter === 'ALL' || (c.status || '').toUpperCase() === complaintStatusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [complaints, complaintSearch, complaintStatusFilter]);
+  // Derived Operational Metrics
+  const activeHostel = hostelOverview || assignedHostel;
+  const totalCapacity = Number(activeHostel?.total_capacity || activeHostel?.capacity || 0);
+  const occupiedBeds = residents.length;
+  const occupancyRate = totalCapacity > 0 ? Math.min(100, Math.round((occupiedBeds / totalCapacity) * 100)) : 0;
 
-  const pendingComplaintsCount = complaints.filter(
-    (c) => (c.status || '').toUpperCase() !== 'RESOLVED'
-  ).length;
+  const pendingLeaves = useMemo(() => {
+    return leaves.filter(
+      (l) => String(l.status || '').toUpperCase() === 'PENDING' || String(l.status || '').toUpperCase() === 'UNDER_REVIEW'
+    );
+  }, [leaves]);
 
-  const totalBedsCount = (myHostel?.total_capacity && myHostel.total_capacity > 0)
-    ? myHostel.total_capacity
-    : residents.length + vacantBeds.length;
+  const openComplaints = useMemo(() => {
+    return complaints.filter(
+      (c) => String(c.status || '').toUpperCase() !== 'RESOLVED' && String(c.status || '').toUpperCase() !== 'CLOSED'
+    );
+  }, [complaints]);
 
-  const occupancyRate = totalBedsCount > 0
-    ? Math.round((residents.length / totalBedsCount) * 100)
-    : 0;
+  // Check if today's attendance has been recorded
+  const todayDateStr = new Date().toISOString().split('T')[0];
+  const todayAttendanceCount = useMemo(() => {
+    return attendanceLogs.filter((a) => {
+      const aDate = String(a.attendance_date || a.date || a.created_at || '').split('T')[0];
+      return aDate === todayDateStr;
+    }).length;
+  }, [attendanceLogs, todayDateStr]);
+
+  const hostelName = activeHostel?.name || activeHostel?.hostel_name || 'Assigned Hostel';
 
   return (
-    <div className="fade-in-up">
-      {/* Supervisory Facility Scope Banner */}
-      {myHostel ? (
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-            borderRadius: '12px',
-            padding: '14px 20px',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
-            gap: '12px',
-            boxShadow: '0 4px 12px rgba(30, 27, 75, 0.15)',
-          }}
-        >
+    <div>
+      {/* Page Header with Real-Time Scope & Refresh Action */}
+      <PageHeader
+        title="Hostel Operations Dashboard"
+        description="Live occupancy telemetry, urgent resident actions, and premises management."
+        icon={LayoutDashboard}
+        actions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.15)',
+                fontSize: '0.78rem',
+                color: 'var(--text-secondary)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Building2 size={20} style={{ color: '#a5b4fc' }} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <strong style={{ fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
-                  {myHostel.hostel_name}
-                </strong>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    background: '#4338ca',
-                    color: '#e0e7ff',
-                  }}
-                >
-                  {myHostel.hostel_code || 'HOSTEL'}
-                </span>
-                <span
-                  style={{
-                    fontSize: '11px',
-                    padding: '2px 8px',
-                    borderRadius: '6px',
-                    background: 'rgba(255, 255, 255, 0.15)',
-                  }}
-                >
-                  {myHostel.hostel_type || 'RESIDENTIAL'}
-                </span>
-              </div>
-              <span style={{ fontSize: '11.5px', color: '#c7d2fe', marginTop: '2px', display: 'block' }}>
-                Supervised by: <strong>{myHostel.staff_name}</strong> ({myHostel.designation || 'Primary Incharge'}) &bull; Authorized Facility Scope
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span
-              style={{
-                fontSize: '12px',
-                color: '#e0e7ff',
-                background: 'rgba(255, 255, 255, 0.1)',
+                gap: '6px',
+                backgroundColor: 'var(--bg-surface)',
                 padding: '6px 12px',
                 borderRadius: '8px',
+                border: '1px solid var(--border-color)',
               }}
             >
-              Occupancy: <strong>{occupancyRate}% ({residents.length}/{totalBedsCount})</strong>
-            </span>
+              <Clock size={13} color="var(--text-muted)" />
+              <span>
+                Synced at{' '}
+                <strong>
+                  {lastRefreshedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </strong>
+              </span>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => loadDashboardData(true)}
+              disabled={refreshing || loading}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+              title="Refresh live operational data from server"
+            >
+              <RefreshCw size={15} className={refreshing ? 'spin' : ''} />
+              <span>{refreshing ? 'Syncing...' : 'Refresh'}</span>
+            </button>
           </div>
-        </div>
-      ) : !loading && (
-        <div
-          style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '12px',
-            padding: '16px 20px',
-            marginBottom: '20px',
-            color: '#991b1b',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <AlertCircle size={22} style={{ flexShrink: 0 }} />
-          <div>
-            <strong>No Active Hostel Assignment Linked</strong>
-            <p style={{ margin: 0, fontSize: '13px', color: '#b91c1c' }}>
-              Your incharge account is not currently linked to any hostel facility. Please contact College Administration to link your account.
-            </p>
-          </div>
-        </div>
+        }
+      />
+
+      {/* Loading Skeleton */}
+      {loading && <LoadingState title="Loading live operations data..." rows={4} />}
+
+      {/* Error Alert */}
+      {error && !loading && (
+        <ErrorState
+          title="Telemetry Synchronization Failed"
+          message={error}
+          onRetry={() => loadDashboardData(false)}
+        />
       )}
 
-      {/* Enterprise Hero Header */}
-      <div className="enterprise-hero-header">
-        <div className="hero-header-titles">
-          <div className="hero-category-pill">
-            <BedDouble size={13} />
-            <span>Hostel Incharge Operations</span>
-          </div>
-          <h1 className="hero-main-title">
-            {myHostel ? `${myHostel.hostel_name} Operations Dashboard` : 'Warden Operations & Residential Dashboard'}
-          </h1>
-          <p className="hero-subtitle">
-            Real-time room occupancy, resident welfare, maintenance resolution, and nightly roll-call monitoring strictly scoped to {myHostel?.hostel_name || 'your assigned hostel'}.
-          </p>
-        </div>
-
-        <div className="hero-action-buttons">
-          <button
-            type="button"
-            className="btn-enterprise-secondary"
-            onClick={() => loadData(true)}
-            disabled={isRefreshing}
+      {/* Dashboard Viewport */}
+      {!loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Active Hostel Scope Banner */}
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: 'var(--shadow-sm)',
+            }}
           >
-            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-            <span>{isRefreshing ? 'Syncing...' : 'Sync Operations'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Stats Bar */}
-      <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Active Residents</span>
-            <div className="stat-kpi-icon-wrap purple">
-              <Users size={17} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '10px',
+                  backgroundColor: 'var(--primary-light)',
+                  color: 'var(--primary-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <Building2 size={22} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {hostelName}
+                  </h2>
+                  <span className="hostel-badge-tag">
+                    <ShieldCheck size={12} />
+                    <span>In-Charge Post</span>
+                  </span>
+                  {activeHostel?.code && (
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        backgroundColor: '#f1f5f9',
+                        color: '#475569',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      Code: {activeHostel.code}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Gender Policy: <strong>{activeHostel?.gender_category || activeHostel?.type || 'General'}</strong> •
+                  Blocks: <strong>{activeHostel?.total_blocks || activeHostel?.blocks_count || '1'}</strong> • Status:{' '}
+                  <strong style={{ color: 'var(--success-text)' }}>{activeHostel?.status || 'ACTIVE'}</strong>
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="stat-kpi-value text-purple-600">{residents.length}</div>
-          <div className="stat-kpi-footnote">
-            <span className="status-dot green" />
-            <span>Students housed in this facility</span>
-          </div>
-        </div>
 
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Available Vacant Beds</span>
-            <div className="stat-kpi-icon-wrap green">
-              <BedDouble size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-green-600">{vacantBeds.length}</div>
-          <div className="stat-kpi-footnote">
-            <span>Ready for student allocation</span>
-          </div>
-        </div>
-
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Pending Maintenance</span>
-            <div className="stat-kpi-icon-wrap orange">
-              <Wrench size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-orange-600">{pendingComplaintsCount}</div>
-          <div className="stat-kpi-footnote">
-            <span>Facility service tickets</span>
-          </div>
-        </div>
-
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Nightly Curfew Check</span>
-            <div className="stat-kpi-icon-wrap blue">
-              <ClipboardList size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-blue-600">Active</div>
-          <div className="stat-kpi-footnote">
-            <span>Roll-call verification ready</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Facility Residents Overview Card */}
-      <div className="enterprise-card" style={{ marginBottom: '24px' }}>
-        <div className="card-topbar">
-          <div className="card-title-group">
-            <div className="card-title-icon-wrap">
-              <Users size={16} />
-            </div>
-            <h2 className="card-title-text">
-              Current Resident Students ({residents.length})
-            </h2>
-          </div>
-
-          <button
-            type="button"
-            className="btn-enterprise-secondary"
-            style={{ fontSize: '12px', padding: '4px 10px' }}
-            onClick={() => navigate('/hostel-incharge/students')}
-          >
-            <span>View All Residents</span>
-            <ArrowRight size={13} />
-          </button>
-        </div>
-
-        <div style={{ padding: '16px' }}>
-          {loading ? (
-            <div style={{ padding: '36px', textAlign: 'center' }}>
-              <LoadingState message="Loading facility residents..." />
-            </div>
-          ) : residents.length === 0 ? (
-            <div style={{ padding: '24px', textAlign: 'center' }}>
-              <EmptyState
-                title="No resident students assigned"
-                message="No students have been allocated to rooms in this hostel facility yet."
-              />
-            </div>
-          ) : (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: '12px',
-              }}
+            <Link
+              to="/hostel"
+              className="btn btn-outline"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem', padding: '6px 12px' }}
             >
-              {residents.slice(0, 8).map((r) => (
+              <span>View Building Architecture</span>
+              <ChevronRight size={14} />
+            </Link>
+          </div>
+
+          {/* 6 Key Operational Metric Stat Cards */}
+          <div className="grid-3">
+            {/* Card 1: Capacity & Occupancy */}
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-color)' }}>
+                <BedDouble size={24} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+                  <div className="stat-value">{occupancyRate}%</div>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      color: occupancyRate > 90 ? 'var(--danger-text)' : 'var(--primary-color)',
+                      backgroundColor: occupancyRate > 90 ? 'var(--danger-bg)' : 'var(--primary-light)',
+                      padding: '2px 8px',
+                      borderRadius: '9999px',
+                    }}
+                  >
+                    Occupied
+                  </span>
+                </div>
+                <div className="stat-label">
+                  {occupiedBeds} occupied / {totalCapacity > 0 ? totalCapacity : occupiedBeds} total beds
+                </div>
+                {/* Visual Progress Bar */}
                 <div
-                  key={r.allocation_id}
                   style={{
-                    background: '#ffffff',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '10px',
-                    padding: '12px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    width: '100%',
+                    height: '6px',
+                    backgroundColor: '#e2e8f0',
+                    borderRadius: '9999px',
+                    marginTop: '8px',
+                    overflow: 'hidden',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: `${occupancyRate}%`,
+                      height: '100%',
+                      backgroundColor:
+                        occupancyRate > 90 ? '#ef4444' : occupancyRate > 75 ? '#f59e0b' : 'var(--primary-color)',
+                      borderRadius: '9999px',
+                      transition: 'width 0.4s ease',
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Resident Students Count */}
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--info-bg)', color: 'var(--info-text)' }}>
+                <Users size={24} />
+              </div>
+              <div>
+                <div className="stat-value">{residents.length}</div>
+                <div className="stat-label">Enrolled Resident Students</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Allotment verified in assigned hostel
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Vacant Beds Ready */}
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--success-bg)', color: 'var(--success-text)' }}>
+                <KeyRound size={24} />
+              </div>
+              <div>
+                <div className="stat-value">{vacantBeds.length}</div>
+                <div className="stat-label">Vacant Beds Ready</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Available for new student allocation
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Pending Leaves */}
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--warning-bg)', color: 'var(--warning-text)' }}>
+                <FileText size={24} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="stat-value">{pendingLeaves.length}</div>
+                  {pendingLeaves.length > 0 && (
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: 'var(--warning-text)',
+                        backgroundColor: 'var(--warning-bg)',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        border: '1px solid var(--warning-border)',
+                      }}
+                    >
+                      Action Required
+                    </span>
+                  )}
+                </div>
+                <div className="stat-label">Pending Student Leaves</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Night-out & home leave requests
+                </div>
+              </div>
+            </div>
+
+            {/* Card 5: Open Complaints & Maintenance */}
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: '#fef2f2', color: '#b91c1c' }}>
+                <Wrench size={24} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="stat-value">{openComplaints.length}</div>
+                  {openComplaints.length > 0 && (
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: '#b91c1c',
+                        backgroundColor: '#fee2e2',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                      }}
+                    >
+                      Unresolved
+                    </span>
+                  )}
+                </div>
+                <div className="stat-label">Active Resident Complaints</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Room repairs & student grievances
+                </div>
+              </div>
+            </div>
+
+            {/* Card 6: Curfew & Attendance */}
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: '#f0fdf4', color: '#15803d' }}>
+                <ClipboardList size={24} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <div className="stat-value">{todayAttendanceCount}</div>
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      color: todayAttendanceCount > 0 ? '#15803d' : '#b45309',
+                      backgroundColor: todayAttendanceCount > 0 ? '#dcfce7' : '#fef3c7',
+                      padding: '2px 8px',
+                      borderRadius: '9999px',
+                    }}
+                  >
+                    {todayAttendanceCount > 0 ? 'Logged Today' : 'Pending Verification'}
+                  </span>
+                </div>
+                <div className="stat-label">Night Attendance Records</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Curfew status for {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Actions Bar */}
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Quick Operational Actions:
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => navigate('/attendance')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
+              >
+                <ClipboardList size={14} />
+                <span>Log Attendance</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => navigate('/leaves')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
+              >
+                <FileText size={14} />
+                <span>Verify Leaves ({pendingLeaves.length})</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => navigate('/complaints')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
+              >
+                <Wrench size={14} />
+                <span>Complaints ({openComplaints.length})</span>
+              </button>
+
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => navigate('/allocations')}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.82rem' }}
+              >
+                <KeyRound size={14} />
+                <span>Allocate Vacant Bed</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Split Sections: Urgent Action Center */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: '24px' }}>
+            {/* Section 1A: Pending Leave Approvals */}
+            <div className="card">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '16px',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <FileText size={18} color="var(--primary-color)" />
+                  <span>Pending Leave Approvals</span>
+                </h3>
+                <Link
+                  to="/leaves"
+                  style={{
+                    fontSize: '0.82rem',
+                    color: 'var(--primary-color)',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>View All</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+
+              {pendingLeaves.length === 0 ? (
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="No Pending Leaves"
+                  description="All student leave applications are reviewed and up to date."
+                />
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Resident Student</th>
+                        <th>Reason</th>
+                        <th>Dates</th>
+                        <th>Decision</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pendingLeaves.slice(0, 5).map((leave, i) => (
+                        <tr key={leave.id || i}>
+                          <td>
+                            <strong>
+                              {leave.student_name ||
+                                (leave.student_id ? leave.student_id.substring(0, 8) + '...' : 'Resident Student')}
+                            </strong>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.85rem' }}>{leave.reason || 'General Outing'}</span>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              {formatDate(leave.from_date || leave.start_date)} -{' '}
+                              {formatDate(leave.to_date || leave.end_date)}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => navigate('/leaves')}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                backgroundColor: 'var(--primary-light)',
+                                color: 'var(--primary-color)',
+                                border: '1px solid var(--primary-border)',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Review
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Section 1B: Unresolved Resident Complaints */}
+            <div className="card">
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '16px',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <Wrench size={18} color="var(--primary-color)" />
+                  <span>Unresolved Resident Grievances</span>
+                </h3>
+                <Link
+                  to="/complaints"
+                  style={{
+                    fontSize: '0.82rem',
+                    color: 'var(--primary-color)',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <span>View All</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+
+              {openComplaints.length === 0 ? (
+                <EmptyState
+                  icon={CheckCircle2}
+                  title="No Open Complaints"
+                  description="No unresolved student grievances reported for your premises."
+                />
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Title / Issue</th>
+                        <th>Category</th>
+                        <th>Severity</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {openComplaints.slice(0, 5).map((comp, i) => (
+                        <tr key={comp.id || i}>
+                          <td>
+                            <strong>
+                              {comp.title || comp.description?.substring(0, 32) || 'Complaint Report'}
+                            </strong>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.82rem' }}>{comp.category || 'Maintenance'}</span>
+                          </td>
+                          <td>
+                            <span
+                              className={`badge badge-${getStatusBadgeVariant(comp.severity || comp.status)}`}
+                            >
+                              {comp.severity || comp.status || 'NORMAL'}
+                            </span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => navigate('/complaints')}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                backgroundColor: '#f1f5f9',
+                                color: '#334155',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Inspect
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 2: Vacant Bed Inventory Ready for Allocation */}
+          <div className="card">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '16px',
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <BedDouble size={18} color="var(--primary-color)" />
+                  <span>Vacant Bed Inventory Ready for Allocation</span>
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Unallocated beds currently available in {hostelName}.
+                </p>
+              </div>
+              <Link
+                to="/allocations"
+                className="btn btn-outline"
+                style={{ fontSize: '0.82rem', padding: '6px 12px' }}
+              >
+                <span>Allocate Beds</span>
+                <ChevronRight size={14} />
+              </Link>
+            </div>
+
+            {vacantBeds.length === 0 ? (
+              <EmptyState
+                icon={BedDouble}
+                title="Hostel at 100% Capacity"
+                description="All beds in your assigned hostel are currently allocated to resident students."
+              />
+            ) : (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Bed Label</th>
+                      <th>Room Number</th>
+                      <th>Floor / Block</th>
+                      <th>Operational Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vacantBeds.slice(0, 5).map((bed, i) => (
+                      <tr key={bed.id || bed.bed_id || i}>
+                        <td>
+                          <strong>{bed.bed_label || bed.label || `Bed ${i + 1}`}</strong>
+                        </td>
+                        <td>Room {bed.room_number || bed.room_no || '—'}</td>
+                        <td>{bed.floor_number ? `Floor ${bed.floor_number}` : bed.block_name || 'Ground'}</td>
+                        <td>
+                          <span className="badge badge-resolved">VACANT</span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => navigate('/allocations')}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              backgroundColor: 'var(--primary-color)',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            Assign Student
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Campus & Hostel Broadcast Notices */}
+          {notifications.length > 0 && (
+            <div className="card">
+              <h3
+                style={{
+                  fontSize: '1.05rem',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '16px',
+                }}
+              >
+                <Bell size={18} color="var(--primary-color)" />
+                <span>Recent Hostel Broadcasts & Circulars</span>
+              </h3>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {notifications.map((notif, i) => (
+                  <div
+                    key={notif.id || i}
+                    style={{
+                      padding: '12px 16px',
+                      backgroundColor: '#f8fafc',
+                      border: '1px solid #e2e8f0',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#0f172a' }}>
+                        {notif.title || 'Official Announcement'}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '0.82rem',
+                          color: '#475569',
+                          marginTop: '4px',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {notif.message || notif.content || '—'}
+                      </div>
+                    </div>
                     <div
                       style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: '#e0e7ff',
-                        color: '#4338ca',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: '12px',
+                        fontSize: '0.75rem',
+                        color: '#94a3b8',
+                        whiteSpace: 'nowrap',
                         flexShrink: 0,
                       }}
                     >
-                      {(r.first_name || 'S')[0].toUpperCase()}
-                    </div>
-                    <div>
-                      <strong style={{ color: '#0f172a', fontSize: '13px', display: 'block' }}>
-                        {r.full_name}
-                      </strong>
-                      <span style={{ fontSize: '11px', color: '#64748b' }}>
-                        {r.admission_number}
-                      </span>
+                      {formatDate(notif.created_at)}
                     </div>
                   </div>
-
-                  <div style={{ textAlign: 'right' }}>
-                    <span className="badge-enterprise badge-purple" style={{ fontSize: '10.5px' }}>
-                      Room {r.room_code || r.room_name}
-                    </span>
-                    <span style={{ fontSize: '11px', color: '#64748b', display: 'block', marginTop: '2px' }}>
-                      {r.bed_name}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
-      </div>
-
-      {/* Facility Complaints & Service Requests */}
-      <div className="enterprise-card">
-        <div className="card-topbar">
-          <div className="card-title-group">
-            <div className="card-title-icon-wrap">
-              <Wrench size={16} />
-            </div>
-            <h2 className="card-title-text">
-              Facility Service &amp; Maintenance Requests ({complaints.length})
-            </h2>
-          </div>
-
-          <span className="badge-enterprise badge-orange">
-            {pendingComplaintsCount} Pending Tickets
-          </span>
-        </div>
-
-        {/* Filter Toolbar */}
-        <div className="enterprise-filter-bar">
-          <div className="filter-search-field">
-            <Search size={14} className="filter-search-icon" />
-            <input
-              type="text"
-              className="filter-search-input"
-              placeholder="Search complaints by title, category..."
-              value={complaintSearch}
-              onChange={(e) => setComplaintSearch(e.target.value)}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <select
-              className="filter-select"
-              value={complaintStatusFilter}
-              onChange={(e) => setComplaintStatusFilter(e.target.value)}
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="PENDING">PENDING</option>
-              <option value="IN_PROGRESS">IN_PROGRESS</option>
-              <option value="RESOLVED">RESOLVED</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="enterprise-table-container">
-          <table className="enterprise-table">
-            <thead>
-              <tr>
-                <th>Issue / Description</th>
-                <th>Category</th>
-                <th>Date Logged</th>
-                <th>Resolution Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '36px' }}>
-                    <LoadingState message="Loading maintenance tickets..." />
-                  </td>
-                </tr>
-              ) : filteredComplaints.length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '36px' }}>
-                    <EmptyState
-                      title="No maintenance requests"
-                      message="All resident service tickets for this facility are resolved or none match filters."
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filteredComplaints.slice(0, 10).map((c, i) => {
-                  const status = (c.status || 'PENDING').toUpperCase();
-                  const isResolved = status === 'RESOLVED';
-                  const isInProgress = status === 'IN_PROGRESS';
-
-                  return (
-                    <tr key={c.id || i}>
-                      <td>
-                        <strong style={{ color: '#0f172a', display: 'block', fontSize: '13.5px' }}>
-                          {c.title}
-                        </strong>
-                        {c.description && (
-                          <span style={{ fontSize: '11px', color: '#64748b' }}>
-                            {c.description.slice(0, 80)}...
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge-enterprise badge-purple">
-                          {c.category || 'GENERAL'}
-                        </span>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '12px', color: '#475569' }}>
-                          {c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}
-                        </span>
-                      </td>
-                      <td>
-                        {isResolved ? (
-                          <span className="badge-enterprise badge-green">RESOLVED</span>
-                        ) : isInProgress ? (
-                          <span className="badge-enterprise badge-blue">IN PROGRESS</span>
-                        ) : (
-                          <span className="badge-enterprise badge-orange">PENDING</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

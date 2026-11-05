@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import inchargeService from '../services/inchargeService';
 import PageHeader from '../components/PageHeader';
 import DataTable from '../components/DataTable';
@@ -24,6 +25,8 @@ import {
 
 export default function ReportsPage() {
   const { user } = useAuth();
+  const { hasPermission } = usePermissions();
+  const canViewCollegeReports = hasPermission('reports.view');
   const assignedHostelId = user?.hostelId || user?.hostel_id;
 
   // Active Report Suite
@@ -58,116 +61,168 @@ export default function ReportsPage() {
       else setRefreshing(true);
       setErrorMessage(null);
 
-      // Symmetrically fetch all 9 institutional report suites alongside hostel context
-      const [
-        overviewRes,
-        occupancyRes,
-        studentsRes,
-        allocationsRes,
-        attendanceRes,
-        leaveRes,
-        complaintsRes,
-        maintenanceRes,
-        staffRes,
-        hostelRes,
-      ] = await Promise.allSettled([
-        inchargeService.getReportsOverview(),
-        inchargeService.getReportsOccupancy(),
-        inchargeService.getReportsStudents(),
-        inchargeService.getReportsAllocations(),
-        inchargeService.getReportsAttendance(),
-        inchargeService.getReportsLeave(),
-        inchargeService.getReportsComplaints(),
-        inchargeService.getReportsMaintenance(),
-        inchargeService.getReportsStaff(),
-        inchargeService.getMyHostel(),
-      ]);
+      const hostelPromise = inchargeService.getMyHostel().catch(() => null);
 
-      if (seq !== reqSeqRef.current) return;
+      if (canViewCollegeReports) {
+        // Symmetrically fetch all 9 institutional report suites alongside hostel context
+        const [
+          overviewRes,
+          occupancyRes,
+          studentsRes,
+          allocationsRes,
+          attendanceRes,
+          leaveRes,
+          complaintsRes,
+          maintenanceRes,
+          staffRes,
+          hostelRes,
+        ] = await Promise.allSettled([
+          inchargeService.getReportsOverview(),
+          inchargeService.getReportsOccupancy(),
+          inchargeService.getReportsStudents(),
+          inchargeService.getReportsAllocations(),
+          inchargeService.getReportsAttendance(),
+          inchargeService.getReportsLeave(),
+          inchargeService.getReportsComplaints(),
+          inchargeService.getReportsMaintenance(),
+          inchargeService.getReportsStaff(),
+          hostelPromise,
+        ]);
 
-      if (hostelRes.status === 'fulfilled') {
-        const h = hostelRes.value?.data || hostelRes.value?.hostel || hostelRes.value;
-        setMyHostel(h);
-      }
+        if (seq !== reqSeqRef.current) return;
 
-      // 1. Overview
-      if (overviewRes.status === 'fulfilled') {
-        setOverviewData(overviewRes.value?.data || overviewRes.value);
-      }
+        if (hostelRes.status === 'fulfilled') {
+          const h = hostelRes.value?.data || hostelRes.value?.hostel || hostelRes.value;
+          setMyHostel(h);
+        }
 
-      // 2. Occupancy
-      if (occupancyRes.status === 'fulfilled') {
-        const occ = occupancyRes.value?.data || occupancyRes.value || [];
-        setOccupancyData(Array.isArray(occ) ? occ : []);
-      } else if (hostelRes.status === 'fulfilled') {
-        // Fallback to assigned hostel occupancy if college-wide reports.view is restricted
-        const h = hostelRes.value?.data || hostelRes.value?.hostel || hostelRes.value;
-        if (h) {
-          const cap = h.total_capacity || h.capacity || 0;
-          const occ = h.occupied_beds || h.occupied_capacity || 0;
-          const avail = Math.max(0, cap - occ);
-          const pct = cap > 0 ? Number(((occ / cap) * 100).toFixed(1)) : 0;
-          setOccupancyData([
-            {
-              hostel_id: h.id || h.hostel_id || assignedHostelId,
-              hostel_name: h.name || 'Assigned Hostel',
+        // 1. Overview
+        if (overviewRes.status === 'fulfilled') {
+          setOverviewData(overviewRes.value?.data || overviewRes.value);
+        }
+
+        // 2. Occupancy
+        if (occupancyRes.status === 'fulfilled') {
+          const occ = occupancyRes.value?.data || occupancyRes.value || [];
+          setOccupancyData(Array.isArray(occ) ? occ : []);
+        } else if (hostelRes.status === 'fulfilled') {
+          // Fallback to assigned hostel occupancy if college-wide reports.view is restricted
+          const h = hostelRes.value?.data || hostelRes.value?.hostel || hostelRes.value;
+          if (h) {
+            const cap = h.total_capacity || h.capacity || 0;
+            const occ = h.occupied_beds || h.occupied_capacity || 0;
+            const avail = Math.max(0, cap - occ);
+            const pct = cap > 0 ? Number(((occ / cap) * 100).toFixed(1)) : 0;
+            setOccupancyData([
+              {
+                hostel_id: h.id || h.hostel_id || assignedHostelId,
+                hostel_name: h.name || 'Assigned Hostel',
+                total_capacity: cap,
+                occupied_beds: occ,
+                available_capacity: avail,
+                occupancy_percentage: pct,
+              },
+            ]);
+          }
+        }
+
+        // 3. Students
+        if (studentsRes.status === 'fulfilled') {
+          setStudentStats(studentsRes.value?.data || studentsRes.value);
+        }
+
+        // 4. Allocations
+        if (allocationsRes.status === 'fulfilled') {
+          setAllocationStats(allocationsRes.value?.data || allocationsRes.value);
+        }
+
+        // 5. Attendance (with fallback to getAttendanceSummary)
+        if (attendanceRes.status === 'fulfilled') {
+          setAttendanceStats(attendanceRes.value?.data || attendanceRes.value);
+        } else {
+          const attSum = await inchargeService.getAttendanceSummary().catch(() => null);
+          if (seq === reqSeqRef.current && attSum) {
+            setAttendanceStats(attSum?.data || attSum);
+          }
+        }
+
+        // 6. Leave (with fallback to getLeaveSummary)
+        if (leaveRes.status === 'fulfilled') {
+          setLeaveStats(leaveRes.value?.data || leaveRes.value);
+        } else {
+          const lSum = await inchargeService.getLeaveSummary().catch(() => null);
+          if (seq === reqSeqRef.current && lSum) {
+            setLeaveStats(lSum?.data || lSum);
+          }
+        }
+
+        // 7. Complaints (with fallback to getComplaintSummary)
+        if (complaintsRes.status === 'fulfilled') {
+          setComplaintStats(complaintsRes.value?.data || complaintsRes.value);
+        } else {
+          const cSum = await inchargeService.getComplaintSummary().catch(() => null);
+          if (seq === reqSeqRef.current && cSum) {
+            setComplaintStats(cSum?.data || cSum);
+          }
+        }
+
+        // 8. Maintenance
+        if (maintenanceRes.status === 'fulfilled') {
+          setMaintenanceStats(maintenanceRes.value?.data || maintenanceRes.value);
+        }
+
+        // 9. Staff
+        if (staffRes.status === 'fulfilled') {
+          setStaffStats(staffRes.value?.data || staffRes.value);
+        }
+      } else {
+        // Direct hostel-scoped intelligence fetching: avoids 403 Forbidden errors when reports.view is institutional
+        const [hostelRes, attSumRes, leaveSumRes, complaintSumRes] = await Promise.allSettled([
+          hostelPromise,
+          inchargeService.getAttendanceSummary().catch(() => null),
+          inchargeService.getLeaveSummary().catch(() => null),
+          inchargeService.getComplaintSummary().catch(() => null),
+        ]);
+
+        if (seq !== reqSeqRef.current) return;
+
+        if (hostelRes.status === 'fulfilled' && hostelRes.value) {
+          const h = hostelRes.value?.data || hostelRes.value?.hostel || hostelRes.value;
+          setMyHostel(h);
+          if (h) {
+            const cap = h.total_capacity || h.capacity || 0;
+            const occ = h.occupied_beds || h.occupied_capacity || 0;
+            const avail = Math.max(0, cap - occ);
+            const pct = cap > 0 ? Number(((occ / cap) * 100).toFixed(1)) : 0;
+            setOccupancyData([
+              {
+                hostel_id: h.id || h.hostel_id || assignedHostelId,
+                hostel_name: h.name || 'Assigned Hostel',
+                total_capacity: cap,
+                occupied_beds: occ,
+                available_capacity: avail,
+                occupancy_percentage: pct,
+              },
+            ]);
+            setOverviewData({
               total_capacity: cap,
               occupied_beds: occ,
               available_capacity: avail,
               occupancy_percentage: pct,
-            },
-          ]);
+              active_residents: occ,
+            });
+          }
         }
-      }
 
-      // 3. Students
-      if (studentsRes.status === 'fulfilled') {
-        setStudentStats(studentsRes.value?.data || studentsRes.value);
-      }
-
-      // 4. Allocations
-      if (allocationsRes.status === 'fulfilled') {
-        setAllocationStats(allocationsRes.value?.data || allocationsRes.value);
-      }
-
-      // 5. Attendance (with fallback to getAttendanceSummary)
-      if (attendanceRes.status === 'fulfilled') {
-        setAttendanceStats(attendanceRes.value?.data || attendanceRes.value);
-      } else {
-        const attSum = await inchargeService.getAttendanceSummary().catch(() => null);
-        if (seq === reqSeqRef.current && attSum) {
-          setAttendanceStats(attSum?.data || attSum);
+        if (attSumRes.status === 'fulfilled' && attSumRes.value) {
+          setAttendanceStats(attSumRes.value?.data || attSumRes.value);
         }
-      }
-
-      // 6. Leave (with fallback to getLeaveSummary)
-      if (leaveRes.status === 'fulfilled') {
-        setLeaveStats(leaveRes.value?.data || leaveRes.value);
-      } else {
-        const lSum = await inchargeService.getLeaveSummary().catch(() => null);
-        if (seq === reqSeqRef.current && lSum) {
-          setLeaveStats(lSum?.data || lSum);
+        if (leaveSumRes.status === 'fulfilled' && leaveSumRes.value) {
+          setLeaveStats(leaveSumRes.value?.data || leaveSumRes.value);
         }
-      }
-
-      // 7. Complaints (with fallback to getComplaintSummary)
-      if (complaintsRes.status === 'fulfilled') {
-        setComplaintStats(complaintsRes.value?.data || complaintsRes.value);
-      } else {
-        const cSum = await inchargeService.getComplaintSummary().catch(() => null);
-        if (seq === reqSeqRef.current && cSum) {
-          setComplaintStats(cSum?.data || cSum);
+        if (complaintSumRes.status === 'fulfilled' && complaintSumRes.value) {
+          setComplaintStats(complaintSumRes.value?.data || complaintSumRes.value);
         }
-      }
-
-      // 8. Maintenance
-      if (maintenanceRes.status === 'fulfilled') {
-        setMaintenanceStats(maintenanceRes.value?.data || maintenanceRes.value);
-      }
-
-      // 9. Staff
-      if (staffRes.status === 'fulfilled') {
-        setStaffStats(staffRes.value?.data || staffRes.value);
       }
     } catch (err) {
       if (seq === reqSeqRef.current) {
@@ -183,7 +238,7 @@ export default function ReportsPage() {
         setRefreshing(false);
       }
     }
-  }, [assignedHostelId]);
+  }, [assignedHostelId, canViewCollegeReports]);
 
   useEffect(() => {
     loadReportsData();
@@ -308,11 +363,11 @@ export default function ReportsPage() {
   const occupancyColumns = [
     {
       key: 'hostel_name',
-      title: 'Hostel Facility',
-      render: (val, row) => (
+      header: 'Hostel Facility',
+      render: (row) => (
         <div>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val || 'Hostel'}</span>
-          {row.hostel_id === assignedHostelId && (
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row?.hostel_name || 'Hostel'}</span>
+          {row?.hostel_id === assignedHostelId && (
             <Badge variant="primary" style={{ marginLeft: '8px' }}>
               ASSIGNED
             </Badge>
@@ -322,30 +377,30 @@ export default function ReportsPage() {
     },
     {
       key: 'total_capacity',
-      title: 'Total Capacity',
+      header: 'Total Capacity',
       align: 'right',
-      render: (val) => <span style={{ fontWeight: 600 }}>{val ?? 0}</span>,
+      render: (row) => <span style={{ fontWeight: 600 }}>{row?.total_capacity ?? 0}</span>,
     },
     {
       key: 'occupied_beds',
-      title: 'Occupied Beds',
+      header: 'Occupied Beds',
       align: 'right',
-      render: (val) => <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{val ?? 0}</span>,
+      render: (row) => <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{row?.occupied_beds ?? 0}</span>,
     },
     {
       key: 'available_capacity',
-      title: 'Available Beds',
+      header: 'Available Beds',
       align: 'right',
-      render: (val) => (
-        <span style={{ fontWeight: 600, color: 'var(--success-color, #16a34a)' }}>{val ?? 0}</span>
+      render: (row) => (
+        <span style={{ fontWeight: 600, color: 'var(--success-color, #16a34a)' }}>{row?.available_capacity ?? 0}</span>
       ),
     },
     {
       key: 'occupancy_percentage',
-      title: 'Occupancy Rate',
+      header: 'Occupancy Rate',
       align: 'right',
-      render: (val) => {
-        const pct = Number(val ?? 0);
+      render: (row) => {
+        const pct = Number(row?.occupancy_percentage ?? 0);
         const variant = pct >= 90 ? 'danger' : pct >= 70 ? 'warning' : 'success';
         return <Badge variant={variant}>{pct.toFixed(1)}%</Badge>;
       },

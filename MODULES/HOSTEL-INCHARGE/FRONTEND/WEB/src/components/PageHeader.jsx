@@ -1,32 +1,40 @@
 import React from 'react';
 
 /**
- * Enterprise Page Header component for Institutional & College Admin portals.
+ * Enterprise Page Header component for Hostel In-Charge portal.
  * Renders category badge, main title, subtitle description, and action buttons.
  */
 export default function PageHeader({
   title,
   subtitle,
+  description,
   category,
   categoryIcon: CategoryIcon,
+  icon: DirectIcon,
   actions,
   className = '',
 }) {
+  const subText = subtitle || description;
+  const IconComponent = CategoryIcon || DirectIcon;
+
   return (
     <div className={`enterprise-hero-header ${className}`}>
       <div className="hero-header-titles">
-        {category && (
+        {(category || IconComponent) && (
           <div className="hero-category-pill">
-            {CategoryIcon && <CategoryIcon size={13} />}
-            <span>{category}</span>
+            {IconComponent && <IconComponent size={13} />}
+            <span>{category || 'Operations'}</span>
           </div>
         )}
         <h1 className="hero-main-title">{title}</h1>
-        {subtitle && <p className="hero-subtitle">{subtitle}</p>}
+        {subText && <p className="hero-subtitle">{subText}</p>}
       </div>
 
-      {actions && <div className="hero-header-actions">{actions}</div>}
+      {actions && (
+        <div className="hero-action-buttons hero-header-actions">
+          {actions}
+        </div>
+      )}
     </div>
   );
 }
-

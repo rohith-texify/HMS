@@ -105,7 +105,7 @@ func AutoMigrateAndSeed(ctx context.Context, pool *pgxpool.Pool, logger *zap.Log
 			CROSS JOIN platform.permissions p
 			JOIN platform.modules m ON m.module_id = p.module_id
 			WHERE r.role_code IN ('HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN')
-			  AND m.module_code IN ('HOSTEL', 'PEOPLE', 'MOVEMENT', 'REQUESTS', 'ATTENDANCE')
+			  AND m.module_code IN ('HOSTEL', 'PEOPLE', 'MOVEMENT', 'REQUESTS', 'ATTENDANCE', 'REPORTS')
 			ON CONFLICT DO NOTHING;
 		`)
 

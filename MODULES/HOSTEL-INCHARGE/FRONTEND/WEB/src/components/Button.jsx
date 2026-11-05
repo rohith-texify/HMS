@@ -6,6 +6,7 @@ export default function Button({
   size = 'md',
   disabled = false,
   loading = false,
+  icon: Icon,
   onClick,
   type = 'button',
   className = '',
@@ -17,27 +18,36 @@ export default function Button({
     switch (variant) {
       case 'primary':
         return {
-          backgroundColor: '#0284c7',
+          backgroundColor: '#2563eb',
           color: '#ffffff',
-          border: 'none',
+          border: '1px solid #2563eb',
+          boxShadow: '0 1px 2px rgba(37, 99, 235, 0.15)',
         };
       case 'outline':
         return {
-          backgroundColor: 'transparent',
-          color: '#cbd5e1',
-          border: '1px solid #475569',
+          backgroundColor: '#ffffff',
+          color: '#334155',
+          border: '1px solid #cbd5e1',
+          boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
         };
       case 'danger':
         return {
-          backgroundColor: 'rgba(239, 68, 68, 0.15)',
-          color: '#f87171',
-          border: '1px solid #ef4444',
+          backgroundColor: '#ffffff',
+          color: '#dc2626',
+          border: '1px solid #fecaca',
+          boxShadow: '0 1px 2px rgba(220, 38, 38, 0.04)',
         };
       case 'secondary':
         return {
-          backgroundColor: '#334155',
-          color: '#f8fafc',
-          border: 'none',
+          backgroundColor: '#f1f5f9',
+          color: '#334155',
+          border: '1px solid #e2e8f0',
+        };
+      case 'ghost':
+        return {
+          backgroundColor: 'transparent',
+          color: '#64748b',
+          border: '1px solid transparent',
         };
       default:
         return {};
@@ -47,11 +57,11 @@ export default function Button({
   const getSizeStyles = () => {
     switch (size) {
       case 'sm':
-        return { padding: '6px 12px', fontSize: '0.8rem' };
+        return { padding: '5px 10px', fontSize: '0.8rem', borderRadius: '6px' };
       case 'lg':
-        return { padding: '12px 24px', fontSize: '1rem' };
+        return { padding: '11px 22px', fontSize: '0.95rem', borderRadius: '10px' };
       default:
-        return { padding: '8px 16px', fontSize: '0.875rem' };
+        return { padding: '8px 16px', fontSize: '0.85rem', borderRadius: '8px' };
     }
   };
 
@@ -66,11 +76,13 @@ export default function Button({
         alignItems: 'center',
         justifyContent: 'center',
         gap: '8px',
-        borderRadius: '6px',
         fontWeight: 600,
+        fontFamily: 'inherit',
         cursor: disabled || loading ? 'not-allowed' : 'pointer',
         opacity: disabled ? 0.6 : 1,
         transition: 'all 0.15s ease',
+        userSelect: 'none',
+        lineHeight: '1.25rem',
         ...getVariantStyles(),
         ...getSizeStyles(),
         ...style,
@@ -91,8 +103,8 @@ export default function Button({
           }}
         />
       )}
+      {!loading && Icon && <Icon size={size === 'sm' ? 14 : 16} />}
       {children}
     </button>
   );
 }
-

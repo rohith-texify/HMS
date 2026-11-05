@@ -1,49 +1,89 @@
 import React from 'react';
 
-export default function Badge({ children, variant = 'info', style = {} }) {
+export default function Badge({ children, variant = 'info', dot = false, className = '', style = {} }) {
   const getBadgeColors = () => {
     switch (variant) {
       case 'success':
+      case 'green':
         return {
-          background: 'rgba(16, 185, 129, 0.15)',
-          color: '#34d399',
-          border: '1px solid #10b981',
+          background: '#ecfdf5',
+          color: '#065f46',
+          border: '1px solid #a7f3d0',
         };
       case 'warning':
+      case 'amber':
         return {
-          background: 'rgba(245, 158, 11, 0.15)',
-          color: '#fbbf24',
-          border: '1px solid #f59e0b',
+          background: '#fffbeb',
+          color: '#92400e',
+          border: '1px solid #fde68a',
         };
       case 'danger':
+      case 'rose':
+      case 'error':
         return {
-          background: 'rgba(239, 68, 68, 0.15)',
-          color: '#f87171',
-          border: '1px solid #ef4444',
+          background: '#fef2f2',
+          color: '#991b1b',
+          border: '1px solid #fecaca',
         };
+      case 'purple':
+        return {
+          background: '#faf5ff',
+          color: '#6b21a8',
+          border: '1px solid #e9d5ff',
+        };
+      case 'indigo':
+        return {
+          background: '#eef2ff',
+          color: '#4338ca',
+          border: '1px solid #c7d2fe',
+        };
+      case 'muted':
+      case 'gray':
+      case 'neutral':
+        return {
+          background: '#f1f5f9',
+          color: '#475569',
+          border: '1px solid #e2e8f0',
+        };
+      case 'primary':
       case 'info':
+      case 'blue':
       default:
         return {
-          background: 'rgba(56, 189, 248, 0.15)',
-          color: '#7dd3fc',
-          border: '1px solid #38bdf8',
+          background: '#eff6ff',
+          color: '#1e40af',
+          border: '1px solid #bfdbfe',
         };
     }
   };
 
   return (
     <span
+      className={`enterprise-badge ${className}`}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
+        gap: '5px',
         padding: '2px 8px',
         borderRadius: '9999px',
-        fontSize: '0.75rem',
+        fontSize: '0.74rem',
         fontWeight: 600,
+        lineHeight: 1.4,
+        letterSpacing: '0.01em',
         ...getBadgeColors(),
         ...style,
       }}
     >
+      {dot && (
+        <span
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: 'currentColor',
+          }}
+        />
+      )}
       {children}
     </span>
   );

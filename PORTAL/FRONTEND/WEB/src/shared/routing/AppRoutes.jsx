@@ -43,11 +43,25 @@ const ParentStudentDetailPage = lazy(() => import('../../modules/parent/pages/St
 const ParentLeavesPage = lazy(() => import('../../modules/parent/pages/LeavesPage'));
 
 // Lazy-loaded Hostel Incharge Pages
+const InchargeLayout = lazy(() => import('../../modules/hostel-incharge/layouts/InchargeLayout'));
 const InchargeDashboardPage = lazy(() => import('../../modules/hostel-incharge/pages/DashboardPage'));
+const InchargeHostelOverviewPage = lazy(() => import('../../modules/hostel-incharge/pages/HostelOverviewPage'));
 const InchargeRoomsPage = lazy(() => import('../../modules/hostel-incharge/pages/RoomsPage'));
-const InchargeComplaintsPage = lazy(() => import('../../modules/hostel-incharge/pages/ComplaintsPage'));
-const InchargeAttendancePage = lazy(() => import('../../modules/hostel-incharge/pages/AttendancePage'));
 const InchargeStudentsPage = lazy(() => import('../../modules/hostel-incharge/pages/StudentsPage'));
+const InchargeAllocationsPage = lazy(() => import('../../modules/hostel-incharge/pages/AllocationsPage'));
+const InchargeAttendancePage = lazy(() => import('../../modules/hostel-incharge/pages/AttendancePage'));
+const InchargeLeavesPage = lazy(() => import('../../modules/hostel-incharge/pages/LeavesPage'));
+const InchargeGatePassesPage = lazy(() => import('../../modules/hostel-incharge/pages/GatePassesPage'));
+const InchargeVisitorsPage = lazy(() => import('../../modules/hostel-incharge/pages/VisitorsPage'));
+const InchargeParcelsPage = lazy(() => import('../../modules/hostel-incharge/pages/ParcelsPage'));
+const InchargeSOSPage = lazy(() => import('../../modules/hostel-incharge/pages/SOSPage'));
+const InchargeComplaintsPage = lazy(() => import('../../modules/hostel-incharge/pages/ComplaintsPage'));
+const InchargeMaintenancePage = lazy(() => import('../../modules/hostel-incharge/pages/MaintenancePage'));
+const InchargeMessPage = lazy(() => import('../../modules/hostel-incharge/pages/MessPage'));
+const InchargeAnnouncementsPage = lazy(() => import('../../modules/hostel-incharge/pages/AnnouncementsPage'));
+const InchargeDocumentsPage = lazy(() => import('../../modules/hostel-incharge/pages/DocumentsPage'));
+const InchargeReportsPage = lazy(() => import('../../modules/hostel-incharge/pages/ReportsPage'));
+const InchargeAuditLogPage = lazy(() => import('../../modules/hostel-incharge/pages/AuditLogPage'));
 
 // Lazy-loaded Security Pages
 const SecurityDashboardPage = lazy(() => import('../../modules/security/pages/DashboardPage'));
@@ -105,15 +119,47 @@ function SmartRoleRedirect({ routeType }) {
       case 'incharge':
         return <Navigate to="/hostel-incharge/dashboard" replace />;
       case 'students':
+      case 'residents':
         return <Navigate to="/hostel-incharge/students" replace />;
       case 'rooms':
-      case 'hostels':
-      case 'allocations':
         return <Navigate to="/hostel-incharge/rooms" replace />;
+      case 'hostel':
+      case 'hostels':
+      case 'overview':
+        return <Navigate to="/hostel-incharge/hostel" replace />;
+      case 'allocations':
+        return <Navigate to="/hostel-incharge/allocations" replace />;
       case 'attendance':
         return <Navigate to="/hostel-incharge/attendance" replace />;
+      case 'leaves':
+        return <Navigate to="/hostel-incharge/leaves" replace />;
+      case 'gate-passes':
+      case 'outings':
+        return <Navigate to="/hostel-incharge/gate-passes" replace />;
+      case 'visitors':
+        return <Navigate to="/hostel-incharge/visitors" replace />;
+      case 'parcels':
+        return <Navigate to="/hostel-incharge/parcels" replace />;
+      case 'sos':
+      case 'emergency':
+        return <Navigate to="/hostel-incharge/emergency" replace />;
       case 'complaints':
         return <Navigate to="/hostel-incharge/complaints" replace />;
+      case 'maintenance':
+        return <Navigate to="/hostel-incharge/maintenance" replace />;
+      case 'food':
+      case 'mess':
+        return <Navigate to="/hostel-incharge/mess" replace />;
+      case 'announcements':
+      case 'notices':
+        return <Navigate to="/hostel-incharge/announcements" replace />;
+      case 'documents':
+        return <Navigate to="/hostel-incharge/documents" replace />;
+      case 'reports':
+        return <Navigate to="/hostel-incharge/reports" replace />;
+      case 'audit':
+      case 'audit-logs':
+        return <Navigate to="/hostel-incharge/audit" replace />;
       default:
         return <Navigate to="/hostel-incharge/dashboard" replace />;
     }
@@ -315,17 +361,37 @@ export default function AppRoutes() {
         <Route
           path="/hostel-incharge"
           element={
-            <RoleProtectedRoute allowedRoles={['HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN']}>
-              <InstitutionalLayout />
+            <RoleProtectedRoute allowedRoles={['HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN', 'COLLEGE_ADMIN', 'ADMIN']}>
+              <InchargeLayout />
             </RoleProtectedRoute>
           }
         >
           <Route index element={<Navigate to="/hostel-incharge/dashboard" replace />} />
           <Route path="dashboard" element={<InchargeDashboardPage />} />
-          <Route path="students" element={<InchargeStudentsPage />} />
+          <Route path="hostel" element={<InchargeHostelOverviewPage />} />
+          <Route path="overview" element={<Navigate to="/hostel-incharge/hostel" replace />} />
           <Route path="rooms" element={<InchargeRoomsPage />} />
-          <Route path="complaints" element={<InchargeComplaintsPage />} />
+          <Route path="students" element={<InchargeStudentsPage />} />
+          <Route path="residents" element={<Navigate to="/hostel-incharge/students" replace />} />
+          <Route path="allocations" element={<InchargeAllocationsPage />} />
           <Route path="attendance" element={<InchargeAttendancePage />} />
+          <Route path="leaves" element={<InchargeLeavesPage />} />
+          <Route path="gate-passes" element={<InchargeGatePassesPage />} />
+          <Route path="outings" element={<Navigate to="/hostel-incharge/gate-passes" replace />} />
+          <Route path="visitors" element={<InchargeVisitorsPage />} />
+          <Route path="parcels" element={<InchargeParcelsPage />} />
+          <Route path="emergency" element={<InchargeSOSPage />} />
+          <Route path="sos" element={<Navigate to="/hostel-incharge/emergency" replace />} />
+          <Route path="complaints" element={<InchargeComplaintsPage />} />
+          <Route path="maintenance" element={<InchargeMaintenancePage />} />
+          <Route path="mess" element={<InchargeMessPage />} />
+          <Route path="food" element={<Navigate to="/hostel-incharge/mess" replace />} />
+          <Route path="announcements" element={<InchargeAnnouncementsPage />} />
+          <Route path="notices" element={<Navigate to="/hostel-incharge/announcements" replace />} />
+          <Route path="documents" element={<InchargeDocumentsPage />} />
+          <Route path="reports" element={<InchargeReportsPage />} />
+          <Route path="audit" element={<InchargeAuditLogPage />} />
+          <Route path="audit-logs" element={<Navigate to="/hostel-incharge/audit" replace />} />
         </Route>
 
         {/* ============================================================== */}

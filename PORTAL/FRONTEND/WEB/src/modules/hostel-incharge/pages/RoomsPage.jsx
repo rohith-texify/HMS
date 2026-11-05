@@ -1,798 +1,1426 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import api from '../../../shared/api/api';
-import adminService from '../../admin/services/adminService';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
+import inchargeService from '../services/inchargeService';
+import { PERMISSIONS } from '../constants/permissions';
+import PageHeader from '../components/PageHeader';
+import LoadingState from '../components/LoadingState';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorState from '../components/ErrorState';
+import EmptyState from '../components/EmptyState';
+import Modal from '../components/Modal';
+import Badge from '../components/Badge';
+import Button from '../components/Button';
+import SearchInput from '../components/SearchInput';
 import {
   BedDouble,
   Building2,
-  Search,
   RefreshCw,
   LayoutGrid,
   List,
-  UserCheck,
+  Eye,
+  SlidersHorizontal,
   CheckCircle2,
-  Calendar,
-  Layers,
-  ArrowRight,
-  Plus,
-  Trash2,
-  AlertCircle,
-  Users,
+  Info,
+  DoorOpen
 } from 'lucide-react';
-import { LoadingState, EmptyState, Modal } from '../../../shared/components';
 
-export default function InchargeRoomsPage() {
-  const [myHostel, setMyHostel] = useState(null);
-  const [residents, setResidents] = useState([]);
+export default function RoomsPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { assignedHostel } = useAuth();
+  const { hasPermission } = usePermissions();
+
+  const canManage = hasPermission(PERMISSIONS.HOSTEL_MANAGE) || hasPermission(PERMISSIONS.PEOPLE_MANAGE);
+
+  // URL search params pre-selection
+  const initialBlockId = searchParams.get('blockId');
+  const initialFloorId = searchParams.get('floorId');
+
+  // Master Data
+  const [hostelData, setHostelData] = useState(null);
+  const [blocks, setBlocks] = useState([]);
+  const [selectedBlockId, setSelectedBlockId] = useState(initialBlockId || '');
+  const [floors, setFloors] = useState([]);
+  const [selectedFloorId, setSelectedFloorId] = useState(initialFloorId || '');
+  const [rooms, setRooms] = useState([]);
   const [vacantBeds, setVacantBeds] = useState([]);
-  const [unallocatedStudents, setUnallocatedStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, OCCUPIED, VACANT
-  const [displayMode, setDisplayMode] = useState('CARDS');
+  const [residents, setResidents] = useState([]);
 
-  // Allocate Student Modal State
-  const [isAllocateModalOpen, setIsAllocateModalOpen] = useState(false);
-  const [allocateFormData, setAllocateFormData] = useState({
-    student_id: '',
-    bed_id: '',
-    allocation_type: 'REGULAR',
-    allocated_at: new Date().toISOString().split('T')[0],
-    remarks: '',
-  });
-  const [allocateSubmitting, setAllocateSubmitting] = useState(false);
-  const [allocateError, setAllocateError] = useState(null);
-  const [allocateSuccess, setAllocateSuccess] = useState(null);
+  // Loading & State flags
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingRooms, setLoadingRooms] = useState(false);
+    const [error, setError] = useState(null);
+  const [successBanner, setSuccessBanner] = useState(null);
 
-  // Vacate Modal State
-  const [vacateConfirmOpen, setVacateConfirmOpen] = useState(false);
-  const [selectedAllocation, setSelectedAllocation] = useState(null);
-  const [vacateSubmitting, setVacateSubmitting] = useState(false);
+  // View & Filter State
+  const [viewMode, setViewMode] = useState('GRID'); // 'GRID' | 'TABLE'
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roomTypeFilter, setRoomTypeFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [occupancyFilter, setOccupancyFilter] = useState('ALL');
 
-  const loadData = useCallback(async (manual = false) => {
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(12);
+
+  // Room Detail Modal State
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [roomBeds, setRoomBeds] = useState([]);
+  const [loadingBeds, setLoadingBeds] = useState(false);
+
+  // Operational Status Modal State
+  const [statusTarget, setStatusTarget] = useState(null); // { type: 'ROOM'|'BED', item: object, room?: object }
+  const [targetStatusValue, setTargetStatusValue] = useState('ACTIVE');
+  const [statusSubmitting, setStatusSubmitting] = useState(false);
+  const [statusError, setStatusError] = useState(null);
+
+  // Auto-dismiss banner
+  useEffect(() => {
+    if (successBanner) {
+      const timer = setTimeout(() => setSuccessBanner(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successBanner]);
+
+  // 1. Initial Load: Hostel, Blocks, Vacant Beds, and Residents
+  const loadInitialData = useCallback(async () => {
     try {
-      if (manual) setIsRefreshing(true);
-      else setLoading(true);
+      setLoadingInitial(true);
+      setError(null);
 
-      const hostelRes = await adminService.getMyHostel();
-      const hostel = hostelRes.data || hostelRes;
-      setMyHostel(hostel);
+      const hostel = await inchargeService.getMyHostel();
+      setHostelData(hostel);
 
-      if (hostel?.hostel_id) {
-        const [resRes, bedRes, unallocRes] = await Promise.allSettled([
-          adminService.getHostelResidents(hostel.hostel_id),
-          adminService.getHostelVacantBeds(hostel.hostel_id),
-          adminService.getUnallocatedStudents(),
-        ]);
+      const hostelId = hostel?.id || hostel?.hostel_id || assignedHostel?.id;
+      if (!hostelId) {
+        throw new Error('No assigned hostel found for the authenticated user.');
+      }
 
-        if (resRes.status === 'fulfilled') {
-          const d = resRes.value.data || resRes.value;
-          setResidents(Array.isArray(d) ? d : []);
+      // Parallel fetch blocks, vacant beds, and residents
+      const [blocksRes, vacantBedsRes, residentsRes] = await Promise.allSettled([
+        inchargeService.getBlocks(hostelId),
+        inchargeService.getVacantBeds(hostelId),
+        inchargeService.getHostelResidents(hostelId),
+      ]);
+
+      const rawBlocks = blocksRes.status === 'fulfilled' ? blocksRes.value : [];
+      const validBlocks = Array.isArray(rawBlocks) ? rawBlocks : [];
+      setBlocks(validBlocks);
+
+      setVacantBeds(
+        vacantBedsRes.status === 'fulfilled' && Array.isArray(vacantBedsRes.value)
+          ? vacantBedsRes.value
+          : []
+      );
+      setResidents(
+        residentsRes.status === 'fulfilled' && Array.isArray(residentsRes.value)
+          ? residentsRes.value
+          : []
+      );
+
+      // Resolve initial block selection
+      let activeBlockId = selectedBlockId;
+      if (!activeBlockId && validBlocks.length > 0) {
+        activeBlockId = validBlocks[0].id;
+        setSelectedBlockId(activeBlockId);
+      }
+
+      if (activeBlockId) {
+        const floorsData = await inchargeService.getFloors(hostelId, activeBlockId);
+        const validFloors = Array.isArray(floorsData) ? floorsData : [];
+        setFloors(validFloors);
+
+        let activeFloorId = selectedFloorId;
+        if (!activeFloorId && validFloors.length > 0) {
+          activeFloorId = validFloors[0].id;
+          setSelectedFloorId(activeFloorId);
         }
-        if (bedRes.status === 'fulfilled') {
-          const d = bedRes.value.data || bedRes.value;
-          setVacantBeds(Array.isArray(d) ? d : []);
-        }
-        if (unallocRes.status === 'fulfilled') {
-          const d = unallocRes.value.data || unallocRes.value;
-          setUnallocatedStudents(Array.isArray(d) ? d : []);
+
+        if (activeFloorId) {
+          await fetchRoomsForFloor(hostelId, activeBlockId, activeFloorId);
         }
       }
     } catch (err) {
-      console.error('Failed to load incharge rooms data:', err);
+      console.error('Initial room data loading failed:', err);
+      setError(err.message || 'Failed to initialize hostel room operations.');
     } finally {
-      setLoading(false);
-      setIsRefreshing(false);
+      setLoadingInitial(false);
     }
-  }, []);
+  }, [assignedHostel, selectedBlockId, selectedFloorId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    loadInitialData();
+  }, [loadInitialData]);
 
-  // Combine occupied residents and vacant beds for unified view
-  const allBeds = useMemo(() => {
-    const list = [];
+  // 2. Fetch rooms for a specific floor
+  const fetchRoomsForFloor = async (hostelId, blockId, floorId) => {
+    if (!hostelId || !blockId || !floorId) return;
+    try {
+      setLoadingRooms(true);
+      const data = await inchargeService.getRooms(hostelId, blockId, floorId);
+      setRooms(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load rooms:', err);
+      setRooms([]);
+    } finally {
+      setLoadingRooms(false);
+    }
+  };
+
+  // Handle block switch
+  const handleBlockChange = async (newBlockId) => {
+    setSelectedBlockId(newBlockId);
+    setSelectedFloorId('');
+    setRooms([]);
+    setCurrentPage(1);
+
+    const hostelId = hostelData?.id || hostelData?.hostel_id || assignedHostel?.id;
+    if (newBlockId && hostelId) {
+      try {
+        setLoadingRooms(true);
+        const floorsData = await inchargeService.getFloors(hostelId, newBlockId);
+        const validFloors = Array.isArray(floorsData) ? floorsData : [];
+        setFloors(validFloors);
+        if (validFloors.length > 0) {
+          const firstFloorId = validFloors[0].id;
+          setSelectedFloorId(firstFloorId);
+          await fetchRoomsForFloor(hostelId, newBlockId, firstFloorId);
+        }
+      } catch (err) {
+        console.error('Failed to load floors on block change:', err);
+      } finally {
+        setLoadingRooms(false);
+      }
+    }
+  };
+
+  // Handle floor switch
+  const handleFloorChange = async (newFloorId) => {
+    setSelectedFloorId(newFloorId);
+    setCurrentPage(1);
+    const hostelId = hostelData?.id || hostelData?.hostel_id || assignedHostel?.id;
+    if (hostelId && selectedBlockId && newFloorId) {
+      await fetchRoomsForFloor(hostelId, selectedBlockId, newFloorId);
+    }
+  };
+
+  // 3. Algorithmic High-Efficiency Mappings (O(n) construction, O(1) lookups)
+  const { residentBedMap, residentRoomCountMap } = useMemo(() => {
+    const resBedMap = new Map();
+    const resRoomMap = new Map();
     residents.forEach((r) => {
-      list.push({
-        id: r.allocation_id,
-        bed_id: r.bed_id,
-        bed_name: r.bed_name,
-        room_code: r.room_code || r.room_name,
-        room_name: r.room_name,
-        block_name: r.block_name,
-        is_occupied: true,
-        resident_name: r.full_name,
-        student_id: r.student_id,
-        admission_number: r.admission_number,
-        allocated_at: r.allocated_at,
-        allocation_id: r.allocation_id,
-        status: 'OCCUPIED',
-      });
+      if (r.bed_id) resBedMap.set(r.bed_id, r);
+      if (r.room_id) {
+        resRoomMap.set(r.room_id, (resRoomMap.get(r.room_id) || 0) + 1);
+      }
     });
 
-    vacantBeds.forEach((b) => {
-      list.push({
-        id: b.bed_id,
-        bed_id: b.bed_id,
-        bed_name: b.bed_name,
-        room_code: b.room_code || b.room_name,
-        room_name: b.room_name,
-        block_name: b.block_name,
-        is_occupied: false,
-        status: 'VACANT',
-      });
+    const vacMap = new Map();
+    vacantBeds.forEach((v) => {
+      if (v.room_id) {
+        vacMap.set(v.room_id, (vacMap.get(v.room_id) || 0) + 1);
+      }
     });
 
-    return list;
+    return {
+      residentBedMap: resBedMap,
+      residentRoomCountMap: resRoomMap,
+      vacantBedCountMap: vacMap,
+    };
   }, [residents, vacantBeds]);
 
-  const filteredBeds = useMemo(() => {
-    return allBeds.filter((b) => {
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !search ||
-        (b.room_code || '').toLowerCase().includes(q) ||
-        (b.bed_name || '').toLowerCase().includes(q) ||
-        (b.resident_name || '').toLowerCase().includes(q) ||
-        (b.admission_number || '').toLowerCase().includes(q);
+  // 4. Client Search & Filtering
+  const filteredRooms = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return rooms.filter((room) => {
+      // Search query filter (matches room code, name, type)
+      if (term) {
+        const codeMatch = String(room.code || '').toLowerCase().includes(term);
+        const nameMatch = String(room.name || '').toLowerCase().includes(term);
+        const typeMatch = String(room.room_type || '').toLowerCase().includes(term);
+        if (!codeMatch && !nameMatch && !typeMatch) return false;
+      }
 
-      const matchesStatus =
-        statusFilter === 'ALL' || b.status === statusFilter;
+      // Room Type filter
+      if (roomTypeFilter !== 'ALL' && room.room_type !== roomTypeFilter) {
+        return false;
+      }
 
-      return matchesSearch && matchesStatus;
+      // Status filter
+      if (statusFilter !== 'ALL' && room.status !== statusFilter) {
+        return false;
+      }
+
+      // Occupancy filter
+      const capacity = Number(room.capacity || 0);
+      const occupied = residentRoomCountMap.get(room.id) || 0;
+      const vacant = Math.max(0, capacity - occupied);
+
+      if (occupancyFilter === 'AVAILABLE' && vacant <= 0) return false;
+      if (occupancyFilter === 'FULL' && (vacant > 0 || capacity === 0)) return false;
+      if (occupancyFilter === 'EMPTY' && occupied > 0) return false;
+
+      return true;
     });
-  }, [allBeds, search, statusFilter]);
+  }, [rooms, searchTerm, roomTypeFilter, statusFilter, occupancyFilter, residentRoomCountMap]);
 
-  const handleOpenAllocateModal = (preselectedBed = null) => {
-    setAllocateError(null);
-    setAllocateSuccess(null);
-    setAllocateFormData({
-      student_id: unallocatedStudents[0]?.student_id || '',
-      bed_id: preselectedBed?.bed_id || vacantBeds[0]?.bed_id || '',
-      allocation_type: 'REGULAR',
-      allocated_at: new Date().toISOString().split('T')[0],
-      remarks: '',
-    });
-    setIsAllocateModalOpen(true);
-  };
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(filteredRooms.length / pageSize));
+  const paginatedRooms = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRooms.slice(start, start + pageSize);
+  }, [filteredRooms, currentPage, pageSize]);
 
-  const handleAllocateSubmit = async (e) => {
-    e.preventDefault();
-    setAllocateError(null);
-    setAllocateSuccess(null);
+  // Open Room Detail Modal & Load beds on demand
+  const handleOpenRoomDetail = async (room) => {
+    setSelectedRoom(room);
+    setDetailModalOpen(true);
+    setRoomBeds([]);
+    setLoadingBeds(true);
 
-    if (!allocateFormData.student_id) {
-      setAllocateError('Please select an enrolled student to allocate.');
-      return;
-    }
-    if (!allocateFormData.bed_id) {
-      setAllocateError('Please select an available bed space.');
-      return;
-    }
-
+    const hostelId = hostelData?.id || hostelData?.hostel_id || assignedHostel?.id;
     try {
-      setAllocateSubmitting(true);
-      await api.post('/college/bed-allocations', {
-        student_id: allocateFormData.student_id,
-        bed_id: allocateFormData.bed_id,
-        allocation_type: allocateFormData.allocation_type || 'REGULAR',
-        allocated_at: new Date(allocateFormData.allocated_at).toISOString(),
-        remarks: allocateFormData.remarks ? allocateFormData.remarks : null,
-      });
-
-      setAllocateSuccess('Student assigned to bed slot successfully!');
-      await loadData(true);
-
-      setTimeout(() => {
-        setIsAllocateModalOpen(false);
-        setAllocateSuccess(null);
-      }, 1400);
+      const beds = await inchargeService.getBeds(hostelId, selectedBlockId, selectedFloorId, room.id);
+      setRoomBeds(Array.isArray(beds) ? beds : []);
     } catch (err) {
-      console.error('Failed to allocate student:', err);
-      setAllocateError(err.response?.data?.message || err.message || 'Failed to complete bed allocation.');
+      console.error('Failed to load beds for room:', err);
     } finally {
-      setAllocateSubmitting(false);
+      setLoadingBeds(false);
     }
   };
 
-  const handleOpenVacateConfirm = (allocation) => {
-    setSelectedAllocation(allocation);
-    setVacateConfirmOpen(true);
-  };
+  // Operational Status update submit
+  const handleStatusSubmit = async () => {
+    if (!statusTarget) return;
+    setStatusSubmitting(true);
+    setStatusError(null);
 
-  const handleVacateConfirm = async () => {
-    if (!selectedAllocation) return;
-
+    const hostelId = hostelData?.id || hostelData?.hostel_id || assignedHostel?.id;
     try {
-      setVacateSubmitting(true);
-      await api.patch(`/college/bed-allocations/${selectedAllocation.allocation_id}/release`, {
-        released_at: new Date().toISOString(),
-        status: 'RELEASED',
-      });
-
-      setVacateConfirmOpen(false);
-      setSelectedAllocation(null);
-      await loadData(true);
+      if (statusTarget.type === 'ROOM') {
+        await inchargeService.updateRoomStatus(
+          hostelId,
+          selectedBlockId,
+          selectedFloorId,
+          statusTarget.item.id,
+          targetStatusValue
+        );
+        setSuccessBanner(`Room "${statusTarget.item.name}" status updated to ${targetStatusValue}.`);
+        // Refresh rooms
+        await fetchRoomsForFloor(hostelId, selectedBlockId, selectedFloorId);
+        if (selectedRoom?.id === statusTarget.item.id) {
+          setSelectedRoom((prev) => ({ ...prev, status: targetStatusValue }));
+        }
+      } else if (statusTarget.type === 'BED') {
+        const roomId = statusTarget.room?.id || selectedRoom?.id;
+        await inchargeService.updateBedStatus(
+          hostelId,
+          selectedBlockId,
+          selectedFloorId,
+          roomId,
+          statusTarget.item.id,
+          targetStatusValue
+        );
+        setSuccessBanner(`Bed "${statusTarget.item.code}" status updated to ${targetStatusValue}.`);
+        // Refresh beds in modal
+        const beds = await inchargeService.getBeds(hostelId, selectedBlockId, selectedFloorId, roomId);
+        setRoomBeds(Array.isArray(beds) ? beds : []);
+      }
+      setStatusTarget(null);
     } catch (err) {
-      console.error('Failed to release allocation:', err);
-      alert(err.response?.data?.message || 'Failed to release bed slot.');
+      console.error('Status update failed:', err);
+      setStatusError(err.response?.data?.message || err.message || 'Failed to update operational status.');
     } finally {
-      setVacateSubmitting(false);
+      setStatusSubmitting(false);
     }
   };
+
+    const activeBlock = blocks.find((b) => b.id === selectedBlockId);
+  const activeFloor = floors.find((f) => f.id === selectedFloorId);
 
   return (
-    <div className="fade-in-up">
-      {/* Supervisory Facility Scope Banner */}
-      {myHostel && (
+    <div>
+      <PageHeader
+        title="Room & Bed Operations"
+        description="Operational room directory, bed allocation states, occupancy telemetry, and status maintenance."
+        icon={BedDouble}
+        actions={
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Button
+              variant="outline"
+              size="sm"
+              icon={RefreshCw}
+              onClick={() => {
+                const hostelId = hostelData?.id || hostelData?.hostel_id || assignedHostel?.id;
+                if (hostelId && selectedBlockId && selectedFloorId) {
+                  fetchRoomsForFloor(hostelId, selectedBlockId, selectedFloorId);
+                }
+              }}
+              loading={loadingRooms}
+            >
+              Sync Rooms
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={Building2}
+              onClick={() => navigate('/hostel')}
+            >
+              Hostel Overview
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Success Notification */}
+      {successBanner && (
         <div
           style={{
-            background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-            borderRadius: '12px',
-            padding: '14px 20px',
-            color: '#ffffff',
+            backgroundColor: 'var(--success-bg)',
+            border: '1px solid var(--success-border)',
+            borderRadius: '8px',
+            padding: '12px 18px',
+            marginBottom: '20px',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
             gap: '12px',
+            color: 'var(--success-text)',
+            fontSize: '0.88rem',
+            fontWeight: 500,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: '10px',
-                background: 'rgba(255, 255, 255, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Building2 size={20} style={{ color: '#a5b4fc' }} />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <strong style={{ fontSize: '1.05rem' }}>{myHostel.hostel_name}</strong>
-                <span className="code-pill" style={{ background: '#4338ca', color: '#e0e7ff' }}>
-                  {myHostel.hostel_code || 'HOSTEL'}
-                </span>
-                <span className="badge-enterprise badge-purple">
-                  {myHostel.hostel_type || 'RESIDENTIAL'}
-                </span>
-              </div>
-              <span style={{ fontSize: '11.5px', color: '#c7d2fe', marginTop: '2px', display: 'block' }}>
-                Supervised by: <strong>{myHostel.staff_name}</strong> &bull; Managing room inventory &amp; resident beds
-              </span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span
-              style={{
-                fontSize: '12px',
-                color: '#e0e7ff',
-                background: 'rgba(255, 255, 255, 0.1)',
-                padding: '6px 12px',
-                borderRadius: '8px',
-              }}
-            >
-              Occupancy: <strong>{residents.length} Occupied / {vacantBeds.length} Vacant</strong>
-            </span>
-          </div>
+          <CheckCircle2 size={18} />
+          <span>{successBanner}</span>
         </div>
       )}
 
-      {/* Enterprise Hero Header */}
-      <div className="enterprise-hero-header">
-        <div className="hero-header-titles">
-          <div className="hero-category-pill">
-            <BedDouble size={13} />
-            <span>Room &amp; Bed Inventory</span>
-          </div>
-          <h1 className="hero-main-title">Bed Space Inventory &amp; Room Allocations</h1>
-          <p className="hero-subtitle">
-            Review room occupancy, allocate students to available vacant slots, and monitor resident housing within {myHostel?.hostel_name || 'this facility'}.
-          </p>
-        </div>
-
-        <div className="hero-action-buttons">
-          <button
-            type="button"
-            className="btn-enterprise-secondary"
-            onClick={() => loadData(true)}
-            disabled={isRefreshing}
-          >
-            <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
-            <span>{isRefreshing ? 'Syncing...' : 'Sync Inventory'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="btn-enterprise-primary"
-            onClick={() => handleOpenAllocateModal()}
-            disabled={vacantBeds.length === 0}
-          >
-            <Plus size={15} />
-            <span>Allocate Student to Bed</span>
-          </button>
+      {/* Ownership Boundary Notice */}
+      <div
+        style={{
+          backgroundColor: '#eff6ff',
+          border: '1px solid #bfdbfe',
+          borderRadius: '8px',
+          padding: '12px 18px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          color: '#1e40af',
+          fontSize: '0.85rem',
+        }}
+      >
+        <Info size={18} style={{ flexShrink: 0 }} />
+        <div>
+          <strong>Operational Maintenance:</strong> Room specifications, codes, and design capacities are provisioned
+          by College Administration. Hostel In-Charges oversee bed occupancy telemetry, resident assignments, and operational maintenance statuses.
         </div>
       </div>
 
-      {/* KPI Stats Bar */}
-      <div className="kpi-cards-grid" style={{ marginBottom: '24px' }}>
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Occupied Beds</span>
-            <div className="stat-kpi-icon-wrap purple">
-              <UserCheck size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-purple-600">{residents.length}</div>
-          <div className="stat-kpi-footnote">
-            <span className="status-dot green" />
-            <span>Students officially housed</span>
-          </div>
-        </div>
+      {loadingInitial && <LoadingState title="Loading Room Operations Workspace..." rows={4} />}
+      {error && (
+        <ErrorState
+          title="Unable to Access Room Operations"
+          message={error}
+          onRetry={loadInitialData}
+        />
+      )}
 
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Vacant Bed Spaces</span>
-            <div className="stat-kpi-icon-wrap green">
-              <BedDouble size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-green-600">{vacantBeds.length}</div>
-          <div className="stat-kpi-footnote">
-            <span>Available for new residents</span>
-          </div>
-        </div>
-
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Total Bed Spaces</span>
-            <div className="stat-kpi-icon-wrap blue">
-              <Layers size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-blue-600">{allBeds.length}</div>
-          <div className="stat-kpi-footnote">
-            <span>Configured inventory slots</span>
-          </div>
-        </div>
-
-        <div className="stat-kpi-card">
-          <div className="stat-kpi-header">
-            <span className="stat-kpi-label">Occupancy Rate</span>
-            <div className="stat-kpi-icon-wrap orange">
-              <CheckCircle2 size={17} />
-            </div>
-          </div>
-          <div className="stat-kpi-value text-orange-600">
-            {allBeds.length > 0 ? `${Math.round((residents.length / allBeds.length) * 100)}%` : '0%'}
-          </div>
-          <div className="stat-kpi-footnote">
-            <span>Current utilization</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Container Card */}
-      <div className="enterprise-card">
-        <div className="card-topbar">
-          <div className="card-title-group">
-            <div className="card-title-icon-wrap">
-              <BedDouble size={16} />
-            </div>
-            <h2 className="card-title-text">
-              {myHostel?.hostel_name || 'Hostel'} Bed Spaces &amp; Occupancy
-            </h2>
-          </div>
-
-          {/* View Switcher & Tally */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="stats-tally-pill" style={{ color: '#4338ca', background: '#e0e7ff', borderColor: '#c7d2fe' }}>
-              <BedDouble size={12} />
-              <span>{filteredBeds.length} of {allBeds.length} Slots</span>
-            </span>
-
-            <div className="view-mode-toggle">
-              <button
-                type="button"
-                className={`view-mode-btn ${displayMode === 'CARDS' ? 'active' : ''}`}
-                onClick={() => setDisplayMode('CARDS')}
-                title="Card Grid View"
-              >
-                <LayoutGrid size={13} />
-                <span>Cards</span>
-              </button>
-              <button
-                type="button"
-                className={`view-mode-btn ${displayMode === 'TABLE' ? 'active' : ''}`}
-                onClick={() => setDisplayMode('TABLE')}
-                title="Table View"
-              >
-                <List size={13} />
-                <span>Table</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter Toolbar */}
-        <div className="enterprise-filter-bar">
-          <div className="filter-search-field">
-            <Search size={14} className="filter-search-icon" />
-            <input
-              type="text"
-              className="filter-search-input"
-              placeholder="Search by room, bed, resident name, admission no..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <select
-              className="filter-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="ALL">All Slots (Occupied &amp; Vacant)</option>
-              <option value="OCCUPIED">Occupied Beds Only</option>
-              <option value="VACANT">Vacant Beds Only</option>
-            </select>
-          </div>
-        </div>
-
-        {loading ? (
-          <div style={{ padding: '36px', textAlign: 'center' }}>
-            <LoadingState message="Loading room and bed inventory..." />
-          </div>
-        ) : filteredBeds.length === 0 ? (
-          <div style={{ padding: '36px', textAlign: 'center' }}>
-            <EmptyState
-              title="No bed spaces found"
-              message="No slots match your current filter in this facility."
-            />
-          </div>
-        ) : displayMode === 'CARDS' ? (
-          /* Cards Grid */
-          <div className="beds-grid-cards" style={{ padding: '16px' }}>
-            {filteredBeds.map((b) => (
-              <div
-                key={b.id}
-                className={`bed-slot-card ${b.is_occupied ? 'occupied' : 'vacant'}`}
-              >
-                <div>
-                  <div className="bed-card-header">
-                    <div className="bed-card-identifier">
-                      <div className={`bed-icon-badge ${b.is_occupied ? 'occupied' : 'vacant'}`}>
-                        <BedDouble size={20} />
-                      </div>
-                      <div>
-                        <h3 className="bed-code-title">Room {b.room_code}</h3>
-                        <p className="bed-name-sub">{b.bed_name} {b.block_name ? `• ${b.block_name}` : ''}</p>
-                      </div>
-                    </div>
-
-                    <span
-                      className={`badge-enterprise ${b.is_occupied ? 'badge-purple' : 'badge-green'}`}
-                    >
-                      {b.is_occupied ? 'OCCUPIED' : 'VACANT'}
-                    </span>
-                  </div>
-
-                  <div className="bed-card-body">
-                    {b.is_occupied ? (
-                      <div className="bed-resident-box">
-                        <div className="resident-avatar-circle">
-                          {(b.resident_name || 'R')[0].toUpperCase()}
-                        </div>
-                        <div className="resident-details">
-                          <span className="resident-name">{b.resident_name}</span>
-                          <span className="resident-adm-no">
-                            <span>Adm:</span>
-                            <strong>{b.admission_number}</strong>
-                          </span>
-                        </div>
-                      </div>
-                    ) : (
-                      <div
-                        style={{
-                          background: '#f8fafc',
-                          border: '1px dashed #cbd5e1',
-                          borderRadius: '8px',
-                          padding: '12px',
-                          textAlign: 'center',
-                          color: '#64748b',
-                          fontSize: '12px',
-                        }}
-                      >
-                        Vacant Slot Ready for Student Assignment
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bed-card-footer">
-                  {b.is_occupied ? (
-                    <>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', color: '#64748b' }}>
-                        <Calendar size={12} />
-                        <span>Allocated: {b.allocated_at ? String(b.allocated_at).split('T')[0] : 'Current Term'}</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="btn-enterprise-secondary"
-                        style={{ padding: '3px 8px', fontSize: '11px', color: '#dc2626', borderColor: '#fca5a5' }}
-                        onClick={() => handleOpenVacateConfirm(b)}
-                      >
-                        <Trash2 size={11} />
-                        <span>Vacate</span>
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn-enterprise-primary"
-                      style={{ width: '100%', fontSize: '11.5px', padding: '4px' }}
-                      onClick={() => handleOpenAllocateModal(b)}
-                    >
-                      <Plus size={12} />
-                      <span>Allocate Student Here</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* Table View */
-          <div className="enterprise-table-container">
-            <table className="enterprise-table">
-              <thead>
-                <tr>
-                  <th>Room Code</th>
-                  <th>Bed Space</th>
-                  <th>Resident Student</th>
-                  <th>Admission No</th>
-                  <th>Slot Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBeds.map((b) => (
-                  <tr key={b.id}>
-                    <td>
-                      <strong style={{ color: '#0f172a' }}>Room {b.room_code}</strong>
-                    </td>
-                    <td>
-                      <span className="badge-enterprise badge-purple">{b.bed_name}</span>
-                    </td>
-                    <td>
-                      {b.is_occupied ? (
-                        <strong style={{ color: '#0f172a', fontSize: '13px' }}>
-                          {b.resident_name}
-                        </strong>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '12px' }}>Unoccupied</span>
-                      )}
-                    </td>
-                    <td>
-                      {b.is_occupied ? (
-                        <span className="code-pill">{b.admission_number}</span>
-                      ) : (
-                        <span style={{ color: '#94a3b8' }}>&mdash;</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`badge-enterprise ${b.is_occupied ? 'badge-purple' : 'badge-green'}`}>
-                        {b.is_occupied ? 'OCCUPIED' : 'VACANT'}
-                      </span>
-                    </td>
-                    <td>
-                      {b.is_occupied ? (
-                        <button
-                          type="button"
-                          className="btn-enterprise-secondary"
-                          style={{ padding: '3px 8px', fontSize: '11px', color: '#dc2626' }}
-                          onClick={() => handleOpenVacateConfirm(b)}
-                        >
-                          Vacate Bed
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-enterprise-primary"
-                          style={{ padding: '3px 8px', fontSize: '11px' }}
-                          onClick={() => handleOpenAllocateModal(b)}
-                        >
-                          Allocate
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* =================================================================== */}
-      {/* MODAL: Allocate Student to Bed                                      */}
-      {/* =================================================================== */}
-      {isAllocateModalOpen && (
-        <Modal
-          isOpen={isAllocateModalOpen}
-          onClose={() => setIsAllocateModalOpen(false)}
-          title={`Allocate Student to Bed in ${myHostel?.hostel_name || 'Hostel'}`}
-        >
-          {allocateError && (
+      {!loadingInitial && !error && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Hierarchy Filter Bar */}
+          <div className="card" style={{ padding: '18px 24px' }}>
             <div
               style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                color: '#991b1b',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                marginBottom: '16px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: '16px',
+                alignItems: 'flex-end',
               }}
             >
-              {allocateError}
-            </div>
-          )}
-
-          {allocateSuccess && (
-            <div
-              style={{
-                background: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                color: '#166534',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                marginBottom: '16px',
-              }}
-            >
-              {allocateSuccess}
-            </div>
-          )}
-
-          <form onSubmit={handleAllocateSubmit}>
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                Select Student *
-              </label>
-              <select
-                className="filter-select"
-                style={{ width: '100%' }}
-                value={allocateFormData.student_id}
-                onChange={(e) => setAllocateFormData({ ...allocateFormData, student_id: e.target.value })}
-                required
-              >
-                <option value="">-- Choose Unallocated Student --</option>
-                {unallocatedStudents.map((s) => (
-                  <option key={s.student_id} value={s.student_id}>
-                    {s.full_name} ({s.admission_number}{s.roll_number ? ` - Roll: ${s.roll_number}` : ''})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                Select Vacant Bed Space *
-              </label>
-              <select
-                className="filter-select"
-                style={{ width: '100%' }}
-                value={allocateFormData.bed_id}
-                onChange={(e) => setAllocateFormData({ ...allocateFormData, bed_id: e.target.value })}
-                required
-              >
-                <option value="">-- Choose Vacant Bed --</option>
-                {vacantBeds.map((b) => (
-                  <option key={b.bed_id} value={b.bed_id}>
-                    Room {b.room_code || b.room_name} - {b.bed_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+              {/* Block Selection */}
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Allocation Date
-                </label>
-                <input
-                  type="date"
-                  className="filter-search-input"
-                  style={{ width: '100%' }}
-                  value={allocateFormData.allocated_at}
-                  onChange={(e) => setAllocateFormData({ ...allocateFormData, allocated_at: e.target.value })}
-                  required
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  Allocation Type
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Architectural Block:
                 </label>
                 <select
-                  className="filter-select"
-                  style={{ width: '100%' }}
-                  value={allocateFormData.allocation_type}
-                  onChange={(e) => setAllocateFormData({ ...allocateFormData, allocation_type: e.target.value })}
+                  value={selectedBlockId}
+                  onChange={(e) => handleBlockChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    fontSize: '0.86rem',
+                    fontWeight: 500,
+                  }}
                 >
-                  <option value="REGULAR">Regular Resident</option>
-                  <option value="TEMPORARY">Temporary / Guest</option>
+                  {blocks.length === 0 ? (
+                    <option value="">No Blocks Available</option>
+                  ) : (
+                    blocks.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        Block {b.name} ({b.code})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Floor Selection */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Configured Floor:
+                </label>
+                <select
+                  value={selectedFloorId}
+                  onChange={(e) => handleFloorChange(e.target.value)}
+                  disabled={floors.length === 0}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: floors.length === 0 ? '#f1f5f9' : '#ffffff',
+                    fontSize: '0.86rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  {floors.length === 0 ? (
+                    <option value="">No Floors in Block</option>
+                  ) : (
+                    floors.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} (Code: {f.code})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+
+              {/* Room Type Filter */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Room Type:
+                </label>
+                <select
+                  value={roomTypeFilter}
+                  onChange={(e) => {
+                    setRoomTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    fontSize: '0.86rem',
+                  }}
+                >
+                  <option value="ALL">All Room Types</option>
+                  <option value="SINGLE">Single Room</option>
+                  <option value="DOUBLE">Double Sharing</option>
+                  <option value="TRIPLE">Triple Sharing</option>
+                  <option value="DORMITORY">Dormitory</option>
+                  <option value="STANDARD">Standard</option>
+                </select>
+              </div>
+
+              {/* Operational Status Filter */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Operational Status:
+                </label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    fontSize: '0.86rem',
+                  }}
+                >
+                  <option value="ALL">All Operational Statuses</option>
+                  <option value="ACTIVE">ACTIVE (Operational)</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                </select>
+              </div>
+
+              {/* Occupancy State Filter */}
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '6px',
+                  }}
+                >
+                  Occupancy State:
+                </label>
+                <select
+                  value={occupancyFilter}
+                  onChange={(e) => {
+                    setOccupancyFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: '#ffffff',
+                    fontSize: '0.86rem',
+                  }}
+                >
+                  <option value="ALL">All Occupancy States</option>
+                  <option value="AVAILABLE">Has Vacant Beds</option>
+                  <option value="FULL">Fully Occupied</option>
+                  <option value="EMPTY">Completely Vacant</option>
                 </select>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn-enterprise-secondary"
-                onClick={() => setIsAllocateModalOpen(false)}
-                disabled={allocateSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="btn-enterprise-primary"
-                disabled={allocateSubmitting}
-              >
-                {allocateSubmitting ? 'Allocating...' : 'Confirm Allocation'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+            {/* Sub-bar: Search Input & View Toggle */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '14px',
+                marginTop: '16px',
+                paddingTop: '16px',
+                borderTop: '1px solid #f1f5f9',
+              }}
+            >
+              <div style={{ flex: '1 1 300px', maxWidth: '400px' }}>
+                <SearchInput
+                  value={searchTerm}
+                  onChange={(val) => {
+                    setSearchTerm(val);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search by room code, name, or type..."
+                  debounceMs={300}
+                />
+              </div>
 
-      {/* =================================================================== */}
-      {/* MODAL: Vacate Bed Confirmation                                      */}
-      {/* =================================================================== */}
-      {vacateConfirmOpen && (
-        <Modal
-          isOpen={vacateConfirmOpen}
-          onClose={() => setVacateConfirmOpen(false)}
-          title="Confirm Vacate Bed"
-        >
-          <div style={{ marginBottom: '16px', fontSize: '13.5px', color: '#334155' }}>
-            Are you sure you want to release the bed in{' '}
-            <strong>Room {selectedAllocation?.room_code} ({selectedAllocation?.bed_name})</strong>{' '}
-            assigned to <strong>{selectedAllocation?.resident_name}</strong>?
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                  Showing <strong>{filteredRooms.length}</strong> matching rooms
+                </span>
+
+                {/* View Mode Toggle Buttons */}
+                <div
+                  style={{
+                    display: 'flex',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('GRID')}
+                    style={{
+                      padding: '6px 12px',
+                      border: 'none',
+                      backgroundColor: viewMode === 'GRID' ? 'var(--primary-light)' : '#ffffff',
+                      color: viewMode === 'GRID' ? 'var(--primary-color)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <LayoutGrid size={15} />
+                    Grid
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('TABLE')}
+                    style={{
+                      padding: '6px 12px',
+                      border: 'none',
+                      backgroundColor: viewMode === 'TABLE' ? 'var(--primary-light)' : '#ffffff',
+                      color: viewMode === 'TABLE' ? 'var(--primary-color)' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <List size={15} />
+                    Table
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button
-              type="button"
-              className="btn-enterprise-secondary"
-              onClick={() => setVacateConfirmOpen(false)}
-              disabled={vacateSubmitting}
+          {/* Rooms Display Container */}
+          {loadingRooms ? (
+            <LoadingState title="Loading Floor Rooms..." rows={3} />
+          ) : filteredRooms.length === 0 ? (
+            <EmptyState
+              icon={DoorOpen}
+              title="No Rooms Match Filter"
+              message={
+                rooms.length === 0
+                  ? `No rooms have been provisioned on Floor ${activeFloor?.name || 'this floor'}.`
+                  : 'Try adjusting your search criteria or operational status filters.'
+              }
+            />
+          ) : viewMode === 'GRID' ? (
+            /* =================== GRID VIEW =================== */
+            <div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))',
+                  gap: '16px',
+                }}
+              >
+                {paginatedRooms.map((room) => {
+                  const capacity = Number(room.capacity || 0);
+                  const occupied = residentRoomCountMap.get(room.id) || 0;
+                  const available = Math.max(0, capacity - occupied);
+                  const fillPercent = capacity > 0 ? Math.min(100, Math.round((occupied / capacity) * 100)) : 0;
+
+                  return (
+                    <div
+                      key={room.id}
+                      style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '16px',
+                        backgroundColor: '#ffffff',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        boxShadow: 'var(--shadow-card)',
+                        transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      }}
+                    >
+                      <div>
+                        {/* Header: Room Name, Code & Status */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '6px',
+                                backgroundColor: 'var(--primary-light)',
+                                color: 'var(--primary-color)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <DoorOpen size={18} />
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.98rem' }}>
+                                Room {room.name}
+                              </div>
+                              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                                Code: <strong>{room.code}</strong>
+                              </div>
+                            </div>
+                          </div>
+                          <Badge
+                            variant={
+                              room.status === 'ACTIVE'
+                                ? 'success'
+                                : room.status === 'MAINTENANCE'
+                                ? 'warning'
+                                : 'neutral'
+                            }
+                          >
+                            {room.status || 'ACTIVE'}
+                          </Badge>
+                        </div>
+
+                        {/* Room Attributes */}
+                        <div
+                          style={{
+                            margin: '12px 0',
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: '#f8fafc',
+                            fontSize: '0.78rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Type:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>{room.room_type || 'Standard'}</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Capacity:</span>
+                            <strong style={{ color: 'var(--text-primary)' }}>{capacity} Beds</strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: 'var(--text-secondary)' }}>Available:</span>
+                            <strong style={{ color: available > 0 ? '#15803d' : '#991b1b' }}>
+                              {available} Vacant
+                            </strong>
+                          </div>
+                        </div>
+
+                        {/* Occupancy Gauge */}
+                        <div style={{ marginBottom: '14px' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '0.74rem',
+                              marginBottom: '4px',
+                            }}
+                          >
+                            <span style={{ color: 'var(--text-muted)' }}>Occupancy</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {occupied} / {capacity} Beds
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              height: '6px',
+                              width: '100%',
+                              backgroundColor: '#e2e8f0',
+                              borderRadius: '3px',
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${fillPercent}%`,
+                                backgroundColor: fillPercent === 100 ? '#2563eb' : '#10b981',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer Actions */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          paddingTop: '12px',
+                          borderTop: '1px solid #f1f5f9',
+                          gap: '8px',
+                        }}
+                      >
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          icon={Eye}
+                          onClick={() => handleOpenRoomDetail(room)}
+                          style={{ flex: 1 }}
+                        >
+                          Beds & Details
+                        </Button>
+
+                        {canManage && (
+                          <button
+                            type="button"
+                            title="Update Operational Status"
+                            onClick={() => {
+                              setStatusTarget({ type: 'ROOM', item: room });
+                              setTargetStatusValue(room.status || 'ACTIVE');
+                            }}
+                            style={{
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: '#ffffff',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <SlidersHorizontal size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            /* =================== TABLE VIEW =================== */
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="table-container" style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-color)' }}>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Room</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Block / Floor</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Type</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Capacity</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Occupied</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Available</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)' }}>Status</th>
+                      <th style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'right' }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedRooms.map((room) => {
+                      const capacity = Number(room.capacity || 0);
+                      const occupied = residentRoomCountMap.get(room.id) || 0;
+                      const available = Math.max(0, capacity - occupied);
+
+                      return (
+                        <tr
+                          key={room.id}
+                          style={{
+                            borderBottom: '1px solid #f1f5f9',
+                            transition: 'background-color 0.15s ease',
+                          }}
+                        >
+                          <td style={{ padding: '12px 16px' }}>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{room.name}</div>
+                            <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>{room.code}</div>
+                          </td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                            {activeBlock?.name || '—'} / {activeFloor?.name || '—'}
+                          </td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-primary)' }}>
+                            {room.room_type || 'Standard'}
+                          </td>
+                          <td style={{ padding: '12px 16px', fontWeight: 600 }}>{capacity}</td>
+                          <td style={{ padding: '12px 16px', color: 'var(--primary-color)', fontWeight: 600 }}>
+                            {occupied}
+                          </td>
+                          <td
+                            style={{
+                              padding: '12px 16px',
+                              fontWeight: 700,
+                              color: available > 0 ? '#15803d' : '#991b1b',
+                            }}
+                          >
+                            {available}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <Badge
+                              variant={
+                                room.status === 'ACTIVE'
+                                  ? 'success'
+                                  : room.status === 'MAINTENANCE'
+                                  ? 'warning'
+                                  : 'neutral'
+                              }
+                            >
+                              {room.status || 'ACTIVE'}
+                            </Badge>
+                          </td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                icon={Eye}
+                                onClick={() => handleOpenRoomDetail(room)}
+                              >
+                                View
+                              </Button>
+                              {canManage && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStatusTarget({ type: 'ROOM', item: room });
+                                    setTargetStatusValue(room.status || 'ACTIVE');
+                                  }}
+                                  style={{
+                                    padding: '5px 8px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--border-color)',
+                                    backgroundColor: '#ffffff',
+                                    color: 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                  }}
+                                  title="Change Status"
+                                >
+                                  <SlidersHorizontal size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Pagination Controls */}
+          {filteredRooms.length > pageSize && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 20px',
+                borderRadius: '8px',
+                backgroundColor: '#ffffff',
+                border: '1px solid var(--border-color)',
+                fontSize: '0.84rem',
+              }}
+            >
+              <div style={{ color: 'var(--text-secondary)' }}>
+                Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =================== ROOM & BED DETAIL MODAL =================== */}
+      <Modal
+        isOpen={detailModalOpen}
+        onClose={() => setDetailModalOpen(false)}
+        title={selectedRoom ? `Room Details — ${selectedRoom.name} (${selectedRoom.code})` : 'Room Details'}
+        subtitle={`Premises Block: ${activeBlock?.name || '—'} • Floor: ${activeFloor?.name || '—'}`}
+        maxWidth="680px"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div>
+              {canManage && selectedRoom && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  icon={SlidersHorizontal}
+                  onClick={() => {
+                    setStatusTarget({ type: 'ROOM', item: selectedRoom });
+                    setTargetStatusValue(selectedRoom.status || 'ACTIVE');
+                  }}
+                >
+                  Change Room Status
+                </Button>
+              )}
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => setDetailModalOpen(false)}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        {selectedRoom && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Room Metadata Card */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '12px',
+                padding: '14px',
+                borderRadius: '8px',
+                backgroundColor: '#f8fafc',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Room Type</span>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.86rem' }}>
+                  {selectedRoom.room_type || 'Standard'}
+                </div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Total Capacity</span>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.86rem' }}>
+                  {selectedRoom.capacity} Beds
+                </div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Occupied</span>
+                <div style={{ fontWeight: 600, color: 'var(--primary-color)', fontSize: '0.86rem' }}>
+                  {residentRoomCountMap.get(selectedRoom.id) || 0} Residents
+                </div>
+              </div>
+              <div>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Operational Status</span>
+                <div>
+                  <Badge
+                    variant={
+                      selectedRoom.status === 'ACTIVE'
+                        ? 'success'
+                        : selectedRoom.status === 'MAINTENANCE'
+                        ? 'warning'
+                        : 'neutral'
+                    }
+                  >
+                    {selectedRoom.status || 'ACTIVE'}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+
+            {selectedRoom.description && (
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                <strong>Description:</strong> {selectedRoom.description}
+              </div>
+            )}
+
+            {/* Bed Inventory Subsection */}
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '10px',
+                }}
+              >
+                <h4
+                  style={{
+                    fontSize: '0.92rem',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <BedDouble size={16} />
+                  Bed Inventory & Allocation Status ({roomBeds.length})
+                </h4>
+              </div>
+
+              {loadingBeds ? (
+                <div style={{ padding: '24px', textAlign: 'center' }}>
+                  <LoadingSpinner message="Loading Bed Allocations..." size="md" />
+                </div>
+              ) : roomBeds.length === 0 ? (
+                <EmptyState
+                  icon={BedDouble}
+                  title="No Beds Configured"
+                  message="No bed slots have been added to this room by College Administration."
+                />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {roomBeds.map((bed) => {
+                    const resident = residentBedMap.get(bed.id);
+                    const isOccupied = Boolean(resident);
+
+                    return (
+                      <div
+                        key={bed.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: isOccupied ? '#f8fafc' : '#ffffff',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div
+                            style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '6px',
+                              backgroundColor: isOccupied ? 'var(--primary-light)' : '#f0fdf4',
+                              color: isOccupied ? 'var(--primary-color)' : '#15803d',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <BedDouble size={16} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.88rem' }}>
+                              Bed {bed.code}
+                              {bed.name ? ` (${bed.name})` : ''}
+                            </div>
+                            <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              {isOccupied ? (
+                                <span>
+                                  Occupied by: <strong>{resident.full_name}</strong> • Roll:{' '}
+                                  <strong>{resident.roll_number || '—'}</strong>
+                                </span>
+                              ) : (
+                                <span style={{ color: '#15803d', fontWeight: 600 }}>
+                                  Vacant / Available for Assignment
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Badge
+                            variant={
+                              bed.status === 'AVAILABLE' || bed.status === 'ACTIVE'
+                                ? 'success'
+                                : bed.status === 'MAINTENANCE'
+                                ? 'warning'
+                                : 'neutral'
+                            }
+                          >
+                            {bed.status || (isOccupied ? 'OCCUPIED' : 'AVAILABLE')}
+                          </Badge>
+
+                          {isOccupied ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigate(`/allocations?bedId=${bed.id}&studentId=${resident.student_id}`);
+                              }}
+                              title="Manage or view bed allocation record"
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--primary-border)',
+                                backgroundColor: 'var(--primary-light)',
+                                color: 'var(--primary-color)',
+                                fontSize: '0.74rem',
+                                cursor: 'pointer',
+                                fontWeight: 600,
+                              }}
+                            >
+                              Allocation
+                            </button>
+                          ) : (
+                            canManage && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigate(`/allocations?bedId=${bed.id}&action=allocate`);
+                                }}
+                                title="Assign unallocated student to this vacant bed"
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid #bbf7d0',
+                                  backgroundColor: '#f0fdf4',
+                                  color: '#15803d',
+                                  fontSize: '0.74rem',
+                                  cursor: 'pointer',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Allocate
+                              </button>
+                            )
+                          )}
+
+                          {canManage && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStatusTarget({ type: 'BED', item: bed, room: selectedRoom });
+                                setTargetStatusValue(bed.status || 'AVAILABLE');
+                              }}
+                              title="Update operational status"
+                              style={{
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: '#ffffff',
+                                color: 'var(--text-secondary)',
+                                fontSize: '0.74rem',
+                                cursor: 'pointer',
+                                fontWeight: 500,
+                              }}
+                            >
+                              Status
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Operational Inspection Note */}
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: '8px',
+                backgroundColor: '#fffbeb',
+                border: '1px solid #fde68a',
+                fontSize: '0.78rem',
+                color: '#92400e',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <Info size={16} style={{ flexShrink: 0 }} />
+              <div>
+                <strong>Physical Inspection Protocol:</strong> Routine custodial reviews are maintained through maintenance tickets. Room operational availability can be adjusted using the status controls above.
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* =================== OPERATIONAL STATUS UPDATE MODAL =================== */}
+      <Modal
+        isOpen={Boolean(statusTarget)}
+        onClose={() => setStatusTarget(null)}
+        title={`Update ${statusTarget?.type === 'ROOM' ? 'Room' : 'Bed'} Operational Status`}
+        subtitle={`Target: ${statusTarget?.item?.code || statusTarget?.item?.name || 'Selected'}`}
+        maxWidth="440px"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStatusTarget(null)}
+              disabled={statusSubmitting}
             >
               Cancel
-            </button>
-            <button
-              type="button"
-              className="btn-enterprise-primary"
-              style={{ background: '#dc2626', borderColor: '#dc2626' }}
-              onClick={handleVacateConfirm}
-              disabled={vacateSubmitting}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleStatusSubmit}
+              loading={statusSubmitting}
             >
-              {vacateSubmitting ? 'Releasing...' : 'Confirm Vacate'}
-            </button>
+              Apply Status
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {statusError && (
+            <div
+              style={{
+                backgroundColor: 'var(--danger-bg)',
+                color: 'var(--danger-text)',
+                padding: '10px 14px',
+                borderRadius: '6px',
+                fontSize: '0.84rem',
+              }}
+            >
+              {statusError}
+            </div>
+          )}
+
+          <p style={{ fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
+            Adjust the operational status of this {statusTarget?.type?.toLowerCase()}. When marked as{' '}
+            <strong>MAINTENANCE</strong> or <strong>INACTIVE</strong>, it is flagged as unavailable for bed allocations.
+          </p>
+
+          <div>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: 'var(--text-primary)',
+                marginBottom: '6px',
+              }}
+            >
+              Operational Status:
+            </label>
+            <select
+              value={targetStatusValue}
+              onChange={(e) => setTargetStatusValue(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: '#ffffff',
+                fontSize: '0.88rem',
+                color: 'var(--text-primary)',
+              }}
+            >
+              <option value="ACTIVE">ACTIVE (Fully Operational)</option>
+              <option value="AVAILABLE">AVAILABLE (Vacant & Ready)</option>
+              <option value="MAINTENANCE">MAINTENANCE (Under Cleaning / Service)</option>
+              <option value="INACTIVE">INACTIVE (Out of Service)</option>
+            </select>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: 3004,
+    port: 3006,
     proxy: {
       '/college': {
         target: 'http://localhost:8080',

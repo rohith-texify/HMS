@@ -24,6 +24,13 @@ import {
   Megaphone,
   BarChart3,
   Sliders,
+  UserCheck,
+  AlertOctagon,
+  Hammer,
+  UtensilsCrossed,
+  Bell,
+  FolderLock,
+  History,
 } from 'lucide-react';
 
 /**
@@ -428,13 +435,46 @@ export const ROLE_NAVIGATION = {
     scope: 'COLLEGE',
     navGroups: [
       {
-        group: 'Floor Management',
+        group: 'Core Operations',
         items: [
           { label: 'Dashboard', path: '/hostel-incharge/dashboard', icon: LayoutDashboard },
-          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
+          { label: 'Hostel Overview', path: '/hostel-incharge/hostel', icon: Building2 },
           { label: 'Rooms & Beds', path: '/hostel-incharge/rooms', icon: BedDouble },
+          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
+          { label: 'Room Allocations', path: '/hostel-incharge/allocations', icon: KeyRound },
+        ],
+      },
+      {
+        group: 'Attendance & Movement',
+        items: [
           { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
-          { label: 'Student Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Leave Requests', path: '/hostel-incharge/leaves', icon: FileText },
+          { label: 'Outings & Gate Passes', path: '/hostel-incharge/gate-passes', icon: Footprints },
+        ],
+      },
+      {
+        group: 'Support & Facility',
+        items: [
+          { label: 'Visitor Access', path: '/hostel-incharge/visitors', icon: UserCheck },
+          { label: 'Student Parcels', path: '/hostel-incharge/parcels', icon: Package },
+          { label: 'SOS & Emergency', path: '/hostel-incharge/emergency', icon: AlertOctagon },
+          { label: 'Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Maintenance', path: '/hostel-incharge/maintenance', icon: Hammer },
+        ],
+      },
+      {
+        group: 'Dining & Communication',
+        items: [
+          { label: 'Mess & Food Menus', path: '/hostel-incharge/mess', icon: UtensilsCrossed },
+          { label: 'Notices & Broadcasts', path: '/hostel-incharge/announcements', icon: Bell },
+          { label: 'Documents & Records', path: '/hostel-incharge/documents', icon: FolderLock },
+        ],
+      },
+      {
+        group: 'Reports & Governance',
+        items: [
+          { label: 'Reports & Analytics', path: '/hostel-incharge/reports', icon: BarChart3 },
+          { label: 'Activity Stream', path: '/hostel-incharge/audit', icon: History },
         ],
       },
     ],
@@ -447,13 +487,46 @@ export const ROLE_NAVIGATION = {
     scope: 'COLLEGE',
     navGroups: [
       {
-        group: 'Floor Management',
+        group: 'Core Operations',
         items: [
           { label: 'Dashboard', path: '/hostel-incharge/dashboard', icon: LayoutDashboard },
-          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
+          { label: 'Hostel Overview', path: '/hostel-incharge/hostel', icon: Building2 },
           { label: 'Rooms & Beds', path: '/hostel-incharge/rooms', icon: BedDouble },
+          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
+          { label: 'Room Allocations', path: '/hostel-incharge/allocations', icon: KeyRound },
+        ],
+      },
+      {
+        group: 'Attendance & Movement',
+        items: [
           { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
-          { label: 'Student Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Leave Requests', path: '/hostel-incharge/leaves', icon: FileText },
+          { label: 'Outings & Gate Passes', path: '/hostel-incharge/gate-passes', icon: Footprints },
+        ],
+      },
+      {
+        group: 'Support & Facility',
+        items: [
+          { label: 'Visitor Access', path: '/hostel-incharge/visitors', icon: UserCheck },
+          { label: 'Student Parcels', path: '/hostel-incharge/parcels', icon: Package },
+          { label: 'SOS & Emergency', path: '/hostel-incharge/emergency', icon: AlertOctagon },
+          { label: 'Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Maintenance', path: '/hostel-incharge/maintenance', icon: Hammer },
+        ],
+      },
+      {
+        group: 'Dining & Communication',
+        items: [
+          { label: 'Mess & Food Menus', path: '/hostel-incharge/mess', icon: UtensilsCrossed },
+          { label: 'Notices & Broadcasts', path: '/hostel-incharge/announcements', icon: Bell },
+          { label: 'Documents & Records', path: '/hostel-incharge/documents', icon: FolderLock },
+        ],
+      },
+      {
+        group: 'Reports & Governance',
+        items: [
+          { label: 'Reports & Analytics', path: '/hostel-incharge/reports', icon: BarChart3 },
+          { label: 'Activity Stream', path: '/hostel-incharge/audit', icon: History },
         ],
       },
     ],
@@ -466,13 +539,46 @@ export const ROLE_NAVIGATION = {
     scope: 'COLLEGE',
     navGroups: [
       {
-        group: 'Floor Management',
+        group: 'Core Operations',
         items: [
           { label: 'Dashboard', path: '/hostel-incharge/dashboard', icon: LayoutDashboard },
-          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
+          { label: 'Hostel Overview', path: '/hostel-incharge/hostel', icon: Building2 },
           { label: 'Rooms & Beds', path: '/hostel-incharge/rooms', icon: BedDouble },
+          { label: 'Hostel Residents', path: '/hostel-incharge/students', icon: Users },
+          { label: 'Room Allocations', path: '/hostel-incharge/allocations', icon: KeyRound },
+        ],
+      },
+      {
+        group: 'Attendance & Movement',
+        items: [
           { label: 'Daily Attendance', path: '/hostel-incharge/attendance', icon: ClipboardList },
-          { label: 'Student Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Leave Requests', path: '/hostel-incharge/leaves', icon: FileText },
+          { label: 'Outings & Gate Passes', path: '/hostel-incharge/gate-passes', icon: Footprints },
+        ],
+      },
+      {
+        group: 'Support & Facility',
+        items: [
+          { label: 'Visitor Access', path: '/hostel-incharge/visitors', icon: UserCheck },
+          { label: 'Student Parcels', path: '/hostel-incharge/parcels', icon: Package },
+          { label: 'SOS & Emergency', path: '/hostel-incharge/emergency', icon: AlertOctagon },
+          { label: 'Complaints', path: '/hostel-incharge/complaints', icon: Wrench },
+          { label: 'Maintenance', path: '/hostel-incharge/maintenance', icon: Hammer },
+        ],
+      },
+      {
+        group: 'Dining & Communication',
+        items: [
+          { label: 'Mess & Food Menus', path: '/hostel-incharge/mess', icon: UtensilsCrossed },
+          { label: 'Notices & Broadcasts', path: '/hostel-incharge/announcements', icon: Bell },
+          { label: 'Documents & Records', path: '/hostel-incharge/documents', icon: FolderLock },
+        ],
+      },
+      {
+        group: 'Reports & Governance',
+        items: [
+          { label: 'Reports & Analytics', path: '/hostel-incharge/reports', icon: BarChart3 },
+          { label: 'Activity Stream', path: '/hostel-incharge/audit', icon: History },
         ],
       },
     ],

@@ -86,23 +86,42 @@ export default function InchargeLayout() {
         className={`sidebar-enterprise ${mobileMenuOpen ? 'mobile-open' : ''} ${
           sidebarCollapsed ? 'collapsed' : ''
         }`}
+        style={{
+          width: sidebarCollapsed ? '72px' : '260px',
+          minWidth: sidebarCollapsed ? '72px' : '260px',
+          maxWidth: sidebarCollapsed ? '72px' : '260px',
+          height: '100vh',
+          position: 'sticky',
+          top: 0,
+          backgroundColor: '#ffffff',
+          borderRight: '1px solid #e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          zIndex: 40,
+          overflowX: 'hidden',
+          transition: 'width 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          boxSizing: 'border-box',
+        }}
       >
         {/* Brand Header */}
-        <div className="sidebar-brand-wrapper">
+        <div className="sidebar-brand-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 12px 0 16px', height: '64px', borderBottom: '1px solid #e2e8f0', flexShrink: 0, minWidth: 0, width: '100%', boxSizing: 'border-box' }}>
           {!sidebarCollapsed ? (
-            <div className="sidebar-brand-content">
-              <div className="sidebar-brand-badge">
+            <div className="sidebar-brand-content" style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
+              <div className="sidebar-brand-badge" style={{ width: '34px', height: '34px', minWidth: '34px', borderRadius: '8px', backgroundColor: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <BedDouble size={20} />
               </div>
-              <div className="sidebar-brand-text-block">
-                <span className="sidebar-brand-name">Hostel In-Charge</span>
-                <span className="sidebar-brand-sub" title={hostelName}>
+              <div className="sidebar-brand-info" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '1 1 auto', overflow: 'hidden' }}>
+                <span className="sidebar-brand-title" style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', lineHeight: 1.25 }}>
+                  Hostel In-Charge
+                </span>
+                <span className="sidebar-brand-tag" style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', lineHeight: 1.25 }} title={hostelName}>
                   {hostelName}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="sidebar-brand-badge" title="Hostel In-Charge Operations">
+            <div className="sidebar-brand-badge" style={{ width: '34px', height: '34px', minWidth: '34px', borderRadius: '8px', backgroundColor: '#2563eb', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', flexShrink: 0 }} title="Hostel In-Charge Operations">
               <BedDouble size={20} />
             </div>
           )}
@@ -110,6 +129,7 @@ export default function InchargeLayout() {
           <button
             type="button"
             className="sidebar-collapse-toggle"
+            style={{ width: '26px', height: '26px', minWidth: '26px', borderRadius: '6px', background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginLeft: 'auto' }}
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             aria-label={sidebarCollapsed ? 'Expand navigation' : 'Collapse navigation'}
           >
@@ -121,25 +141,26 @@ export default function InchargeLayout() {
         {!sidebarCollapsed && (
           <div
             style={{
-              margin: '8px 16px 12px 16px',
+              margin: '8px 12px 12px 12px',
               padding: '8px 12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: '#f8fafc',
+              border: '1px solid #e2e8f0',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
             }}
           >
-            <Building2 size={14} color="#60a5fa" />
+            <Building2 size={15} color="#2563eb" />
             <div style={{ minWidth: 0, flex: 1 }}>
               <div
                 style={{
-                  fontSize: '0.72rem',
+                  fontSize: '0.68rem',
                   textTransform: 'uppercase',
                   letterSpacing: '0.05em',
-                  color: '#94a3b8',
+                  color: '#64748b',
                   fontWeight: 600,
+                  lineHeight: 1.2,
                 }}
               >
                 Active Premises
@@ -147,11 +168,12 @@ export default function InchargeLayout() {
               <div
                 style={{
                   fontSize: '0.82rem',
-                  color: '#f8fafc',
+                  color: '#0f172a',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
+                  lineHeight: 1.3,
                 }}
                 title={hostelName}
               >
@@ -162,29 +184,50 @@ export default function InchargeLayout() {
         )}
 
         {/* Navigation Group Items */}
-        <nav className="sidebar-nav-container" aria-label="Hostel incharge navigation">
+        <nav className="sidebar-scrollable-nav" aria-label="Hostel incharge navigation">
           {navConfig.navGroups.map((group) => (
             <div key={group.group} className="sidebar-nav-group">
               {!sidebarCollapsed && (
-                <div className="sidebar-nav-group-heading">{group.group}</div>
+                <div className="sidebar-group-heading">{group.group}</div>
               )}
-              <div className="sidebar-nav-items-list">
+              <div className="sidebar-group-items" style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%', boxSizing: 'border-box' }}>
                 {group.items.map((item) => {
                   const Icon = item.icon;
                   return (
                     <NavLink
                       key={item.path}
                       to={item.path}
+                      onClick={() => setMobileMenuOpen(false)}
                       className={({ isActive }) =>
-                        `sidebar-nav-link ${isActive ? 'is-active' : ''}`
+                        `sidebar-nav-pill ${isActive ? 'active' : ''}`
                       }
+                      style={({ isActive }) => ({
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        width: '100%',
+                        padding: '9px 12px',
+                        margin: '1px 0',
+                        borderRadius: '8px',
+                        textDecoration: 'none',
+                        fontSize: '0.84rem',
+                        fontWeight: isActive ? 600 : 500,
+                        color: isActive ? '#2563eb' : '#475569',
+                        backgroundColor: isActive ? '#eff6ff' : 'transparent',
+                        boxShadow: isActive ? 'inset 0 0 0 1px rgba(37, 99, 235, 0.2)' : 'none',
+                        boxSizing: 'border-box',
+                        transition: 'all 0.15s ease',
+                      })}
                       title={sidebarCollapsed ? item.label : undefined}
                     >
-                      <span className="sidebar-nav-icon-slot">
+                      <span className="sidebar-active-indicator" />
+                      <div className="sidebar-item-icon-box" style={{ width: '20px', height: '20px', minWidth: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Icon size={18} />
-                      </span>
+                      </div>
                       {!sidebarCollapsed && (
-                        <span className="sidebar-nav-text-slot">{item.label}</span>
+                        <span className="sidebar-item-label" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, textAlign: 'left' }}>
+                          {item.label}
+                        </span>
                       )}
                     </NavLink>
                   );
@@ -194,42 +237,77 @@ export default function InchargeLayout() {
           ))}
         </nav>
 
-        {/* Sidebar Footer User Info */}
-        <div className="sidebar-footer-block">
-          <div
-            className="sidebar-user-card"
-            onClick={() => setProfileMenuOpen(true)}
-            title="Account Options"
-          >
-            <div className="sidebar-user-avatar">{userInitials}</div>
-            {!sidebarCollapsed && (
-              <div className="sidebar-user-details">
-                <span className="sidebar-user-name">
+        {/* Bottom User Footer & Sign Out */}
+        <div className="sidebar-footer-card" style={{ padding: '12px 14px', borderTop: '1px solid #e2e8f0', backgroundColor: '#f8fafc', flexShrink: 0 }}>
+          {!sidebarCollapsed ? (
+            <div className="sidebar-user-block" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="sidebar-user-avatar" style={{ width: '32px', height: '32px', minWidth: '32px', borderRadius: '50%', backgroundColor: '#2563eb', color: '#ffffff', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {userInitials}
+              </div>
+              <div className="sidebar-user-details" style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                <span className="sidebar-user-name" style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={userEmail}>
                   {user?.roleName || 'Hostel Incharge'}
                 </span>
-                <span className="sidebar-user-role" title={userEmail}>
+                <span className="sidebar-user-role" style={{ fontSize: '0.7rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={userEmail}>
                   {userEmail}
                 </span>
               </div>
-            )}
-          </div>
+              <button
+                type="button"
+                onClick={() => setLogoutModalOpen(true)}
+                className="sidebar-logout-icon-btn"
+                style={{ width: '28px', height: '28px', minWidth: '28px', borderRadius: '6px', background: 'transparent', border: 'none', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                title="Sign Out"
+                aria-label="Sign Out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setLogoutModalOpen(true)}
+              className="sidebar-logout-collapsed-btn"
+              style={{ width: '36px', height: '36px', margin: '0 auto', borderRadius: '8px', background: '#ffffff', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Sign Out"
+              aria-label="Sign Out"
+            >
+              <LogOut size={17} />
+            </button>
+          )}
         </div>
       </aside>
 
       {/* Main Viewport Container */}
-      <div className="enterprise-viewport">
+      <div className="enterprise-viewport" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', backgroundColor: '#f8fafc', minHeight: '100vh', boxSizing: 'border-box' }}>
         {/* Top Header Bar */}
-        <header className="enterprise-top-header">
+        <header
+          className="enterprise-top-header"
+          style={{
+            height: '64px',
+            backgroundColor: '#ffffff',
+            borderBottom: '1px solid #e2e8f0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 24px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 30,
+            flexShrink: 0,
+            boxSizing: 'border-box',
+          }}
+        >
           <div className="header-breadcrumbs-block">
             <div className="header-breadcrumbs">
               <span className="breadcrumb-group">{breadcrumb.group}</span>
-              <span className="breadcrumb-separator">/</span>
-              <span className="breadcrumb-active-title">{breadcrumb.title}</span>
+              <ChevronRight size={13} className="breadcrumb-separator" style={{ color: 'var(--text-muted, #94a3b8)' }} />
+              <span className="breadcrumb-active">{breadcrumb.title}</span>
             </div>
           </div>
 
           {/* Header Right Actions */}
-          <div className="header-actions-block">
+          <div className="header-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {/* College & Hostel Identity Badges */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="hostel-badge-tag" title="Assigned Hostel">
@@ -259,58 +337,153 @@ export default function InchargeLayout() {
               )}
             </div>
 
-            {/* User Profile Menu */}
-            <div className="profile-menu-container" ref={profileMenuRef}>
+            {/* Operational Status Pill */}
+            <div className="header-status-pill" title="Hostel Management Operational">
+              <span className="status-dot green" />
+              <span>Operational</span>
+            </div>
+
+            {/* User Profile Dropdown Pill */}
+            <div className="header-profile-menu-container" ref={profileMenuRef} style={{ position: 'relative' }}>
               <button
                 type="button"
-                className="profile-menu-trigger"
+                className="header-profile-pill"
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                aria-haspopup="true"
-                aria-expanded={profileMenuOpen}
+                style={{
+                  cursor: 'pointer',
+                  border: '1px solid #cbd5e1',
+                  backgroundColor: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '4px 12px 4px 6px',
+                  borderRadius: '9999px',
+                  boxShadow: '0 1px 2px rgba(15, 23, 42, 0.04)',
+                  height: '38px',
+                  whiteSpace: 'nowrap',
+                  boxSizing: 'border-box',
+                }}
+                aria-label="Open user profile menu"
               >
-                <div className="profile-menu-avatar">{userInitials}</div>
-                <div className="profile-menu-meta">
-                  <span className="profile-name">
+                <div
+                  className="header-avatar-circle"
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    minWidth: '28px',
+                    borderRadius: '50%',
+                    backgroundColor: '#2563eb',
+                    color: '#ffffff',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {userInitials}
+                </div>
+                <div
+                  className="header-profile-text"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    textAlign: 'left',
+                    lineHeight: 1.15,
+                  }}
+                >
+                  <span
+                    className="profile-name"
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: '#0f172a',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '130px',
+                      display: 'block',
+                    }}
+                    title={userEmail}
+                  >
                     {user?.roleName || 'Hostel Incharge'}
                   </span>
-                  <span className="profile-role">Verified Incharge</span>
+                  <span
+                    className="profile-role"
+                    style={{
+                      fontSize: '0.68rem',
+                      color: '#64748b',
+                      whiteSpace: 'nowrap',
+                      display: 'block',
+                      marginTop: '1px',
+                    }}
+                  >
+                    Verified Incharge
+                  </span>
                 </div>
-                <ChevronDown size={14} className="profile-chevron" />
+                <ChevronDown size={14} style={{ color: '#94a3b8', marginLeft: '2px', flexShrink: 0 }} />
               </button>
 
               {profileMenuOpen && (
-                <div className="profile-dropdown-card" role="menu">
-                  <div className="dropdown-account-header">
-                    <p className="account-email">{userEmail}</p>
-                    <p className="account-role-badge">
+                <div
+                  className="profile-dropdown-card fade-in-up"
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '260px',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color, #e2e8f0)',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                    zIndex: 85,
+                    overflow: 'hidden',
+                  }}
+                  role="menu"
+                >
+                  <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
+                    <p style={{ margin: 0, fontWeight: 600, fontSize: '0.86rem', color: '#0f172a' }}>{userEmail}</p>
+                    <p style={{ margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#16a34a' }}>
                       <ShieldCheck size={12} />
                       <span>{user?.roleName || 'Hostel Incharge'}</span>
                     </p>
-                    <p
-                      style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-muted)',
-                        marginTop: '4px',
-                      }}
-                    >
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
                       Hostel: <strong>{hostelName}</strong>
                     </p>
                   </div>
 
-                  <div className="dropdown-divider" />
-
-                  <button
-                    type="button"
-                    className="dropdown-menu-item item-danger"
-                    onClick={() => {
-                      setProfileMenuOpen(false);
-                      setLogoutModalOpen(true);
-                    }}
-                    role="menuitem"
-                  >
-                    <LogOut size={16} />
-                    <span>Sign Out</span>
-                  </button>
+                  <div style={{ padding: '6px' }}>
+                    <button
+                      type="button"
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        border: 'none',
+                        background: 'transparent',
+                        borderRadius: '6px',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        fontSize: '0.84rem',
+                        fontWeight: 500,
+                        textAlign: 'left',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setLogoutModalOpen(true);
+                      }}
+                      role="menuitem"
+                    >
+                      <LogOut size={16} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
