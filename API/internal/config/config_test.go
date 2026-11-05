@@ -182,6 +182,8 @@ func TestLoad_PortResolution(t *testing.T) {
 	}
 
 	// Case 3: Both are empty, default to 8080
+	os.Setenv("SKIP_DOTENV", "1")
+	defer os.Unsetenv("SKIP_DOTENV")
 	os.Unsetenv("PORT")
 	os.Unsetenv("SERVER_PORT")
 	cfg, err = Load()

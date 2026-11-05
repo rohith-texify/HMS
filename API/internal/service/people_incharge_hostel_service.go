@@ -292,6 +292,27 @@ func (s *InchargeHostelService) CreateInchargeAccount(
 	result.FullName = name
 
 	err = s.db.WithTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+		// 0. Concurrency-Safe Hostel Incharge Quota Enforcement
+		var maxIncharges int
+		if qErr := tx.QueryRow(txCtx, `
+			SELECT COALESCE(max_incharges, 5) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+		`, collegeID).Scan(&maxIncharges); qErr == nil {
+			var activeInchargeCount int
+			_ = tx.QueryRow(txCtx, `
+				SELECT COUNT(DISTINCT ur.user_id)
+				FROM platform.user_roles ur
+				JOIN platform.roles r ON ur.role_id = r.role_id
+				JOIN app.users u ON ur.user_id = u.user_id
+				WHERE ur.college_id = $1 
+				  AND r.role_code IN ('INCHARGE', 'HOSTEL_INCHARGE', 'WARDEN')
+				  AND ur.status = 'ACTIVE' 
+				  AND u.status = 'ACTIVE'
+			`, collegeID).Scan(&activeInchargeCount)
+			if activeInchargeCount >= maxIncharges {
+				return fmt.Errorf("hostel incharge account limit reached for this college (limit: %d, currently active: %d). Contact Super Admin to increase quota", maxIncharges, activeInchargeCount)
+			}
+		}
+
 		// 1. Check or insert into app.users
 		var userID uuid.UUID
 		var existingUserStatus string

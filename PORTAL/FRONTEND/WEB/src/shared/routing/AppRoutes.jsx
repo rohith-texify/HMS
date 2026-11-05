@@ -1,7 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth/useAuth';
-import { ROLE_ROUTE_MAP } from '../auth/portalAuthService';
+import { ROLE_ROUTE_MAP, normalizeRoleCode } from '../auth/portalAuthService';
 import InstitutionalLayout from '../layouts/InstitutionalLayout';
 import RoleProtectedRoute from './RoleProtectedRoute';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -63,11 +63,131 @@ function RootRoute() {
     return <LoadingSpinner message="Resolving institutional session..." size="lg" />;
   }
 
-  if (isAuthenticated && user?.role && ROLE_ROUTE_MAP[user.role]) {
-    return <Navigate to={ROLE_ROUTE_MAP[user.role].path} replace />;
+  const role = normalizeRoleCode(user?.role || '');
+  if (isAuthenticated && role && (ROLE_ROUTE_MAP[role] || ROLE_ROUTE_MAP[user?.role])) {
+    const target = ROLE_ROUTE_MAP[role]?.path || ROLE_ROUTE_MAP[user?.role]?.path;
+    return <Navigate to={target} replace />;
   }
 
   return <Navigate to="/login" replace />;
+}
+
+// Enterprise Role-Aware Route Forwarder
+function SmartRoleRedirect({ routeType }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  if (isLoading) {
+    return <LoadingSpinner message="Resolving route..." size="sm" />;
+  }
+
+  const role = normalizeRoleCode(user?.role || '');
+
+  if (!isAuthenticated || !role) {
+    if (['incharges', 'incharge'].includes(routeType)) {
+      return <Navigate to="/hostel-incharge/login" replace />;
+    }
+    if (['security', 'security-assignments'].includes(routeType)) {
+      return <Navigate to="/security/login" replace />;
+    }
+    if (['students'].includes(routeType)) {
+      return <Navigate to="/student/login" replace />;
+    }
+    if (['parents'].includes(routeType)) {
+      return <Navigate to="/parent/login" replace />;
+    }
+    return <Navigate to="/login" replace />;
+  }
+
+  // Role: Hostel In-Charge
+  if (role === 'HOSTEL_INCHARGE') {
+    switch (routeType) {
+      case 'dashboard':
+      case 'incharges':
+      case 'incharge':
+        return <Navigate to="/hostel-incharge/dashboard" replace />;
+      case 'students':
+        return <Navigate to="/hostel-incharge/students" replace />;
+      case 'rooms':
+      case 'hostels':
+      case 'allocations':
+        return <Navigate to="/hostel-incharge/rooms" replace />;
+      case 'attendance':
+        return <Navigate to="/hostel-incharge/attendance" replace />;
+      case 'complaints':
+        return <Navigate to="/hostel-incharge/complaints" replace />;
+      default:
+        return <Navigate to="/hostel-incharge/dashboard" replace />;
+    }
+  }
+
+  // Role: Student
+  if (role === 'STUDENT') {
+    switch (routeType) {
+      case 'dashboard':
+        return <Navigate to="/student/dashboard" replace />;
+      case 'leaves':
+        return <Navigate to="/student/leaves" replace />;
+      case 'complaints':
+        return <Navigate to="/student/complaints" replace />;
+      default:
+        return <Navigate to="/student/dashboard" replace />;
+    }
+  }
+
+  // Role: Parent
+  if (role === 'PARENT') {
+    switch (routeType) {
+      case 'dashboard':
+        return <Navigate to="/parent/dashboard" replace />;
+      case 'leaves':
+        return <Navigate to="/parent/leaves" replace />;
+      default:
+        return <Navigate to="/parent/dashboard" replace />;
+    }
+  }
+
+  // Role: Security
+  if (role === 'SECURITY') {
+    switch (routeType) {
+      case 'dashboard':
+        return <Navigate to="/security/dashboard" replace />;
+      case 'gates':
+        return <Navigate to="/security/gates" replace />;
+      case 'leaves':
+        return <Navigate to="/security/leaves" replace />;
+      case 'students':
+        return <Navigate to="/security/students" replace />;
+      default:
+        return <Navigate to="/security/dashboard" replace />;
+    }
+  }
+
+  // Default: College Administrator
+  switch (routeType) {
+    case 'dashboard': return <Navigate to="/admin/dashboard" replace />;
+    case 'attendance': return <Navigate to="/admin/attendance" replace />;
+    case 'leaves': return <Navigate to="/admin/leaves" replace />;
+    case 'movement': return <Navigate to="/admin/movement" replace />;
+    case 'gate-passes': return <Navigate to="/admin/gate-passes" replace />;
+    case 'complaints': return <Navigate to="/admin/complaints" replace />;
+    case 'visitors': return <Navigate to="/admin/visitors" replace />;
+    case 'parcels': return <Navigate to="/admin/parcels" replace />;
+    case 'sos': return <Navigate to="/admin/sos" replace />;
+    case 'food': return <Navigate to="/admin/food" replace />;
+    case 'announcements': return <Navigate to="/admin/announcements" replace />;
+    case 'staff': return <Navigate to="/admin/staff" replace />;
+    case 'incharges': return <Navigate to="/admin/incharges" replace />;
+    case 'security-assignments': return <Navigate to="/admin/security-assignments" replace />;
+    case 'passwords': return <Navigate to="/admin/passwords" replace />;
+    case 'hostels': return <Navigate to="/admin/hostels" replace />;
+    case 'rooms': return <Navigate to="/admin/rooms" replace />;
+    case 'allocations': return <Navigate to="/admin/allocations" replace />;
+    case 'students': return <Navigate to="/admin/students" replace />;
+    case 'parents': return <Navigate to="/admin/parents" replace />;
+    case 'reports': return <Navigate to="/admin/reports" replace />;
+    case 'settings': return <Navigate to="/admin/settings" replace />;
+    case 'audit-logs': return <Navigate to="/admin/audit-logs" replace />;
+    default: return <Navigate to="/admin/dashboard" replace />;
+  }
 }
 
 export default function AppRoutes() {
@@ -90,32 +210,33 @@ export default function AppRoutes() {
         <Route path="/student/login" element={<SharedLoginPage initialPersona="STUDENT" />} />
         <Route path="/parent/login" element={<SharedLoginPage initialPersona="PARENT" />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/incharge" element={<Navigate to="/hostel-incharge/dashboard" replace />} />
+        <Route path="/hostel-incharges" element={<Navigate to="/hostel-incharge/dashboard" replace />} />
+        <Route path="/incharge" element={<SmartRoleRedirect routeType="incharge" />} />
+        <Route path="/incharges" element={<SmartRoleRedirect routeType="incharges" />} />
 
-        {/* Top-Level Route Aliases (Direct Navigation to Admin Modules) */}
-        <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/attendance" element={<Navigate to="/admin/attendance" replace />} />
-        <Route path="/leaves" element={<Navigate to="/admin/leaves" replace />} />
-        <Route path="/movement" element={<Navigate to="/admin/movement" replace />} />
-        <Route path="/gate-passes" element={<Navigate to="/admin/gate-passes" replace />} />
-        <Route path="/complaints" element={<Navigate to="/admin/complaints" replace />} />
-        <Route path="/visitors" element={<Navigate to="/admin/visitors" replace />} />
-        <Route path="/parcels" element={<Navigate to="/admin/parcels" replace />} />
-        <Route path="/sos" element={<Navigate to="/admin/sos" replace />} />
-        <Route path="/food" element={<Navigate to="/admin/food" replace />} />
-        <Route path="/announcements" element={<Navigate to="/admin/announcements" replace />} />
-        <Route path="/staff" element={<Navigate to="/admin/staff" replace />} />
-        <Route path="/incharges" element={<Navigate to="/admin/incharges" replace />} />
-        <Route path="/security-assignments" element={<Navigate to="/admin/security-assignments" replace />} />
-        <Route path="/passwords" element={<Navigate to="/admin/passwords" replace />} />
-        <Route path="/hostels" element={<Navigate to="/admin/hostels" replace />} />
-        <Route path="/rooms" element={<Navigate to="/admin/rooms" replace />} />
-        <Route path="/allocations" element={<Navigate to="/admin/allocations" replace />} />
-        <Route path="/students" element={<Navigate to="/admin/students" replace />} />
-        <Route path="/parents" element={<Navigate to="/admin/parents" replace />} />
-        <Route path="/reports" element={<Navigate to="/admin/reports" replace />} />
-        <Route path="/settings" element={<Navigate to="/admin/settings" replace />} />
-        <Route path="/audit-logs" element={<Navigate to="/admin/audit-logs" replace />} />
+        {/* Top-Level Route Aliases (Dynamic Persona Forwarding) */}
+        <Route path="/dashboard" element={<SmartRoleRedirect routeType="dashboard" />} />
+        <Route path="/attendance" element={<SmartRoleRedirect routeType="attendance" />} />
+        <Route path="/leaves" element={<SmartRoleRedirect routeType="leaves" />} />
+        <Route path="/movement" element={<SmartRoleRedirect routeType="movement" />} />
+        <Route path="/gate-passes" element={<SmartRoleRedirect routeType="gate-passes" />} />
+        <Route path="/complaints" element={<SmartRoleRedirect routeType="complaints" />} />
+        <Route path="/visitors" element={<SmartRoleRedirect routeType="visitors" />} />
+        <Route path="/parcels" element={<SmartRoleRedirect routeType="parcels" />} />
+        <Route path="/sos" element={<SmartRoleRedirect routeType="sos" />} />
+        <Route path="/food" element={<SmartRoleRedirect routeType="food" />} />
+        <Route path="/announcements" element={<SmartRoleRedirect routeType="announcements" />} />
+        <Route path="/staff" element={<SmartRoleRedirect routeType="staff" />} />
+        <Route path="/security-assignments" element={<SmartRoleRedirect routeType="security-assignments" />} />
+        <Route path="/passwords" element={<SmartRoleRedirect routeType="passwords" />} />
+        <Route path="/hostels" element={<SmartRoleRedirect routeType="hostels" />} />
+        <Route path="/rooms" element={<SmartRoleRedirect routeType="rooms" />} />
+        <Route path="/allocations" element={<SmartRoleRedirect routeType="allocations" />} />
+        <Route path="/students" element={<SmartRoleRedirect routeType="students" />} />
+        <Route path="/parents" element={<SmartRoleRedirect routeType="parents" />} />
+        <Route path="/reports" element={<SmartRoleRedirect routeType="reports" />} />
+        <Route path="/settings" element={<SmartRoleRedirect routeType="settings" />} />
+        <Route path="/audit-logs" element={<SmartRoleRedirect routeType="audit-logs" />} />
 
         {/* ============================================================== */}
         {/* Module 1: College Administration (/admin/*)                   */}

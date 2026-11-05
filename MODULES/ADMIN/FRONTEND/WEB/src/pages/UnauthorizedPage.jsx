@@ -1,22 +1,26 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP, getAuthorizedRedirectPath } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP, getAuthorizedRedirectPath, normalizeRoleCode, PORTAL_URL } from '../hooks/portalAuthService';
 
 export default function UnauthorizedPage() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const userRole = (user?.role || '').toUpperCase();
+  const userRole = normalizeRoleCode(user?.role || user?.roleName || '');
   const authorizedPath = getAuthorizedRedirectPath(userRole, null);
 
   // Automatically redirect authenticated institutional accounts away from the error page to their authorized home dashboard
   useEffect(() => {
+    if (PORTAL_URL && ['HOSTEL_INCHARGE', 'SECURITY', 'STUDENT', 'PARENT'].includes(userRole)) {
+      window.location.replace(`${PORTAL_URL}${authorizedPath}`);
+      return;
+    }
     if (authorizedPath && authorizedPath !== '/login' && authorizedPath !== '/unauthorized') {
       navigate(authorizedPath, { replace: true });
     }
-  }, [authorizedPath, navigate]);
+  }, [authorizedPath, userRole, navigate]);
 
   return (
     <div
@@ -68,7 +72,13 @@ export default function UnauthorizedPage() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button
-            onClick={() => navigate(authorizedPath, { replace: true })}
+            onClick={() => {
+              if (PORTAL_URL && ['HOSTEL_INCHARGE', 'SECURITY', 'STUDENT', 'PARENT'].includes(userRole)) {
+                window.location.replace(`${PORTAL_URL}${authorizedPath}`);
+              } else {
+                navigate(authorizedPath, { replace: true });
+              }
+            }}
             style={{
               padding: '12px 20px',
               backgroundColor: '#0284c7',

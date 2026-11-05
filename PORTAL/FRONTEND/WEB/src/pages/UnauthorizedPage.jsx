@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP, getAuthorizedRedirectPath } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP, getAuthorizedRedirectPath, normalizeRoleCode } from '../shared/auth/portalAuthService';
 
 export default function UnauthorizedPage() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const userRole = (user?.role || '').toUpperCase();
+  const userRole = normalizeRoleCode(user?.role || user?.roleName || '');
   const authorizedPath = getAuthorizedRedirectPath(userRole, null);
 
   // Automatically redirect authenticated institutional accounts away from the error page to their authorized home dashboard

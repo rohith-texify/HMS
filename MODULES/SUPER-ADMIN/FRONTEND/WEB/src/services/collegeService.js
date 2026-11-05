@@ -63,7 +63,7 @@ export async function fetchCollegesList({ search, status, limit = 20, offset = 0
  */
 export async function fetchCollegeById(collegeId, signal) {
   const res = await api.get(`/super-admin/colleges/${collegeId}`, { signal });
-  return res.data?.college;
+  return res.data?.college || (res.data?.college_id ? res.data : (res.data?.id ? res.data : res.data));
 }
 
 /**
@@ -288,4 +288,42 @@ export async function fetchCollegeAdminLoginHistory(collegeId, adminId, limit = 
     events: res.data?.events || [],
     total: res.data?.total || 0,
   };
+}
+
+/**
+ * Fetch authoritative account statistics for a college (Active, Deactivated, Total, Quota).
+ * @param {string} collegeId
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<Object>} College account stats
+ */
+export async function fetchCollegeStats(collegeId, signal) {
+  const res = await api.get(`/super-admin/colleges/${collegeId}/stats`, { signal });
+  return res.data?.stats || null;
+}
+
+/**
+ * Fetch operational activity for a college (recent logins by role, audit logs, support tickets).
+ * @param {string} collegeId
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<Object>} College activity stream
+ */
+export async function fetchCollegeActivity(collegeId, signal) {
+  const res = await api.get(`/super-admin/colleges/${collegeId}/activity`, { signal });
+  return res.data?.activity || null;
+}
+
+/**
+ * Update resource quotas (account limits) for a college.
+ * @param {string} collegeId
+ * @param {Object} quotas
+ * @param {number} [quotas.max_students]
+ * @param {number} [quotas.max_parents]
+ * @param {number} [quotas.max_blocks]
+ * @param {number} [quotas.max_incharges]
+ * @param {number} [quotas.max_security]
+ * @returns {Promise<Object>} Updated college details
+ */
+export async function updateCollegeQuotas(collegeId, quotas) {
+  const res = await api.put(`/super-admin/colleges/${collegeId}/quotas`, quotas);
+  return res.data?.college || null;
 }

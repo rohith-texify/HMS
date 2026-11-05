@@ -105,7 +105,7 @@ export default function CollegeConfigurationPage() {
   const [pendingApprovals, setPendingApprovals] = useState([]);
 
   // Loading & error state
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
   const [actionNotice, setActionNotice] = useState(null);
@@ -484,16 +484,6 @@ export default function CollegeConfigurationPage() {
     });
   }, [comparisons, compareOnlyOverrides, compareSearch]);
 
-  if (loading && !college) {
-    return (
-      <div style={{ padding: '60px 32px', textAlign: 'center', color: '#64748b' }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚙️</div>
-        <h3 style={{ color: '#0f172a', fontWeight: '600' }}>Loading College Configuration</h3>
-        <p style={{ fontSize: '0.875rem' }}>Fetching tenant parameters, baseline defaults, and audit history...</p>
-      </div>
-    );
-  }
-
   if (permissionDenied) {
     return (
       <div style={{ padding: '40px 32px', maxWidth: '720px', margin: '40px auto' }}>
@@ -531,6 +521,16 @@ export default function CollegeConfigurationPage() {
     );
   }
 
+  if (loading || !college) {
+    return (
+      <div style={{ padding: '60px 32px', textAlign: 'center', color: '#64748b' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>⚙️</div>
+        <h3 style={{ color: '#0f172a', fontWeight: '600' }}>Loading College Configuration</h3>
+        <p style={{ fontSize: '0.875rem' }}>Fetching tenant parameters, baseline defaults, and audit history...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '24px 32px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* 1. Header & Breadcrumb */}
@@ -540,8 +540,8 @@ export default function CollegeConfigurationPage() {
           <span>/</span>
           <Link to="/colleges" style={{ color: '#64748b', textDecoration: 'none' }}>Colleges</Link>
           <span>/</span>
-          <Link to={`/colleges/${college.college_id}`} style={{ color: '#64748b', textDecoration: 'none' }}>
-            {college.name}
+          <Link to={`/colleges/${college?.college_id || collegeId}`} style={{ color: '#64748b', textDecoration: 'none' }}>
+            {college?.name || 'College Details'}
           </Link>
           <span>/</span>
           <span style={{ color: '#0f172a', fontWeight: '600' }}>Configuration</span>
@@ -551,12 +551,12 @@ export default function CollegeConfigurationPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#0f172a', margin: 0 }}>
-                {college.name}
+                {college?.name || 'College Configuration'}
               </h1>
               <span
                 style={{
-                  background: college.status === 'ACTIVE' ? '#ecfdf5' : '#eff6ff',
-                  color: college.status === 'ACTIVE' ? '#065f46' : '#1e40af',
+                  background: college?.status === 'ACTIVE' ? '#ecfdf5' : '#eff6ff',
+                  color: college?.status === 'ACTIVE' ? '#065f46' : '#1e40af',
                   padding: '4px 10px',
                   borderRadius: '12px',
                   fontSize: '0.75rem',
@@ -564,25 +564,25 @@ export default function CollegeConfigurationPage() {
                   letterSpacing: '0.5px',
                 }}
               >
-                ● {college.status}
+                ● {college?.status || 'ACTIVE'}
               </span>
             </div>
             <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.85rem', color: '#64748b', alignItems: 'center' }}>
-              <span>Tenant Code: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{college.college_code}</strong></span>
+              <span>Tenant Code: <strong style={{ fontFamily: 'monospace', color: '#0f172a' }}>{college?.college_code || '—'}</strong></span>
               <span>•</span>
-              <span>UUID: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{college.college_id}</span></span>
+              <span>UUID: <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{college?.college_id || collegeId}</span></span>
               <span>•</span>
               <span>Precedence: <strong style={{ color: '#2563eb' }}>Global Baseline → Tenant Overrides</strong></span>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
-            {college.status === 'ONBOARDING' && (
-              <Link to={`/colleges/${college.college_id}/onboarding`} className="btn btn-primary" id="btn-resume-onboarding">
+            {college?.status === 'ONBOARDING' && (
+              <Link to={`/colleges/${college?.college_id || collegeId}/onboarding`} className="btn btn-primary" id="btn-resume-onboarding">
                 Resume Onboarding 🚀
               </Link>
             )}
-            <Link to={`/colleges/${college.college_id}`} className="btn btn-outline" id="btn-back-to-details">
+            <Link to={`/colleges/${college?.college_id || collegeId}`} className="btn btn-outline" id="btn-back-to-details">
               ← Back to College Details
             </Link>
             <button className="btn btn-outline" onClick={loadConfigurationData} disabled={loading} id="btn-refresh-config" title="Refresh authoritative configuration">
@@ -777,7 +777,7 @@ export default function CollegeConfigurationPage() {
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, fontSize: '0.85rem' }}>
                 <li style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748b' }}>Timezone:</span>
-                  <strong style={{ color: '#0f172a' }}>{findSetting('timezone')?.value || college.timezone || 'Asia/Kolkata'}</strong>
+                  <strong style={{ color: '#0f172a' }}>{findSetting('timezone')?.value || college?.timezone || 'Asia/Kolkata'}</strong>
                 </li>
                 <li style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#64748b' }}>Default Locale:</span>
@@ -1050,7 +1050,7 @@ export default function CollegeConfigurationPage() {
                 {findSetting('timezone')?.is_overridden ? (
                   <span style={{ marginLeft: '8px', color: '#d97706', fontSize: '0.75rem', fontWeight: 'normal' }}>[Explicit Override]</span>
                 ) : (
-                  <span style={{ marginLeft: '8px', color: '#059669', fontSize: '0.75rem', fontWeight: 'normal' }}>[Inherited: {college.timezone || 'Asia/Kolkata'}]</span>
+                  <span style={{ marginLeft: '8px', color: '#059669', fontSize: '0.75rem', fontWeight: 'normal' }}>[Inherited: {college?.timezone || 'Asia/Kolkata'}]</span>
                 )}
               </label>
               <div style={{ display: 'flex', gap: '8px' }}>

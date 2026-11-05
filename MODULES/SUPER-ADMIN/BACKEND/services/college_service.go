@@ -1657,4 +1657,72 @@ func (s *CollegeService) GetCollegeAdminLoginHistory(
 	return s.repo.GetCollegeAdminLoginHistory(ctx, collegeID, userID, limit)
 }
 
+// GetCollegeStats retrieves authoritative active, deactivated, and limit stats for the college.
+func (s *CollegeService) GetCollegeStats(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) (*models.CollegeAccountStats, error) {
+	if s == nil || s.repo == nil {
+		return nil, apierrors.New(apierrors.InternalError, "College service is not configured")
+	}
+	if collegeID == uuid.Nil {
+		return nil, apierrors.New(apierrors.ValidationError, "College ID is required")
+	}
+
+	return s.repo.GetCollegeAccountStats(ctx, collegeID)
+}
+
+// GetCollegeActivity returns recent logins, audit logs, and support tickets for the college.
+func (s *CollegeService) GetCollegeActivity(
+	ctx context.Context,
+	collegeID uuid.UUID,
+) (*models.CollegeActivityDashboard, error) {
+	if s == nil || s.repo == nil {
+		return nil, apierrors.New(apierrors.InternalError, "College service is not configured")
+	}
+	if collegeID == uuid.Nil {
+		return nil, apierrors.New(apierrors.ValidationError, "College ID is required")
+	}
+
+	return s.repo.GetCollegeActivity(ctx, collegeID)
+}
+
+// UpdateCollegeQuotas updates the resource limit ceilings for a college.
+func (s *CollegeService) UpdateCollegeQuotas(
+	ctx context.Context,
+	collegeID uuid.UUID,
+	req models.UpdateCollegeQuotasRequest,
+) error {
+	if s == nil || s.repo == nil {
+		return apierrors.New(apierrors.InternalError, "College service is not configured")
+	}
+	if collegeID == uuid.Nil {
+		return apierrors.New(apierrors.ValidationError, "College ID is required")
+	}
+
+	actorID, _ := database.PlatformUserIDFromContext(ctx)
+	actorRole, _ := ctx.Value(ActorRoleContextKey).(string)
+	if strings.TrimSpace(actorRole) == "" {
+		actorRole = "SUPER_ADMIN"
+	}
+
+	if err := s.repo.UpdateCollegeQuotas(ctx, collegeID, req); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return apierrors.New(apierrors.NotFound, "College not found")
+		}
+		return apierrors.New(apierrors.InternalError, fmt.Sprintf("Failed to update resource limits: %v", err))
+	}
+
+	_ = s.repo.RecordCollegeAdminPasswordAudit(ctx, repository.CollegeAdminPasswordAuditParams{
+		CollegeID:   collegeID,
+		ActorUserID: actorID,
+		ActorRole:   actorRole,
+		Action:      "COLLEGE_QUOTAS_MODIFIED",
+		AdminEmail:  fmt.Sprintf("Students:%d, Parents:%d, Incharges:%d, Security:%d, Blocks:%d", req.MaxStudents, req.MaxParents, req.MaxIncharges, req.MaxSecurity, req.MaxBlocks),
+	})
+
+	return nil
+}
+
+
 

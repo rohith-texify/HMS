@@ -82,6 +82,11 @@ export default function CreateCollegePage() {
     admin_email: '',
     password: '',
     confirm_password: '',
+    max_students: 500,
+    max_parents: 500,
+    max_blocks: 5,
+    max_incharges: 5,
+    max_security: 10,
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -565,6 +570,11 @@ export default function CreateCollegePage() {
 
       payload.admin_email = effectiveAdminEmail;
       payload.password = formData.password;
+      payload.max_students = parseInt(formData.max_students, 10) || 500;
+      payload.max_parents = parseInt(formData.max_parents, 10) || 500;
+      payload.max_blocks = parseInt(formData.max_blocks, 10) || 5;
+      payload.max_incharges = parseInt(formData.max_incharges, 10) || 5;
+      payload.max_security = parseInt(formData.max_security, 10) || 10;
 
       const createdCollege = await createCollege(payload);
       const effectiveCollegeId = createdCollege?.college_id || createdCollege?.id;
@@ -731,7 +741,7 @@ export default function CreateCollegePage() {
               </div>
               <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#047857' }}>
                 <strong>{successCollege.name}</strong> ({successCollege.college_code}) has been provisioned with status{' '}
-                <span className="badge-enterprise badge-amber">ONBOARDING</span>.
+                <span className="badge-enterprise badge-emerald">ACTIVE</span>.
               </p>
             </div>
           </div>
@@ -763,7 +773,7 @@ export default function CreateCollegePage() {
                 type="button"
                 className="btn-enterprise btn-outline-soft btn-sm"
                 onClick={() => {
-                  const text = `HMS College Administrator Access\nCollege Name: ${successCollege.name}\nCollege ID / Code: ${successCollege.college_code}\nAdmin Email: ${successCollege.created_admin_email}\nPassword: ${successCollege.created_password}\nRole: COLLEGE_ADMIN`;
+                  const text = `HMS College Administrator Access\nCollege Name: ${successCollege.name}\nTenant UUID: ${successCollege.college_id}\nCollege ID / Code: ${successCollege.college_code}\nAdmin Email: ${successCollege.created_admin_email}\nPassword: ${successCollege.created_password}\nRole: COLLEGE_ADMIN`;
                   navigator.clipboard.writeText(text);
                   setCopiedField('all');
                   setTimeout(() => setCopiedField(null), 2500);
@@ -785,7 +795,11 @@ export default function CreateCollegePage() {
 
             <div className="create-cred-grid">
               <div className="create-cred-tile">
-                <span className="create-cred-label">College Tenant Identifier</span>
+                <span className="create-cred-label">Tenant ID (UUID)</span>
+                <span className="create-cred-val" style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: '#1e40af' }}>{successCollege.college_id}</span>
+              </div>
+              <div className="create-cred-tile">
+                <span className="create-cred-label">College Code</span>
                 <span className="create-cred-val">{successCollege.college_code}</span>
               </div>
               <div className="create-cred-tile">
@@ -810,20 +824,20 @@ export default function CreateCollegePage() {
                 <button
                   type="button"
                   className="btn-enterprise btn-primary-blue"
-                  onClick={() => navigate(`/colleges/${successCollege.college_id}/onboarding`)}
-                  id="btn-continue-onboarding"
+                  onClick={() => navigate(`/colleges/${successCollege.college_id}`)}
+                  id="btn-view-college-details"
                 >
-                  <Rocket size={14} />
-                  <span>Continue to Onboarding Wizard</span>
+                  <Building2 size={14} />
+                  <span>Go to College Details Dashboard</span>
                 </button>
                 <button
                   type="button"
                   className="btn-enterprise btn-outline-soft"
-                  onClick={() => navigate(`/colleges/${successCollege.college_id}`)}
-                  id="btn-view-new-college"
+                  onClick={() => navigate('/colleges')}
+                  id="btn-colleges-directory"
                 >
-                  <Building2 size={14} />
-                  <span>View College Profile &amp; Manage</span>
+                  <ArrowRight size={14} />
+                  <span>Colleges Directory</span>
                 </button>
               </>
             ) : (
@@ -1541,6 +1555,152 @@ export default function CreateCollegePage() {
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Section 4: Initial Account Limits & Resource Quotas */}
+              <div>
+                <div className="create-section-header">
+                  <div className="create-section-title-wrap">
+                    <div className="create-section-icon-box" style={{ background: '#ecfdf5', color: '#059669' }}>
+                      <Users size={16} />
+                    </div>
+                    <h2 className="create-section-title">4. Initial Account Limits &amp; Resource Quotas</h2>
+                  </div>
+                  <span className="create-section-tag" style={{ background: '#ecfdf5', color: '#059669' }}>SaaS Governance</span>
+                </div>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '4px 0 14px' }}>
+                  Define strict maximum active account and structural thresholds. Quotas only apply to active accounts; deactivated accounts do not count towards usage.
+                </p>
+
+                <div className="create-field-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+                  <div className="create-field-group">
+                    <label className="create-field-label" htmlFor="field-max-students">
+                      <span>Student Limit <span className="label-req">*</span></span>
+                    </label>
+                    <input
+                      id="field-max-students"
+                      name="max_students"
+                      type="number"
+                      min="1"
+                      className="create-input"
+                      value={formData.max_students}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    <span className="form-hint" style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Default: 500 students</span>
+                  </div>
+
+                  <div className="create-field-group">
+                    <label className="create-field-label" htmlFor="field-max-parents">
+                      <span>Parent Limit <span className="label-req">*</span></span>
+                    </label>
+                    <input
+                      id="field-max-parents"
+                      name="max_parents"
+                      type="number"
+                      min="1"
+                      className="create-input"
+                      value={formData.max_parents}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    <span className="form-hint" style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Default: 500 parents</span>
+                  </div>
+
+                  <div className="create-field-group">
+                    <label className="create-field-label" htmlFor="field-max-blocks">
+                      <span>Hostel Block Limit <span className="label-req">*</span></span>
+                    </label>
+                    <input
+                      id="field-max-blocks"
+                      name="max_blocks"
+                      type="number"
+                      min="1"
+                      className="create-input"
+                      value={formData.max_blocks}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    <span className="form-hint" style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Default: 5 blocks</span>
+                  </div>
+
+                  <div className="create-field-group">
+                    <label className="create-field-label" htmlFor="field-max-incharges">
+                      <span>Incharge Limit <span className="label-req">*</span></span>
+                    </label>
+                    <input
+                      id="field-max-incharges"
+                      name="max_incharges"
+                      type="number"
+                      min="1"
+                      className="create-input"
+                      value={formData.max_incharges}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    <span className="form-hint" style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Default: 5 incharges</span>
+                  </div>
+
+                  <div className="create-field-group">
+                    <label className="create-field-label" htmlFor="field-max-security">
+                      <span>Security Limit <span className="label-req">*</span></span>
+                    </label>
+                    <input
+                      id="field-max-security"
+                      name="max_security"
+                      type="number"
+                      min="1"
+                      className="create-input"
+                      value={formData.max_security}
+                      onChange={handleChange}
+                      disabled={submitting}
+                    />
+                    <span className="form-hint" style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Default: 10 guards</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Core Module Configuration */}
+              <div>
+                <div className="create-section-header">
+                  <div className="create-section-title-wrap">
+                    <div className="create-section-icon-box" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                      <Layers size={16} />
+                    </div>
+                    <h2 className="create-section-title">5. Core Platform Module Entitlements</h2>
+                  </div>
+                  <span className="create-section-tag" style={{ background: '#eff6ff', color: '#2563eb' }}>Auto-Enabled</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px', marginTop: '12px' }}>
+                  {[
+                    { title: 'Student Management', desc: 'Admissions, profiles, KYC & attendance' },
+                    { title: 'Parent Portal Linkage', desc: 'Emergency contacts & communications' },
+                    { title: 'Hostel Facilities Master', desc: 'Blocks, floors, rooms & bed allocations' },
+                    { title: 'Attendance & Gate Passes', desc: 'Biometric checks & QR approvals' },
+                    { title: 'Grievance Redressal Desk', desc: 'Support tickets & maintenance tracking' },
+                    { title: 'Security Checkpoint Guard', desc: 'Access control & visitor logs' },
+                  ].map((mod, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: '12px 14px',
+                        background: '#f8fafc',
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '10px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '10px',
+                      }}
+                    >
+                      <CheckCircle2 size={16} style={{ color: '#059669', flexShrink: 0, marginTop: '2px' }} />
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0f172a' }}>{mod.title}</div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748b' }}>{mod.desc}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

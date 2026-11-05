@@ -60,6 +60,38 @@ export const ROLE_ROUTE_MAP = {
     displayName: 'Hostel In-Charge',
     scope: 'COLLEGE',
   },
+  HOSTEL_IN_CHARGE: {
+    module: 'hostel-incharge',
+    path: '/hostel-incharge/dashboard',
+    tokenKey: 'hms_incharge_token',
+    userKey: 'hms_incharge_user',
+    displayName: 'Hostel In-Charge',
+    scope: 'COLLEGE',
+  },
+  'HOSTEL IN-CHARGE': {
+    module: 'hostel-incharge',
+    path: '/hostel-incharge/dashboard',
+    tokenKey: 'hms_incharge_token',
+    userKey: 'hms_incharge_user',
+    displayName: 'Hostel In-Charge',
+    scope: 'COLLEGE',
+  },
+  'HOSTEL-INCHARGE': {
+    module: 'hostel-incharge',
+    path: '/hostel-incharge/dashboard',
+    tokenKey: 'hms_incharge_token',
+    userKey: 'hms_incharge_user',
+    displayName: 'Hostel In-Charge',
+    scope: 'COLLEGE',
+  },
+  'HOSTEL INCHARGE': {
+    module: 'hostel-incharge',
+    path: '/hostel-incharge/dashboard',
+    tokenKey: 'hms_incharge_token',
+    userKey: 'hms_incharge_user',
+    displayName: 'Hostel In-Charge',
+    scope: 'COLLEGE',
+  },
   INCHARGE: {
     module: 'hostel-incharge',
     path: '/hostel-incharge/dashboard',
@@ -94,7 +126,48 @@ export const ROLE_ROUTE_MAP = {
     displayName: 'Security Guard',
     scope: 'COLLEGE',
   },
+  'CAMPUS SECURITY': {
+    module: 'security',
+    path: '/security/dashboard',
+    tokenKey: 'hms_security_token',
+    userKey: 'hms_security_user',
+    displayName: 'Campus Security',
+    scope: 'COLLEGE',
+  },
+  CAMPUS_SECURITY: {
+    module: 'security',
+    path: '/security/dashboard',
+    tokenKey: 'hms_security_token',
+    userKey: 'hms_security_user',
+    displayName: 'Campus Security',
+    scope: 'COLLEGE',
+  },
 };
+
+/**
+ * Standardize any role representation to its authoritative system role code.
+ * Handles spaces, hyphens, and human-readable role titles.
+ */
+export function normalizeRoleCode(role) {
+  if (!role) return '';
+  const cleaned = String(role).trim().toUpperCase().replace(/[-\s]+/g, '_');
+  if (['HOSTEL_IN_CHARGE', 'HOSTEL_INCHARGE', 'HOSTELINCHARGE', 'INCHARGE', 'WARDEN'].includes(cleaned)) {
+    return 'HOSTEL_INCHARGE';
+  }
+  if (['SECURITY', 'SECURITY_GUARD', 'CAMPUS_SECURITY', 'SECURITY_OFFICER'].includes(cleaned)) {
+    return 'SECURITY';
+  }
+  if (['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN', 'ADMINISTRATOR', 'COLLEGEADMIN'].includes(cleaned)) {
+    return 'COLLEGE_ADMIN';
+  }
+  if (['STUDENT', 'RESIDENTIAL_STUDENT'].includes(cleaned)) {
+    return 'STUDENT';
+  }
+  if (['PARENT', 'PARENT_GUARDIAN', 'GUARDIAN'].includes(cleaned)) {
+    return 'PARENT';
+  }
+  return cleaned;
+}
 
 /**
  * Safely resolves the authorized destination for a given user role and candidate path.
@@ -105,8 +178,8 @@ export const ROLE_ROUTE_MAP = {
  * @returns {string} The validated destination path
  */
 export function getAuthorizedRedirectPath(role, candidatePath) {
-  const upperRole = (role || '').toUpperCase();
-  const roleCfg = ROLE_ROUTE_MAP[upperRole];
+  const normalizedRole = normalizeRoleCode(role);
+  const roleCfg = ROLE_ROUTE_MAP[normalizedRole] || ROLE_ROUTE_MAP[String(role).toUpperCase()] || ROLE_ROUTE_MAP.COLLEGE_ADMIN;
   const fallbackPath = roleCfg?.path || '/login';
 
   if (!candidatePath || candidatePath === '/' || candidatePath === '/login' || candidatePath === '/unauthorized') {
@@ -114,15 +187,15 @@ export function getAuthorizedRedirectPath(role, candidatePath) {
   }
 
   // Validate candidatePath belongs to this role's module scope
-  if (['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'].includes(upperRole)) {
+  if (['COLLEGE_ADMIN', 'HOSTEL_ADMIN', 'ADMIN'].includes(normalizedRole)) {
     if (candidatePath.startsWith('/admin')) return candidatePath;
-  } else if (['HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN'].includes(upperRole)) {
+  } else if (['HOSTEL_INCHARGE', 'INCHARGE', 'WARDEN'].includes(normalizedRole)) {
     if (candidatePath.startsWith('/hostel-incharge')) return candidatePath;
-  } else if (['SECURITY', 'SECURITY_GUARD'].includes(upperRole)) {
+  } else if (['SECURITY', 'SECURITY_GUARD'].includes(normalizedRole)) {
     if (candidatePath.startsWith('/security')) return candidatePath;
-  } else if (upperRole === 'STUDENT') {
+  } else if (normalizedRole === 'STUDENT') {
     if (candidatePath.startsWith('/student')) return candidatePath;
-  } else if (upperRole === 'PARENT') {
+  } else if (normalizedRole === 'PARENT') {
     if (candidatePath.startsWith('/parent')) return candidatePath;
   }
 
@@ -160,12 +233,13 @@ export const portalAuthService = {
       throw new Error('Authentication response did not contain an access token.');
     }
 
-    const roleCode = (membership?.role_code || membership?.RoleCode || '').toUpperCase();
+    const rawRoleCode = (membership?.role_code || membership?.RoleCode || '').toUpperCase();
+    const roleCode = normalizeRoleCode(rawRoleCode);
     const roleScope = (membership?.role_scope || membership?.RoleScope || 'COLLEGE').toUpperCase();
     const collegeId = membership?.college_id || membership?.CollegeID || null;
 
     // Detect Super Admin and signal separate deployment
-    if (roleCode === 'SUPER_ADMIN') {
+    if (roleCode === 'SUPER_ADMIN' || rawRoleCode === 'SUPER_ADMIN') {
       return {
         token: access_token,
         isSuperAdmin: true,
@@ -180,10 +254,10 @@ export const portalAuthService = {
       };
     }
 
-    const roleConfig = ROLE_ROUTE_MAP[roleCode];
+    const roleConfig = ROLE_ROUTE_MAP[roleCode] || ROLE_ROUTE_MAP[rawRoleCode];
     if (!roleConfig) {
       throw new Error(
-        `Authorized role '${roleCode}' is not permitted to access institutional college portals. Please contact your administrator.`
+        `Authorized role '${roleCode || rawRoleCode}' is not permitted to access institutional college portals. Please contact your administrator.`
       );
     }
 
@@ -236,11 +310,13 @@ export const portalAuthService = {
       if (token && rawUser) {
         try {
           const user = JSON.parse(rawUser);
-          if (user?.role && ROLE_ROUTE_MAP[user.role]) {
+          const normRole = normalizeRoleCode(user?.role);
+          const roleCfg = ROLE_ROUTE_MAP[normRole] || ROLE_ROUTE_MAP[user?.role];
+          if (roleCfg) {
             return {
               token,
-              user,
-              redirectPath: ROLE_ROUTE_MAP[user.role].path,
+              user: { ...user, role: normRole },
+              redirectPath: roleCfg.path,
             };
           }
         } catch {

@@ -87,15 +87,17 @@ func TestMigrationFileClassification(t *testing.T) {
 		t.Fatalf("Failed to load actual migrations: %v", err)
 	}
 
-	if len(migrations) != 18 {
-		t.Fatalf("Expected 18 migrations, found %d", len(migrations))
+	if len(migrations) != 24 {
+		t.Fatalf("Expected 24 migrations, found %d", len(migrations))
 	}
 
 	// 012 and 013 should be detected as false (Go-managed transaction)
 	// All other 16 files should be detected as true (Self-contained transaction)
 	for _, m := range migrations {
 		hasTx := hasInternalTransaction(m.SQL)
-		if m.Filename == "012_college_location.sql" || m.Filename == "013_default_ist_timezone.sql" {
+		if m.Filename == "012_college_location.sql" || m.Filename == "013_default_ist_timezone.sql" ||
+			m.Filename == "014_platform_system_settings.sql" || m.Filename == "015_audit_logs_tamper_evidence.sql" ||
+			m.Filename == "016_platform_app_users_privileges.sql" {
 			if hasTx {
 				t.Errorf("Expected %s to have hasInternalTransaction=false, got true", m.Filename)
 			}

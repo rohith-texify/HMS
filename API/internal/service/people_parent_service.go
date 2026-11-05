@@ -138,6 +138,27 @@ func (s *ParentService) CreateParent(
 
 		if s.db != nil {
 			txErr := s.db.WithTransaction(ctx, func(txCtx context.Context, tx pgx.Tx) error {
+				// 0. Concurrency-Safe Parent Quota Enforcement
+				var maxParents int
+				if qErr := tx.QueryRow(txCtx, `
+					SELECT COALESCE(max_parents, 500) FROM platform.colleges WHERE college_id = $1 FOR UPDATE
+				`, params.CollegeID).Scan(&maxParents); qErr == nil {
+					var activeParentCount int
+					_ = tx.QueryRow(txCtx, `
+						SELECT COUNT(DISTINCT ur.user_id)
+						FROM platform.user_roles ur
+						JOIN platform.roles r ON ur.role_id = r.role_id
+						JOIN app.users u ON ur.user_id = u.user_id
+						WHERE ur.college_id = $1 
+						  AND r.role_code = 'PARENT'
+						  AND ur.status = 'ACTIVE' 
+						  AND u.status = 'ACTIVE'
+					`, params.CollegeID).Scan(&activeParentCount)
+					if activeParentCount >= maxParents {
+						return fmt.Errorf("parent account limit reached for this college (limit: %d, currently active: %d). Contact Super Admin to increase quota", maxParents, activeParentCount)
+					}
+				}
+
 				// 1. Check or insert into app.users
 				var userID uuid.UUID
 				err := tx.QueryRow(txCtx, `

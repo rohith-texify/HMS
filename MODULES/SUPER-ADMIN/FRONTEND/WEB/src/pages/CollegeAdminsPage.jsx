@@ -1,6 +1,28 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
+  Users,
+  ShieldCheck,
+  Plus,
+  ArrowLeft,
+  RotateCw,
+  Edit3,
+  History,
+  Smartphone,
+  Lock,
+  Unlock,
+  Info,
+  X,
+  CheckCircle2,
+  AlertCircle,
+  Building2,
+  Phone,
+  Mail,
+  Calendar,
+  Clock,
+  Filter,
+} from 'lucide-react';
+import {
   fetchCollegeById,
   fetchCollegeAdmins,
   provisionFirstCollegeAdmin,
@@ -300,15 +322,38 @@ export default function CollegeAdminsPage() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'ACTIVE':
-        return <span className="badge badge-success">ACTIVE</span>;
+        return (
+          <span className="badge-status-active" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#059669' }} />
+            ACTIVE
+          </span>
+        );
       case 'LOCKED':
-        return <span className="badge badge-danger">🔒 LOCKED</span>;
+        return (
+          <span className="badge-status-locked" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Lock size={11} /> LOCKED
+          </span>
+        );
       case 'SUSPENDED':
-        return <span className="badge badge-warning">SUSPENDED</span>;
+        return (
+          <span className="badge-status-inactive" style={{ background: '#fffbeb', color: '#d97706', borderColor: '#fde68a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#d97706' }} />
+            SUSPENDED
+          </span>
+        );
       case 'DEACTIVATED':
-        return <span className="badge badge-muted">DEACTIVATED</span>;
+        return (
+          <span className="badge-status-inactive" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#dc2626' }} />
+            DEACTIVATED
+          </span>
+        );
       case 'INVITED':
-        return <span className="badge badge-info">INVITED</span>;
+        return (
+          <span className="badge-category-boys" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Mail size={11} /> INVITED
+          </span>
+        );
       default:
         return <span className="badge badge-muted">{status}</span>;
     }
@@ -339,64 +384,74 @@ export default function CollegeAdminsPage() {
   const totalPages = Math.ceil(totalAdmins / limit) || 1;
 
   return (
-    <div>
+    <div className="main-content college-admins-container" style={{ padding: '24px 32px' }}>
       {/* College Context Header */}
-      <div className="header-container">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-            <h1 className="page-title">College Administrators</h1>
-            <span className="badge badge-info">{college.name}</span>
-            <span className="badge badge-outline">Code: {college.college_code}</span>
-          </div>
-          <p className="page-subtitle">
-            Manage authenticated administrator accounts for <strong>{college.name}</strong> ({college.college_id}).
-          </p>
+      <div className="college-admins-hero">
+        <div className="college-admins-hero-breadcrumb">
+          <Link to="/colleges" className="hostel-hero-breadcrumb-link">Colleges</Link>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <Link to={`/colleges/${collegeId}`} className="hostel-hero-breadcrumb-link">
+            {college.name}
+          </Link>
+          <span style={{ color: '#cbd5e1' }}>/</span>
+          <span style={{ fontWeight: '600', color: '#0f172a' }}>Administrators</span>
         </div>
 
-        <div className="quick-actions">
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setProvisionError(null);
-              setProvisionForm({
-                email: college.contact_email || `${college.college_code.toLowerCase()}.admin@hms.local`,
-                phone: '',
-                password: '',
-              });
-              setShowProvisionModal(true);
-            }}
-            id="btn-provision-first-admin"
-          >
-            + Provision Administrator
-          </button>
-          <Link to={`/colleges/${collegeId}`} className="btn btn-outline" id="btn-back-college-details">
-            ← College Details
-          </Link>
-          <Link to="/colleges" className="btn btn-outline">
-            Directory
-          </Link>
+        <div className="college-admins-hero-row">
+          <div className="college-admins-title-group">
+            <h1 className="college-admins-title">
+              <span className="college-admins-icon-badge">
+                <Users size={22} />
+              </span>
+              <span>College Administrators</span>
+              <span className="badge-category-boys">{college.name}</span>
+              <span className="code-pill">Code: {college.college_code}</span>
+            </h1>
+            <p className="college-admins-subtitle">
+              Manage authenticated administrator accounts for <strong>{college.name}</strong> ({college.college_id}).
+            </p>
+          </div>
+
+          <div className="college-admins-hero-actions">
+            <button
+              className="btn-enterprise btn-primary-blue"
+              onClick={() => {
+                setProvisionError(null);
+                setProvisionForm({
+                  email: college.contact_email || `${college.college_code.toLowerCase()}.admin@hms.local`,
+                  phone: '',
+                  password: '',
+                });
+                setShowProvisionModal(true);
+              }}
+              id="btn-provision-first-admin"
+            >
+              <Plus size={15} />
+              <span>Provision Administrator</span>
+            </button>
+            <Link to={`/colleges/${collegeId}`} className="btn-enterprise btn-outline-soft" id="btn-back-college-details">
+              <ArrowLeft size={14} />
+              <span>College Details</span>
+            </Link>
+            <Link to="/colleges" className="btn-enterprise btn-outline-soft">
+              <Building2 size={14} />
+              <span>Directory</span>
+            </Link>
+          </div>
         </div>
       </div>
 
       {/* Limitation Notice */}
-      <div
-        className="card"
-        style={{
-          marginBottom: '20px',
-          borderLeft: '4px solid var(--info-border)',
-          backgroundColor: 'var(--info-bg)',
-          padding: '12px 16px',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-          <span style={{ fontSize: '1.2rem' }}>ℹ️</span>
-          <div style={{ fontSize: '0.85rem', color: 'var(--info-text)' }}>
-            <strong>Platform Account Management Notice:</strong>
-            <p style={{ marginTop: '4px' }}>
-              College administrator accounts possess full operational rights for this tenant in the Admin Module.
-              Verified-contact one-time password reset links and forced password reset at next login are currently unavailable
-              pending platform outbound email delivery infrastructure. Reset credentials directly via the secure Super Admin backend.
-            </p>
+      <div className="college-admins-notice">
+        <div className="college-admins-notice-icon">
+          <Info size={16} />
+        </div>
+        <div className="college-admins-notice-content">
+          <div className="college-admins-notice-title">Platform Account Management Notice</div>
+          <div>
+            College administrator accounts possess full operational rights for this tenant in the Admin Module.
+            Verified-contact one-time password reset links and forced password reset at next login are currently unavailable
+            pending platform outbound email delivery infrastructure. Reset credentials directly via the secure Super Admin backend.
           </div>
         </div>
       </div>
@@ -404,47 +459,57 @@ export default function CollegeAdminsPage() {
       {/* Global Feedback Banner */}
       {feedback && (
         <div
-          className={`card alert alert-${feedback.type}`}
           style={{
-            marginBottom: '20px',
-            padding: '12px 16px',
+            backgroundColor: feedback.type === 'success' ? '#ecfdf5' : '#fef2f2',
+            border: `1px solid ${feedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
+            color: feedback.type === 'success' ? '#065f46' : '#991b1b',
+            borderRadius: '12px',
+            padding: '12px 18px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            marginBottom: '20px',
           }}
         >
-          <div>{feedback.message}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', fontSize: '0.9rem' }}>
+            {feedback.type === 'success' ? (
+              <CheckCircle2 size={16} className="text-emerald-600" />
+            ) : (
+              <AlertCircle size={16} className="text-rose-600" />
+            )}
+            <span>{feedback.message}</span>
+          </div>
           <button
-            className="btn btn-outline btn-sm"
+            className="btn-icon-action"
             onClick={() => setFeedback(null)}
-            style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+            style={{ width: '24px', height: '24px', border: 'none', background: 'transparent' }}
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       )}
 
       {/* Filter and Control Bar */}
-      <div
-        className="card"
-        style={{
-          marginBottom: '20px',
-          padding: '14px 18px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '16px',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: '600' }} htmlFor="admin-status-filter">
-            Filter by Status:
-          </label>
+      <div className="college-admins-filter-panel" style={{ marginBottom: '20px' }}>
+        <div className="college-admins-filter-group">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.88rem', fontWeight: '600' }}>
+            <Filter size={15} style={{ color: '#64748b' }} />
+            <label htmlFor="admin-status-filter" style={{ margin: 0 }}>Filter Status:</label>
+          </div>
           <select
             id="admin-status-filter"
             className="form-control"
-            style={{ width: '180px', padding: '6px 10px', fontSize: '0.85rem' }}
+            style={{
+              width: '180px',
+              padding: '7px 12px',
+              fontSize: '0.85rem',
+              borderRadius: '8px',
+              border: '1px solid #cbd5e1',
+              backgroundColor: '#f8fafc',
+              fontWeight: '500',
+              color: '#1e293b',
+            }}
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
@@ -460,47 +525,57 @@ export default function CollegeAdminsPage() {
           </select>
 
           <button
-            className="btn btn-outline btn-sm"
+            className="btn-enterprise btn-outline-soft btn-sm"
             onClick={loadAdmins}
             disabled={adminsLoading}
             title="Refresh list from backend"
+            style={{ padding: '6px 14px' }}
           >
-            🔄 Refresh
+            <RotateCw size={13} className={adminsLoading ? 'animate-spin' : ''} />
+            <span>Refresh</span>
           </button>
         </div>
 
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Showing <strong>{admins.length}</strong> of <strong>{totalAdmins}</strong> registered administrator(s)
+        <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: '500' }}>
+          Showing <span style={{ fontWeight: '700', color: '#0f172a' }}>{admins.length}</span> of{' '}
+          <span style={{ fontWeight: '700', color: '#0f172a' }}>{totalAdmins}</span> registered administrator(s)
         </div>
       </div>
 
       {/* Administrators Table */}
-      <div className="card" style={{ padding: '0', overflow: 'hidden', marginBottom: '24px' }}>
+      <div className="college-admins-table-card">
         {adminsLoading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            Loading administrator accounts...
+          <div style={{ padding: '60px 24px', textAlign: 'center', color: '#64748b' }}>
+            <RotateCw size={28} className="animate-spin" style={{ margin: '0 auto 12px', color: '#3b82f6' }} />
+            <p style={{ margin: 0, fontWeight: '500', fontSize: '0.9rem' }}>Loading administrator accounts...</p>
           </div>
         ) : adminsError ? (
-          <div style={{ padding: '30px', textAlign: 'center' }}>
-            <div style={{ color: 'var(--danger-text)', fontWeight: '600', marginBottom: '8px' }}>
-              ⚠️ {adminsError}
+          <div style={{ padding: '40px 24px', textAlign: 'center' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#dc2626', fontWeight: '600', marginBottom: '12px' }}>
+              <AlertCircle size={20} />
+              <span>{adminsError}</span>
             </div>
-            <button className="btn btn-outline btn-sm" onClick={loadAdmins}>
-              Retry
-            </button>
+            <div>
+              <button className="btn-enterprise btn-outline-soft btn-sm" onClick={loadAdmins}>
+                <RotateCw size={13} />
+                <span>Retry</span>
+              </button>
+            </div>
           </div>
         ) : admins.length === 0 ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>👤</div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '6px' }}>No Administrators Found</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', maxWidth: '480px', margin: '0 auto 16px' }}>
+          <div style={{ padding: '56px 24px', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '16px', background: '#f1f5f9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', marginBottom: '16px' }}>
+              <Users size={28} />
+            </div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '700', color: '#0f172a', marginBottom: '6px' }}>No Administrators Found</h3>
+            <p style={{ color: '#64748b', fontSize: '0.88rem', maxWidth: '480px', margin: '0 auto 20px' }}>
               {statusFilter !== 'ALL'
                 ? `No administrator accounts match the "${statusFilter}" filter for this college.`
                 : 'This college does not have any administrator accounts configured yet.'}
             </p>
             {statusFilter === 'ALL' && (
               <button
-                className="btn btn-primary btn-sm"
+                className="btn-enterprise btn-primary-blue btn-sm"
                 onClick={() => {
                   setProvisionError(null);
                   setProvisionForm({
@@ -511,142 +586,164 @@ export default function CollegeAdminsPage() {
                   setShowProvisionModal(true);
                 }}
               >
-                + Provision First Administrator
+                <Plus size={14} />
+                <span>Provision First Administrator</span>
               </button>
             )}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.86rem', margin: 0 }}>
               <thead>
-                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ padding: '12px 16px' }}>Administrator</th>
-                  <th style={{ padding: '12px 16px' }}>Contact Phone</th>
-                  <th style={{ padding: '12px 16px' }}>Assigned Role</th>
-                  <th style={{ padding: '12px 16px' }}>Status</th>
-                  <th style={{ padding: '12px 16px' }}>Last Login</th>
-                  <th style={{ padding: '12px 16px' }}>Created At</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Administrator</th>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Contact Phone</th>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Assigned Role</th>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status</th>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Last Login</th>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Created At</th>
+                  <th style={{ padding: '14px 18px', fontWeight: '700', color: '#475569', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {admins.map((admin) => {
                   const isLocked = admin.status === 'LOCKED';
                   const isInactive = admin.status === 'DEACTIVATED' || admin.status === 'SUSPENDED';
+                  const initials = (admin.email || 'A').slice(0, 2).toUpperCase();
 
                   return (
                     <tr
                       key={admin.user_id}
                       style={{
-                        borderBottom: '1px solid var(--border-color)',
+                        borderBottom: '1px solid #000000',
                         backgroundColor: isLocked ? '#fff1f2' : isInactive ? '#fafafa' : '#ffffff',
+                        transition: 'background-color 0.15s ease',
                       }}
                     >
                       {/* Administrator Info */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{admin.email}</div>
-                        <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          ID: {admin.user_id}
-                        </div>
-                        {isLocked && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--danger-text)', fontWeight: 'bold', marginTop: '2px' }}>
-                            ⚠️ Account Locked due to failed attempts
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div className="college-admin-avatar">
+                            {initials}
                           </div>
-                        )}
+                          <div>
+                            <div style={{ fontWeight: '600', color: '#0f172a', fontSize: '0.9rem' }}>{admin.email}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#94a3b8', marginTop: '1px' }}>
+                              ID: {admin.user_id}
+                            </div>
+                            {isLocked && (
+                              <div style={{ fontSize: '0.72rem', color: '#dc2626', fontWeight: '600', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <AlertCircle size={12} />
+                                <span>Account Locked due to failed attempts</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </td>
 
                       {/* Phone */}
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '14px 18px' }}>
                         {admin.phone ? (
-                          <span style={{ fontFamily: 'monospace' }}>{admin.phone}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#334155' }}>
+                            <Phone size={13} style={{ color: '#94a3b8' }} />
+                            <span style={{ fontFamily: 'monospace', fontSize: '0.84rem' }}>{admin.phone}</span>
+                          </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>Not configured</span>
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.82rem' }}>Not configured</span>
                         )}
                       </td>
 
                       {/* Role */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <span className="badge badge-info">{admin.role_name || admin.role_code}</span>
+                      <td style={{ padding: '14px 18px' }}>
+                        <span className="badge-category-boys" style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <ShieldCheck size={12} />
+                          <span>{admin.role_name || admin.role_code || 'College Administrator'}</span>
+                        </span>
                       </td>
 
                       {/* Status */}
-                      <td style={{ padding: '12px 16px' }}>{getStatusBadge(admin.status)}</td>
+                      <td style={{ padding: '14px 18px' }}>{getStatusBadge(admin.status)}</td>
 
                       {/* Last Login */}
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '14px 18px' }}>
                         {admin.last_login_at ? (
-                          <div>
-                            <div>{new Date(admin.last_login_at).toLocaleDateString()}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              {new Date(admin.last_login_at).toLocaleTimeString()}
+                          <div style={{ color: '#334155' }}>
+                            <div style={{ fontWeight: '500' }}>{new Date(admin.last_login_at).toLocaleDateString()}</div>
+                            <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+                              <Clock size={11} />
+                              <span>{new Date(admin.last_login_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             </div>
                           </div>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>Never logged in</span>
+                          <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '0.82rem' }}>Never logged in</span>
                         )}
                       </td>
 
                       {/* Created At */}
-                      <td style={{ padding: '12px 16px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {new Date(admin.created_at).toLocaleDateString()}
+                      <td style={{ padding: '14px 18px', color: '#64748b', fontSize: '0.82rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <Calendar size={13} style={{ color: '#94a3b8' }} />
+                          <span>{new Date(admin.created_at).toLocaleDateString()}</span>
+                        </div>
                       </td>
 
                       {/* Actions */}
-                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <td style={{ padding: '14px 18px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '6px', alignItems: 'center', justifyContent: 'flex-end' }}>
                           {/* Unlock (only if locked) */}
                           {isLocked && (
                             <button
-                              className="btn btn-danger btn-sm"
+                              className="btn-icon-action"
+                              style={{ color: '#dc2626', borderColor: '#fca5a5', background: '#fef2f2' }}
                               onClick={() => {
                                 setUnlockError(null);
                                 setUnlockingAdmin(admin);
                               }}
                               title="Unlock this locked administrator account"
                             >
-                              🔓 Unlock
+                              <Unlock size={14} />
                             </button>
                           )}
 
                           {/* Edit Profile */}
                           <button
-                            className="btn btn-outline btn-sm"
+                            className="btn-icon-action"
                             onClick={() => {
                               setEditError(null);
                               setEditForm({ phone: admin.phone || '' });
                               setEditingAdmin(admin);
                             }}
-                            title="Edit permitted profile fields"
+                            title="Edit administrator details"
                           >
-                            ✏️ Edit
+                            <Edit3 size={14} />
                           </button>
 
                           {/* Status Management */}
                           <button
-                            className="btn btn-outline btn-sm"
+                            className="btn-icon-action"
                             onClick={() => {
                               setStatusError(null);
                               setStatusReason('');
                               setTargetStatus(admin.status === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE');
                               setStatusAdmin(admin);
                             }}
-                            title="Activate, suspend, or deactivate administrator"
+                            title="Toggle status (Active / Deactivated)"
                           >
-                            🔄 Status
+                            <RotateCw size={14} />
                           </button>
 
                           {/* Login History */}
                           <button
-                            className="btn btn-outline btn-sm"
+                            className="btn-icon-action"
                             onClick={() => openLoginHistory(admin)}
-                            title="Inspect login attempts from platform.login_events"
+                            title="Inspect login history"
                           >
-                            📜 History
+                            <History size={14} />
                           </button>
 
                           {/* Invalidate Device Tokens */}
                           <button
-                            className="btn btn-outline btn-sm"
+                            className="btn-icon-action"
                             onClick={() => {
                               setRevokeError(null);
                               setRevokeResult(null);
@@ -654,7 +751,7 @@ export default function CollegeAdminsPage() {
                             }}
                             title="Invalidate push notification device tokens"
                           >
-                            📲 Push Tokens
+                            <Smartphone size={14} />
                           </button>
                         </div>
                       </td>
@@ -670,8 +767,8 @@ export default function CollegeAdminsPage() {
         {totalPages > 1 && (
           <div
             style={{
-              padding: '12px 16px',
-              borderTop: '1px solid var(--border-color)',
+              padding: '12px 20px',
+              borderTop: '1px solid #e2e8f0',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -679,17 +776,17 @@ export default function CollegeAdminsPage() {
             }}
           >
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft btn-sm"
               disabled={page === 0 || adminsLoading}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
               ← Previous
             </button>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Page <strong>{page + 1}</strong> of <strong>{totalPages}</strong>
+            <span style={{ fontSize: '0.84rem', color: '#64748b' }}>
+              Page <strong style={{ color: '#0f172a' }}>{page + 1}</strong> of <strong style={{ color: '#0f172a' }}>{totalPages}</strong>
             </span>
             <button
-              className="btn btn-outline btn-sm"
+              className="btn-enterprise btn-outline-soft btn-sm"
               disabled={page >= totalPages - 1 || adminsLoading}
               onClick={() => setPage((p) => p + 1)}
             >

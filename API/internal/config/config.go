@@ -375,6 +375,10 @@ func Load() (*Config, error) {
 }
 
 func loadDotEnv() {
+	if os.Getenv("SKIP_DOTENV") == "1" {
+		return
+	}
+
 	if err := godotenv.Load(".env"); err == nil {
 		return
 	}

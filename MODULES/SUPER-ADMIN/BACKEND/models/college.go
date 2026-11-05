@@ -26,6 +26,12 @@ type College struct {
 	VillageCode     *string    `json:"village_code,omitempty" db:"village_code"`
 	CampusLocality  *string    `json:"campus_locality,omitempty" db:"campus_locality"`
 	LogoURL         *string    `json:"logo_url,omitempty" db:"logo_url"`
+	MaxIncharges    int        `json:"max_incharges" db:"max_incharges"`
+	MaxStudents     int        `json:"max_students" db:"max_students"`
+	MaxParents      int        `json:"max_parents" db:"max_parents"`
+	MaxSecurity     int        `json:"max_security" db:"max_security"`
+	MaxBlocks       int        `json:"max_blocks" db:"max_blocks"`
+	Quotas          *CollegeQuotaUsage `json:"quotas,omitempty" db:"-"`
 	ActivatedAt     *time.Time `json:"activated_at,omitempty" db:"activated_at"`
 	SuspendedAt     *time.Time `json:"suspended_at,omitempty" db:"suspended_at"`
 	DeactivatedAt   *time.Time `json:"deactivated_at,omitempty" db:"deactivated_at"`
@@ -34,6 +40,20 @@ type College struct {
 	CreatedAt       time.Time            `json:"created_at" db:"created_at"`
 	UpdatedAt       time.Time            `json:"updated_at" db:"updated_at"`
 	Admin           *CollegeAdminAccount `json:"admin,omitempty" db:"-"`
+}
+
+// CollegeQuotaUsage represents the current quota limits and live usage counts for a college.
+type CollegeQuotaUsage struct {
+	MaxIncharges  int `json:"max_incharges"`
+	UsedIncharges int `json:"used_incharges"`
+	MaxStudents   int `json:"max_students"`
+	UsedStudents  int `json:"used_students"`
+	MaxParents    int `json:"max_parents"`
+	UsedParents   int `json:"used_parents"`
+	MaxSecurity   int `json:"max_security"`
+	UsedSecurity  int `json:"used_security"`
+	MaxBlocks     int `json:"max_blocks"`
+	UsedBlocks    int `json:"used_blocks"`
 }
 
 // CollegeAdminAccount represents the administrator account associated with a college.
@@ -122,6 +142,11 @@ type CreateCollegeRequest struct {
 	VillageCode     *string `json:"village_code,omitempty" binding:"omitempty,max=20"`
 	CampusLocality  *string `json:"campus_locality,omitempty" binding:"omitempty,max=500"`
 	LogoURL         *string `json:"logo_url,omitempty" binding:"omitempty"`
+	MaxIncharges    *int    `json:"max_incharges,omitempty" binding:"omitempty,min=0"`
+	MaxStudents     *int    `json:"max_students,omitempty" binding:"omitempty,min=0"`
+	MaxParents      *int    `json:"max_parents,omitempty" binding:"omitempty,min=0"`
+	MaxSecurity     *int    `json:"max_security,omitempty" binding:"omitempty,min=0"`
+	MaxBlocks       *int    `json:"max_blocks,omitempty" binding:"omitempty,min=0"`
 }
 
 // UpdateCollegeRequest represents the payload for updating a college.
@@ -140,8 +165,84 @@ type UpdateCollegeRequest struct {
 	VillageCode     *string `json:"village_code,omitempty" binding:"omitempty,max=20"`
 	CampusLocality  *string `json:"campus_locality,omitempty" binding:"omitempty,max=500"`
 	LogoURL         *string `json:"logo_url,omitempty" binding:"omitempty"`
+	MaxIncharges    *int    `json:"max_incharges,omitempty" binding:"omitempty,min=0"`
+	MaxStudents     *int    `json:"max_students,omitempty" binding:"omitempty,min=0"`
+	MaxParents      *int    `json:"max_parents,omitempty" binding:"omitempty,min=0"`
+	MaxSecurity     *int    `json:"max_security,omitempty" binding:"omitempty,min=0"`
+	MaxBlocks       *int    `json:"max_blocks,omitempty" binding:"omitempty,min=0"`
 
 	ContactEmail *string `json:"contact_email,omitempty" binding:"omitempty,email"`
+}
+
+// UpdateCollegeQuotasRequest represents the payload for setting or editing resource ceilings.
+type UpdateCollegeQuotasRequest struct {
+	MaxStudents  int `json:"max_students" binding:"required,min=0"`
+	MaxParents   int `json:"max_parents" binding:"required,min=0"`
+	MaxIncharges int `json:"max_incharges" binding:"required,min=0"`
+	MaxSecurity  int `json:"max_security" binding:"required,min=0"`
+	MaxBlocks    int `json:"max_blocks" binding:"required,min=0"`
+}
+
+// AccountStatCategory details the capacity and active/deactivated counts for a specific role/resource.
+type AccountStatCategory struct {
+	Total       int     `json:"total"`
+	Active      int     `json:"active"`
+	Deactivated int     `json:"deactivated"`
+	Limit       int     `json:"limit"`
+	Remaining   int     `json:"remaining"`
+	UsagePct    float64 `json:"usage_pct"`
+}
+
+// CollegeAccountStats aggregates all role-based account figures and limits for the college.
+type CollegeAccountStats struct {
+	CollegeID           uuid.UUID           `json:"college_id"`
+	TotalAccounts       int                 `json:"total_accounts"`
+	ActiveAccounts      int                 `json:"active_accounts"`
+	DeactivatedAccounts int                 `json:"deactivated_accounts"`
+	Students            AccountStatCategory `json:"students"`
+	Parents             AccountStatCategory `json:"parents"`
+	Incharges           AccountStatCategory `json:"incharges"`
+	Security            AccountStatCategory `json:"security"`
+	Blocks              AccountStatCategory `json:"blocks"`
+}
+
+// RoleRecentLogin models a recent login event for an account role within the college.
+type RoleRecentLogin struct {
+	RoleCode  string     `json:"role_code"`
+	RoleName  string     `json:"role_name"`
+	Email     string     `json:"email"`
+	EventAt   *time.Time `json:"event_at"`
+	Device    *string    `json:"device,omitempty"`
+	UserAgent *string    `json:"user_agent,omitempty"`
+	IPAddress *string    `json:"ip_address,omitempty"`
+}
+
+// RecentSupportTicket represents a recent complaint/ticket for the college.
+type RecentSupportTicket struct {
+	ID              uuid.UUID `json:"id"`
+	ComplaintNumber string    `json:"complaint_number"`
+	Title           string    `json:"title"`
+	Category        string    `json:"category"`
+	Priority        string    `json:"priority"`
+	Status          string    `json:"status"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// SupportTicketSummary provides complaint status counts and recent items.
+type SupportTicketSummary struct {
+	Total      int                   `json:"total"`
+	Open       int                   `json:"open"`
+	InProgress int                   `json:"in_progress"`
+	Resolved   int                   `json:"resolved"`
+	Recent     []RecentSupportTicket `json:"recent"`
+}
+
+// CollegeActivityDashboard brings together recent logins, audit logs, and support tickets.
+type CollegeActivityDashboard struct {
+	CollegeID    uuid.UUID            `json:"college_id"`
+	RecentLogins []RoleRecentLogin    `json:"recent_logins"`
+	AuditLogs    []PlatformAuditLog   `json:"audit_logs"`
+	Tickets      SupportTicketSummary `json:"tickets"`
 }
 
 // UpdateCollegeStatusRequest represents the payload for updating college status.
