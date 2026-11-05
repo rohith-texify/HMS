@@ -1,37 +1,36 @@
-import React from 'react';
-import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
-import PortalState from '../components/PortalState';
+import authService from '../services/authService';
+import { UnauthorizedState } from '../components/PageStates';
 
 export default function ProtectedRoute() {
   const { isAuthenticated, user, logout } = useAuth();
-  const navigate = useNavigate();
+  const expired = isAuthenticated && authService.isSessionExpired(user);
+
+  useEffect(() => {
+    if (expired) logout();
+  }, [expired, logout]);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
+  if (expired) {
+    return <Navigate to="/login" replace />;
+  }
+
   if (user?.role !== 'PARENT' || user?.scope !== 'COLLEGE') {
     return (
-      <main className="access-boundary">
-        <PortalState
-          variant="unauthorized"
-          title="Unauthorized access"
-          message="This portal is restricted to authenticated Parent accounts in college scope."
-          action={
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                logout();
-                navigate('/login', { replace: true });
-              }}
-            >
-              Return to Login
-            </button>
-          }
-        />
-      </main>
+      <UnauthorizedState
+        title="Unauthorized access"
+        message="This portal is restricted to authenticated Parent accounts in college scope."
+        action={
+          <button type="button" className="button button-primary" onClick={logout}>
+            Return to login
+          </button>
+        }
+      />
     );
   }
 

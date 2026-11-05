@@ -22,11 +22,7 @@ export default function LoginPage() {
       await login(email, password);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        'Authentication failed. Please verify credentials.';
+      const msg = err.message || 'Authentication failed. Please verify your credentials.';
       setError(msg);
     } finally {
       setSubmitting(false);
@@ -40,7 +36,7 @@ export default function LoginPage() {
           <div className="auth-logo-badge">HMS PARENT</div>
           <h2 className="auth-title">Parent & Guardian Sign In</h2>
           <p className="auth-subtitle">
-            Access authorized information and leave records for your ward
+            View notifications and today&apos;s mess menu for your college
           </p>
         </div>
 
@@ -96,7 +92,7 @@ export default function LoginPage() {
 
           <button
             type="submit"
-            className="btn btn-primary btn-block btn-lg"
+            className="button button-primary btn-block btn-lg"
             disabled={submitting}
           >
             {submitting ? 'Authenticating...' : 'Sign In as Parent'}
