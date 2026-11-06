@@ -77,18 +77,6 @@ services:
     depends_on:
       - backend
 
-  parent-web:
-    build:
-      context: .
-      dockerfile: INFRASTRUCTURE/docker/parent-web.Dockerfile
-    container_name: hms-parent-web
-    ports:
-      - "5174:80"
-    networks:
-      - hms-network
-    depends_on:
-      - backend
-
   admin-web:
     build:
       context: .

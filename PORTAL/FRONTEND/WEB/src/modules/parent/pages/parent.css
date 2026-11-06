@@ -1,0 +1,251 @@
+.parent-page {
+  padding: 28px;
+}
+
+.parent-page-header,
+.parent-card-heading,
+.parent-record-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.parent-page-header {
+  margin-bottom: 24px;
+}
+
+.parent-page-header h1,
+.parent-record-card h2,
+.parent-menu-card h2,
+.parent-availability h2 {
+  margin: 0;
+  color: var(--text-primary, #f8fafc);
+}
+
+.parent-page-header p:not(.eyebrow),
+.parent-record-card > p,
+.parent-menu-card > p,
+.parent-availability > p {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+.parent-button {
+  min-height: 38px;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 8px 14px;
+  background: #334155;
+  color: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.parent-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.parent-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 18px;
+}
+
+.parent-overview-card,
+.parent-record-card,
+.parent-menu-card,
+.parent-availability {
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 20px;
+  background: #1e293b;
+}
+
+.parent-card-heading {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.parent-card-heading h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.08rem;
+}
+
+.parent-text-link {
+  flex: 0 0 auto;
+  color: #38bdf8;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.parent-count-link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  color: #cbd5e1;
+  text-decoration: none;
+}
+
+.parent-count-link strong {
+  color: #f8fafc;
+  font-size: 2rem;
+}
+
+.parent-notification-list,
+.parent-menu-list,
+.parent-record-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parent-notification-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #334155;
+  padding-top: 12px;
+}
+
+.parent-notification-list h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 0.95rem;
+}
+
+.parent-notification-list p,
+.parent-notification-list time,
+.parent-menu-list span,
+.parent-menu-list small,
+.parent-scope-note,
+.parent-record-card time {
+  color: #cbd5e1;
+  font-size: 0.84rem;
+}
+
+.parent-notification-list p {
+  margin: 4px 0;
+}
+
+.parent-unread-indicator {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #38bdf8;
+}
+
+.parent-menu-list li {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid #334155;
+  padding-top: 12px;
+}
+
+.parent-menu-list strong {
+  color: #f8fafc;
+}
+
+.parent-scope-note {
+  margin: 14px 0 0;
+}
+
+.parent-availability {
+  margin-top: 20px;
+}
+
+.parent-availability h2 {
+  font-size: 1.08rem;
+}
+
+.parent-availability > p {
+  margin-bottom: 0;
+}
+
+.parent-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.parent-filter-row button {
+  border: 1px solid #475569;
+  border-radius: 999px;
+  padding: 7px 13px;
+  background: transparent;
+  color: #cbd5e1;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.86rem;
+}
+
+.parent-filter-row button.selected {
+  border-color: #38bdf8;
+  background: #0c4a6e;
+  color: #f0f9ff;
+}
+
+.parent-record-card h2 {
+  font-size: 1.04rem;
+}
+
+.parent-record-card > p {
+  margin: 14px 0;
+  white-space: pre-wrap;
+}
+
+.parent-record-type {
+  margin: 0 0 5px;
+  color: #7dd3fc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.parent-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 14px;
+}
+
+.parent-menu-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+}
+
+.parent-menu-card > p {
+  grid-column: 1 / -1;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.parent-menu-status {
+  align-self: start;
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: #334155;
+  color: #e2e8f0;
+  font-size: 0.74rem;
+}
+
+@media (max-width: 640px) {
+  .parent-page {
+    padding: 18px;
+  }
+
+  .parent-page-header,
+  .parent-record-heading {
+    flex-direction: column;
+  }
+}

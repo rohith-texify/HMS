@@ -121,13 +121,13 @@ make dev
 ```
 
 #### 2. Start Frontend Modules
-Open separate terminal windows for each module:
+Open separate terminal windows for each module. Parent is a role in the unified portal; do not start a separate Parent frontend.
 
 ```bash
 # Student Portal (http://localhost:5173)
 npm run dev:student
 
-# Parent Portal (http://localhost:5174)
+# Parent Portal — unified institutional portal (http://localhost:5173)
 npm run dev:parent
 
 # Admin Portal (http://localhost:5175)

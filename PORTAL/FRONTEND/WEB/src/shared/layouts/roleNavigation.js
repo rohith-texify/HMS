@@ -1,4 +1,5 @@
 import {
+  Bell,
   Compass,
   Building2,
   Users,
@@ -411,7 +412,8 @@ export const ROLE_NAVIGATION = {
         group: 'Ward Oversight',
         items: [
           { label: 'Dashboard', path: '/parent/dashboard', icon: LayoutDashboard },
-          { label: 'Leave Approvals', path: '/parent/leaves', icon: Send },
+          { label: 'Notifications', path: '/parent/notifications', icon: Bell },
+          { label: "Today's Mess Menu", path: '/parent/mess', icon: Utensils },
         ],
       },
     ],
@@ -596,4 +598,3 @@ export function resolveBreadcrumb(pathname, roleConfig) {
 }
 
 export default ROLE_NAVIGATION;
-

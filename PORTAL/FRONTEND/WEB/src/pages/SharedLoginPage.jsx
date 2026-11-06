@@ -88,7 +88,7 @@ const PERSONA_CONFIGS = {
     icon: Users,
     badge: 'Parent & Guardian Portal',
     title: 'Parent & Guardian Sign In',
-    subtitle: 'Sign in to track your ward\'s attendance, review and approve gate exit requests, and access warden contacts.',
+    subtitle: 'Sign in to view account notifications and today\'s college mess menu.',
     fieldLabel: 'Parent Login Email',
     emailPlaceholder: 'e.g. parent.guardian@example.com',
     buttonText: 'Sign In to Parent Portal',
@@ -285,7 +285,7 @@ export default function SharedLoginPage({ initialPersona = null }) {
     { id: 'HOSTEL_INCHARGE', label: 'Hostel In-Charge', icon: Building2, desc: 'Wardens, room inventory & resident welfare' },
     { id: 'SECURITY', label: 'Campus Security', icon: ShieldCheck, desc: 'Gate posts, clearance checks & movements' },
     { id: 'STUDENT', label: 'Student Portal', icon: GraduationCap, desc: 'Leaves, daily attendance, food & grievances' },
-    { id: 'PARENT', label: 'Parent Portal', icon: Users, desc: 'Ward activity oversight & gate exit approvals' },
+    { id: 'PARENT', label: 'Parent Portal', icon: Users, desc: 'Account notifications & today\'s mess menu' },
   ];
 
   return (

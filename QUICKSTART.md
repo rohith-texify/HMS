@@ -75,7 +75,7 @@ Admin portal: http://localhost:5175
 
 ### All Available Portals:
 - Student: `npm run dev:student` → http://localhost:5173
-- Parent: `npm run dev:parent` → http://localhost:5174
+- Parent: `npm run dev:parent` → http://localhost:5173 (unified institutional portal; don't run both apps on the same port)
 - Admin: `npm run dev:admin` → http://localhost:5175
 - Incharge: `npm run dev:incharge` → http://localhost:5176
 - Security: `npm run dev:security` → http://localhost:5177

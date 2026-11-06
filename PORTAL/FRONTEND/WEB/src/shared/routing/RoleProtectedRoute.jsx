@@ -27,7 +27,8 @@ export default function RoleProtectedRoute({
 
   // 1. Unauthenticated users redirected to Login
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const loginPath = location.pathname.startsWith('/parent') ? '/parent/login' : '/login';
+    return <Navigate to={loginPath} state={{ from: location }} replace />;
   }
 
   // 2. Prevent Super Admin (PLATFORM scope) from entering college portal routes directly
