@@ -132,7 +132,7 @@ go run API/cmd/server/main.go
 
 # 2. In separate terminals, start frontend modules:
 npm run dev:student          # Port 5173
-npm run dev:parent           # Port 5174
+npm run dev:parent           # Unified portal on port 5173
 npm run dev:admin            # Port 5175
 npm run dev:incharge         # Port 5176
 npm run dev:security         # Port 5177

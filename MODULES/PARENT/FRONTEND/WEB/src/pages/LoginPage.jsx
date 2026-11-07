@@ -1,114 +1,56 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
-import useAuth from '../hooks/useAuth';
+import React, { useEffect } from 'react';
+import { authService, UNIFIED_PORTAL_URL } from '../services/authService';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-
-    try {
-      await login(email, password);
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        'Authentication failed. Please verify credentials.';
-      setError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  useEffect(() => {
+    authService.redirectToUnifiedPortal();
+  }, []);
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="auth-logo-badge">HMS PARENT</div>
-          <h2 className="auth-title">Parent & Guardian Sign In</h2>
-          <p className="auth-subtitle">
-            Access authorized information and leave records for your ward
-          </p>
-        </div>
-
-        {error && (
-          <div className="alert alert-error" role="alert">
-            <span className="alert-icon">⚠️</span>
-            <div className="alert-content">{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Registered Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              className="form-control"
-              placeholder="parent@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <div className="password-input-wrap">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                className="form-control"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="password-visibility-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((isVisible) => !isVisible)}
-              >
-                {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-block btn-lg"
-            disabled={submitting}
-          >
-            {submitting ? 'Authenticating...' : 'Sign In as Parent'}
-          </button>
-        </form>
-
-        <div className="auth-footer-note">
-          <p>
-            Role requirements: Only registered <strong>PARENT</strong> accounts in college scope are
-            authorized to access this portal.
-          </p>
-        </div>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+        color: '#475569',
+        backgroundColor: '#f8fafc',
+      }}
+    >
+      <div
+        style={{
+          padding: '2rem',
+          borderRadius: '0.75rem',
+          backgroundColor: '#ffffff',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+          textAlign: 'center',
+          maxWidth: '420px',
+        }}
+      >
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.5rem' }}>
+          HMS Parent Portal
+        </h2>
+        <p style={{ fontSize: '0.875rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
+          Parent authentication is centrally managed through the Unified Institutional Portal.
+          Redirecting you to the shared sign-in...
+        </p>
+        <a
+          href={`${UNIFIED_PORTAL_URL}/login`}
+          style={{
+            display: 'inline-block',
+            padding: '0.625rem 1.25rem',
+            backgroundColor: '#2563eb',
+            color: '#ffffff',
+            borderRadius: '0.5rem',
+            textDecoration: 'none',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+          }}
+        >
+          Go to Unified Portal Sign In
+        </a>
       </div>
     </div>
   );

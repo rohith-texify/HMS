@@ -1,24 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Menu, X } from 'lucide-react';
 import useAuth from '../hooks/useAuth';
+import { getParentNavigation } from '../config/navigation';
 
 export default function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [isNavigationOpen, setIsNavigationOpen] = useState(false);
-
-  useEffect(() => {
-    setIsNavigationOpen(false);
-  }, [location.pathname]);
+  const navigation = getParentNavigation(user);
 
   useEffect(() => {
     if (!isNavigationOpen) return undefined;
-
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') setIsNavigationOpen(false);
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isNavigationOpen]);
@@ -29,86 +25,62 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="portal-layout">
-      <header className="portal-header">
-        <div className="header-inner">
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-header-inner">
           <button
             type="button"
-            className="navigation-toggle"
+            className="menu-toggle"
             aria-expanded={isNavigationOpen}
-            aria-controls="parent-navigation"
+            aria-controls="primary-navigation"
             onClick={() => setIsNavigationOpen((isOpen) => !isOpen)}
           >
-            <span className="sr-only">
-              {isNavigationOpen ? 'Close navigation' : 'Open navigation'}
-            </span>
-            <span aria-hidden="true">{isNavigationOpen ? '×' : '☰'}</span>
+            <span className="sr-only">{isNavigationOpen ? 'Close navigation' : 'Open navigation'}</span>
+            {isNavigationOpen ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
           </button>
-          <div className="brand-group">
-            <NavLink to="/dashboard" className="brand-badge" aria-label="HMS Parent overview">
-              HMS
-            </NavLink>
-            <div>
-              <h1 className="portal-title">Parent & Guardian Portal</h1>
-              <p className="portal-subtitle">Secure college account</p>
-            </div>
-          </div>
-          <div className="user-profile-bar">
-            <div className="user-info">
-              {user?.email && <span className="user-email">{user.email}</span>}
-              <span className="user-role-badge">Parent / Guardian</span>
-            </div>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={handleLogout}
-            >
-              Logout
+          <NavLink to="/dashboard" className="brand" aria-label="Parent portal home">
+            <span className="brand-mark">H</span>
+            <span>
+              <strong>Parent portal</strong>
+              <small>Hostel Management System</small>
+            </span>
+          </NavLink>
+          <div className="account-controls">
+            <span className="account-email">{user?.email}</span>
+            <button type="button" className="button button-secondary" onClick={handleLogout}>
+              Sign out
             </button>
           </div>
         </div>
       </header>
 
-      <div className="portal-shell">
+      <div className="app-body">
         {isNavigationOpen && (
-          <button
-            type="button"
-            className="navigation-backdrop"
-            aria-label="Close navigation"
-            onClick={() => setIsNavigationOpen(false)}
-          />
+          <button type="button" className="navigation-backdrop" aria-label="Close navigation" onClick={() => setIsNavigationOpen(false)} />
         )}
-        <aside
-          id="parent-navigation"
-          className={`portal-sidebar${isNavigationOpen ? ' is-open' : ''}`}
-          aria-label="Parent portal navigation"
-        >
-          <div className="sidebar-heading">Parent portal</div>
-          <nav className="portal-nav">
-            <NavLink
-              to="/dashboard"
-              className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-              end
-            >
-              Overview
-            </NavLink>
+        <aside id="primary-navigation" className={`sidebar${isNavigationOpen ? ' is-open' : ''}`} aria-label="Parent navigation">
+          <p className="sidebar-label">Available services</p>
+          <nav className="primary-navigation">
+            {navigation.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                end={item.path === '/dashboard'}
+                onClick={() => setIsNavigationOpen(false)}
+                className={({ isActive }) => `navigation-link${isActive ? ' active' : ''}`}
+              >
+                {item.label}
+              </NavLink>
+            ))}
           </nav>
-          <p className="sidebar-notice">
-            Ward and leave information is unavailable until parent-specific access is verified.
-          </p>
         </aside>
 
-        <main className="portal-main" id="main-content">
+        <main className="main-content" id="main-content">
           <Outlet />
         </main>
       </div>
 
-      <footer className="portal-footer">
-        <div className="footer-inner">
-          <p>© {new Date().getFullYear()} Hostel Management System</p>
-          <span className="security-notice">Parent portal</span>
-        </div>
-      </footer>
+      <footer className="app-footer">Hostel Management System</footer>
     </div>
   );
 }

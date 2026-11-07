@@ -5,10 +5,10 @@
   "private": true,
   "workspaces": [
     "MODULES/STUDENT/FRONTEND/WEB",
-    "MODULES/PARENT/FRONTEND/WEB",
     "MODULES/ADMIN/FRONTEND/WEB",
     "MODULES/HOSTEL-INCHARGE/FRONTEND/WEB",
     "MODULES/SECURITY/FRONTEND/WEB",
+    "MODULES/PARENT/FRONTEND/WEB",
     "MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "PORTAL/FRONTEND/WEB"
   ],
@@ -25,6 +25,7 @@
     "dev:super-admin": "npm run dev --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "dev:portal": "npm run dev --workspace=PORTAL/FRONTEND/WEB",
     "build:all": "npm run build --workspaces",
+    "build:parent": "npm run build --workspace=MODULES/PARENT/FRONTEND/WEB",
     "build:portal": "npm run build --workspace=PORTAL/FRONTEND/WEB",
     "build": "npm run build --workspace=MODULES/SUPER-ADMIN/FRONTEND/WEB",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
