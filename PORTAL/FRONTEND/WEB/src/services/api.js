@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const baseURL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL) ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://hms-1-mjvj.onrender.com' : 'https://hms-1-mjvj.onrender.com');
+  (typeof import.meta !== 'undefined' && import.meta.env?.PROD ? 'https://hms-1-mjvj.onrender.com' : '');
 
 const api = axios.create({
   baseURL: baseURL || undefined,
@@ -55,3 +55,4 @@ api.interceptors.response.use(
 );
 
 export default api;
+

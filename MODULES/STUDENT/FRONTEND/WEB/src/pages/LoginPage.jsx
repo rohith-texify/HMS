@@ -1,7 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { Eye, EyeOff, GraduationCap, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import {
+  GraduationCap,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -23,11 +32,11 @@ export default function LoginPage() {
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError('Please provide your student email address.');
+      setError('Please provide your student institutional email or login ID.');
       return;
     }
     if (!password) {
-      setError('Please provide your password.');
+      setError('Please provide your account password.');
       return;
     }
 
@@ -36,7 +45,9 @@ export default function LoginPage() {
       await login(trimmedEmail, password, rememberMe);
       navigate(from, { replace: true });
     } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your student credentials.');
+      setError(
+        err.message || 'Authentication failed. Please verify your credentials or contact College Admin.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -46,114 +57,317 @@ export default function LoginPage() {
     <div
       style={{
         minHeight: '100vh',
+        width: '100vw',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #312e81 0%, #4338ca 50%, #1e1b4b 100%)',
-        padding: '24px',
+        background: 'radial-gradient(ellipse at center, #1e3a8a 0%, #0f172a 75%, #090d16 100%)',
+        padding: '20px',
+        boxSizing: 'border-box',
+        fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: '440px',
-          background: 'rgba(255, 255, 255, 0.96)',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
-          padding: '36px',
+          maxWidth: '430px',
+          backgroundColor: '#ffffff',
+          borderRadius: '24px',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+          padding: '40px 32px 32px 32px',
+          boxSizing: 'border-box',
         }}
       >
+        {/* Brand Icon & Heading */}
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
           <div
             style={{
               width: '56px',
               height: '56px',
-              borderRadius: '14px',
-              background: '#4f46e5',
-              color: '#fff',
+              borderRadius: '16px',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '12px',
+              marginBottom: '18px',
+              boxShadow: '0 8px 20px -4px rgba(37, 99, 235, 0.45)',
             }}
           >
             <GraduationCap size={28} />
           </div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#0f172a' }}>Student Portal</h1>
-          <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Hostel Management System • Resident Access</p>
+          <h1
+            style={{
+              fontSize: '1.55rem',
+              fontWeight: 800,
+              color: '#0f172a',
+              letterSpacing: '-0.025em',
+              margin: '0 0 6px 0',
+            }}
+          >
+            Student Living Portal
+          </h1>
+          <p
+            style={{
+              fontSize: '0.85rem',
+              color: '#64748b',
+              margin: 0,
+              fontWeight: 400,
+            }}
+          >
+            Gate Passes, Attendance, Hostel Leaves & Grievances
+          </p>
         </div>
 
+        {/* Error Alert */}
         {error && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', fontSize: '0.875rem', marginBottom: '20px' }}>
-            <AlertCircle size={18} />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+              padding: '12px 14px',
+              backgroundColor: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: '10px',
+              color: '#991b1b',
+              fontSize: '0.84rem',
+              lineHeight: 1.45,
+              marginBottom: '20px',
+            }}
+          >
+            <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
             <div>{error}</div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit}>
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} noValidate>
+          {/* Email */}
           <div style={{ marginBottom: '18px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              Student Email
+            <label
+              htmlFor="student-email"
+              style={{
+                display: 'block',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#334155',
+                marginBottom: '8px',
+              }}
+            >
+              Student Institutional Email / Register ID
             </label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Mail size={18} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
+              <Mail
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '14px',
+                  color: '#64748b',
+                  pointerEvents: 'none',
+                }}
+              />
               <input
+                id="student-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@college.edu"
-                style={{ width: '100%', padding: '10px 12px 10px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none' }}
+                placeholder="student@college.edu or register number"
+                style={{
+                  width: '100%',
+                  padding: '12px 14px 12px 42px',
+                  borderRadius: '10px',
+                  border: '1px solid #dbeafe',
+                  backgroundColor: '#eff6ff',
+                  fontSize: '0.92rem',
+                  color: '#0f172a',
+                  outline: 'none',
+                  transition: 'all 0.15s ease',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#2563eb';
+                  e.target.style.backgroundColor = '#ffffff';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#dbeafe';
+                  e.target.style.backgroundColor = '#eff6ff';
+                }}
               />
             </div>
           </div>
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
+          {/* Password */}
+          <div style={{ marginBottom: '20px' }}>
+            <label
+              htmlFor="student-password"
+              style={{
+                display: 'block',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                color: '#334155',
+                marginBottom: '8px',
+              }}
+            >
               Password
             </label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
+              <Lock
+                size={18}
+                style={{
+                  position: 'absolute',
+                  left: '14px',
+                  color: '#64748b',
+                  pointerEvents: 'none',
+                }}
+              />
               <input
+                id="student-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
-                style={{ width: '100%', padding: '10px 38px 10px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none' }}
+                style={{
+                  width: '100%',
+                  padding: '12px 42px 12px 42px',
+                  borderRadius: '10px',
+                  border: '1px solid #dbeafe',
+                  backgroundColor: '#eff6ff',
+                  fontSize: '0.92rem',
+                  color: '#0f172a',
+                  outline: 'none',
+                  transition: 'all 0.15s ease',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#2563eb';
+                  e.target.style.backgroundColor = '#ffffff';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#dbeafe';
+                  e.target.style.backgroundColor = '#eff6ff';
+                }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#64748b', cursor: 'pointer' }}>
+          {/* Remember Me */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '24px',
+            }}
+          >
+            <label
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '0.82rem',
+                color: '#475569',
+                cursor: 'pointer',
+                userSelect: 'none',
+              }}
+            >
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ accentColor: '#4f46e5' }}
+                style={{
+                  accentColor: '#2563eb',
+                  width: '16px',
+                  height: '16px',
+                  cursor: 'pointer',
+                }}
               />
-              Remember session
+              <span>Remember this session</span>
             </label>
           </div>
 
+          {/* Sign In Button */}
           <button
             type="submit"
             disabled={isSubmitting}
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '12px', justifyContent: 'center' }}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              fontSize: '0.94rem',
+              fontWeight: 600,
+              color: '#0f172a',
+              backgroundColor: '#f8fafc',
+              border: '1.5px solid #0f172a',
+              borderRadius: '10px',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.15s ease',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.05)',
+            }}
+            onMouseOver={(e) => {
+              if (!isSubmitting) {
+                e.currentTarget.style.backgroundColor = '#0f172a';
+                e.currentTarget.style.color = '#ffffff';
+              }
+            }}
+            onMouseOut={(e) => {
+              if (!isSubmitting) {
+                e.currentTarget.style.backgroundColor = '#f8fafc';
+                e.currentTarget.style.color = '#0f172a';
+              }
+            }}
           >
-            {isSubmitting ? 'Signing in...' : 'Sign In to Student Portal'}
-            <ArrowRight size={18} />
+            {isSubmitting ? (
+              <span>Authenticating...</span>
+            ) : (
+              <>
+                <span>Sign In to Student Living Portal</span>
+                <ArrowRight size={17} />
+              </>
+            )}
           </button>
         </form>
+
+        {/* Security Notice */}
+        <div
+          style={{
+            marginTop: '28px',
+            paddingTop: '20px',
+            borderTop: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '7px',
+            color: '#475569',
+            fontSize: '0.78rem',
+            fontWeight: 500,
+          }}
+        >
+          <ShieldCheck size={16} color="#16a34a" />
+          <span>Restricted to authorized enrolled students.</span>
+        </div>
       </div>
     </div>
   );

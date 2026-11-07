@@ -20,6 +20,7 @@ import (
 	superadminroutes "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/routes"
 	adminroutes "github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/routes"
 	inchargeroutes "github.com/yourusername/hostel-management-system/MODULES/HOSTEL-INCHARGE/BACKEND/routes"
+	studentroutes "github.com/yourusername/hostel-management-system/MODULES/STUDENT/BACKEND/routes"
 )
 
 func NewRouter(
@@ -845,6 +846,13 @@ func NewRouter(
 			db,
 			permissionMiddleware.RequirePermission("people.view"),
 			permissionMiddleware.RequirePermission("people.manage"),
+		)
+
+		// Canonical Student modular self-service routes
+		studentroutes.RegisterStudentRoutes(
+			collegeProtected,
+			db,
+			authMiddleware.RequireAuth(),
 		)
 
 		collegeProtected.GET(
