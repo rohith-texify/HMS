@@ -1431,8 +1431,7 @@ export default function CollegeDetailPage() {
           <div>
             Credentials used by the institutional administrator to log into and run the <strong>Admin Module</strong>. The administrator can authenticate using either the <strong>Tenant Login Code ({college.college_code})</strong> or their <strong>Admin Email ({adminAccount?.email || college.contact_email})</strong>.
             <div style={{ marginTop: '6px', display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.78rem' }}>
-              <span>🚀 <strong>Portal Login:</strong> <a href="http://localhost:5173/admin/login" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8', fontWeight: 600 }}>http://localhost:5173/admin/login</a></span>
-              <span>🏢 <strong>Dedicated Web:</strong> <a href="http://localhost:3002/admin/login" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8', fontWeight: 600 }}>http://localhost:3002/admin/login</a></span>
+              <span>🚀 <strong>Unified Portal Login:</strong> <a href="http://localhost:5173/admin/login" target="_blank" rel="noreferrer" style={{ color: '#1d4ed8', fontWeight: 600 }}>http://localhost:5173/admin/login</a></span>
             </div>
           </div>
 
@@ -1441,7 +1440,7 @@ export default function CollegeDetailPage() {
               type="button"
               className="btn-enterprise btn-outline-soft"
               onClick={() => {
-                const packageText = `HMS College Administrator Access\nInstitution: ${college.name}\nTenant Login Code: ${college.college_code}\nAdmin Email: ${adminAccount.email}\nPortal URL: http://localhost:5173/admin/login\nDedicated Admin URL: http://localhost:3002/admin/login`;
+                const packageText = `HMS College Administrator Access\nInstitution: ${college.name}\nTenant Login Code: ${college.college_code}\nAdmin Email: ${adminAccount.email}\nPortal URL: http://localhost:5173/admin/login`;
                 handleCopy('admin_pkg', packageText);
               }}
               style={{ flexShrink: 0 }}

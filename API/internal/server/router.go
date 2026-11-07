@@ -20,6 +20,7 @@ import (
 	superadminroutes "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/routes"
 	adminroutes "github.com/yourusername/hostel-management-system/MODULES/ADMIN/BACKEND/routes"
 	inchargeroutes "github.com/yourusername/hostel-management-system/MODULES/HOSTEL-INCHARGE/BACKEND/routes"
+	parentroutes "github.com/yourusername/hostel-management-system/MODULES/PARENT/BACKEND/routes"
 )
 
 func NewRouter(
@@ -203,12 +204,6 @@ func NewRouter(
 	securityAssignmentHandler := NewPeopleSecurityAssignmentHandler(
 		securityAssignmentService,
 	)
-
-	studentParentService := service.NewStudentParentService(repository)
-	studentParentHandler := NewStudentParentHandler(studentParentService)
-
-	parentService := service.NewParentService(db, repository)
-	parentHandler := NewParentHandler(parentService)
 
 	hostelService := service.NewHostelService(repository)
 	hostelHandler := NewHostelHandler(hostelService)
@@ -497,58 +492,12 @@ func NewRouter(
 			studentHandler.UpdateStudentStatus,
 		)
 
-		collegeProtected.GET(
-			"/parents",
+		// Canonical Parent modular routes
+		parentroutes.RegisterParentRoutes(
+			collegeProtected,
+			db,
 			permissionMiddleware.RequirePermission("people.view"),
-			parentHandler.ListParents,
-		)
-
-		collegeProtected.POST(
-			"/parents",
 			permissionMiddleware.RequirePermission("people.manage"),
-			parentHandler.CreateParent,
-		)
-
-		collegeProtected.GET(
-			"/parents/:parent_id",
-			permissionMiddleware.RequirePermission("people.view"),
-			parentHandler.GetParent,
-		)
-
-		collegeProtected.PUT(
-			"/parents/:parent_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			parentHandler.UpdateParent,
-		)
-
-		collegeProtected.GET(
-			"/students/:student_id/parents",
-			permissionMiddleware.RequirePermission("people.view"),
-			studentParentHandler.ListStudentParents,
-		)
-
-		collegeProtected.POST(
-			"/students/:student_id/parents",
-			permissionMiddleware.RequirePermission("people.manage"),
-			studentParentHandler.CreateStudentParent,
-		)
-
-		collegeProtected.GET(
-			"/students/:student_id/parents/:relationship_id",
-			permissionMiddleware.RequirePermission("people.view"),
-			studentParentHandler.GetStudentParent,
-		)
-
-		collegeProtected.PUT(
-			"/students/:student_id/parents/:relationship_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			studentParentHandler.UpdateStudentParent,
-		)
-
-		collegeProtected.DELETE(
-			"/students/:student_id/parents/:relationship_id",
-			permissionMiddleware.RequirePermission("people.manage"),
-			studentParentHandler.DeleteStudentParent,
 		)
 
 		collegeProtected.GET(

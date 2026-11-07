@@ -4,84 +4,18 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/yourusername/hostel-management-system/MODULES/PARENT/BACKEND/models"
 )
 
-type Parent struct {
-	ID             uuid.UUID  `json:"id"`
-	CollegeID      uuid.UUID  `json:"college_id"`
-	UserID         *uuid.UUID `json:"user_id,omitempty"`
-	FirstName      string     `json:"first_name"`
-	MiddleName     *string    `json:"middle_name,omitempty"`
-	LastName       *string    `json:"last_name,omitempty"`
-	Relationship   *string    `json:"relationship,omitempty"`
-	Phone          *string    `json:"phone,omitempty"`
-	AlternatePhone *string    `json:"alternate_phone,omitempty"`
-	Email          *string    `json:"email,omitempty"`
-	Occupation     *string    `json:"occupation,omitempty"`
-	AddressLine1   *string    `json:"address_line1,omitempty"`
-	AddressLine2   *string    `json:"address_line2,omitempty"`
-	City           *string    `json:"city,omitempty"`
-	State          *string    `json:"state,omitempty"`
-	PostalCode     *string    `json:"postal_code,omitempty"`
-	Country        *string    `json:"country,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-}
-
-type ListParentsParams struct {
-	CollegeID uuid.UUID
-	Limit     int
-	Offset    int
-}
-
-type CreateParentParams struct {
-	CollegeID      uuid.UUID
-	UserID         *uuid.UUID
-	FirstName      string
-	MiddleName     *string
-	LastName       *string
-	Relationship   *string
-	Phone          *string
-	AlternatePhone *string
-	Email          *string
-	Password       *string
-	ConfirmPassword *string
-	Occupation     *string
-	AddressLine1   *string
-	AddressLine2   *string
-	City           *string
-	State          *string
-	PostalCode     *string
-	Country        *string
-}
-
-type UpdateParentParams struct {
-	ID             uuid.UUID
-	CollegeID      uuid.UUID
-	FirstName      string
-	MiddleName     *string
-	LastName       *string
-	Relationship   *string
-	Phone          *string
-	AlternatePhone *string
-	Email          *string
-	Occupation     *string
-	AddressLine1   *string
-	AddressLine2   *string
-	City           *string
-	State          *string
-	PostalCode     *string
-	Country        *string
-}
-
+// ListParents retrieves a paginated slice of parents under a college.
 func (r *Repository) ListParents(
 	ctx context.Context,
-	params ListParentsParams,
-) ([]Parent, error) {
+	params models.ListParentsParams,
+) ([]models.Parent, error) {
 	query := `
 		SELECT
 			id,
@@ -121,10 +55,10 @@ func (r *Repository) ListParents(
 	}
 	defer rows.Close()
 
-	var parents []Parent
+	var parents []models.Parent
 
 	for rows.Next() {
-		var parent Parent
+		var parent models.Parent
 
 		if err := rows.Scan(
 			&parent.ID,
@@ -160,11 +94,12 @@ func (r *Repository) ListParents(
 	return parents, nil
 }
 
+// GetParentByID retrieves a single parent profile by college and parent ID.
 func (r *Repository) GetParentByID(
 	ctx context.Context,
 	collegeID uuid.UUID,
 	parentID uuid.UUID,
-) (Parent, error) {
+) (models.Parent, error) {
 	query := `
 		SELECT
 			id,
@@ -191,7 +126,7 @@ func (r *Repository) GetParentByID(
 		  AND id = $2
 	`
 
-	var parent Parent
+	var parent models.Parent
 
 	err := r.Executor(ctx).QueryRow(
 		ctx,
@@ -222,18 +157,19 @@ func (r *Repository) GetParentByID(
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Parent{}, ErrNotFound
+			return models.Parent{}, ErrNotFound
 		}
-		return Parent{}, err
+		return models.Parent{}, err
 	}
 
 	return parent, nil
 }
 
+// CreateParent inserts a new parent profile into app.parents.
 func (r *Repository) CreateParent(
 	ctx context.Context,
-	params CreateParentParams,
-) (Parent, error) {
+	params models.CreateParentParams,
+) (models.Parent, error) {
 	query := `
 		INSERT INTO app.parents (
 			college_id,
@@ -278,7 +214,7 @@ func (r *Repository) CreateParent(
 			updated_at
 	`
 
-	var parent Parent
+	var parent models.Parent
 
 	err := r.Executor(ctx).QueryRow(
 		ctx,
@@ -323,18 +259,19 @@ func (r *Repository) CreateParent(
 
 	if err != nil {
 		if isParentConflictError(err) {
-			return Parent{}, ErrConflict
+			return models.Parent{}, ErrConflict
 		}
-		return Parent{}, err
+		return models.Parent{}, err
 	}
 
 	return parent, nil
 }
 
+// UpdateParent updates an existing parent record scoped by college ID.
 func (r *Repository) UpdateParent(
 	ctx context.Context,
-	params UpdateParentParams,
-) (Parent, error) {
+	params models.UpdateParentParams,
+) (models.Parent, error) {
 	query := `
 		UPDATE app.parents
 		SET
@@ -377,7 +314,7 @@ func (r *Repository) UpdateParent(
 			updated_at
 	`
 
-	var parent Parent
+	var parent models.Parent
 
 	err := r.Executor(ctx).QueryRow(
 		ctx,
@@ -422,12 +359,12 @@ func (r *Repository) UpdateParent(
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Parent{}, ErrNotFound
+			return models.Parent{}, ErrNotFound
 		}
 		if isParentConflictError(err) {
-			return Parent{}, ErrConflict
+			return models.Parent{}, ErrConflict
 		}
-		return Parent{}, err
+		return models.Parent{}, err
 	}
 
 	return parent, nil
@@ -439,3 +376,4 @@ func isParentConflictError(err error) bool {
 	return strings.Contains(message, "duplicate key") ||
 		strings.Contains(message, "unique constraint")
 }
+

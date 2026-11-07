@@ -6,7 +6,17 @@ export default function ProtectedRoute() {
   const { isAuthenticated, user } = useAuth();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const portalUrl =
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:5173'
+        : '');
+    window.location.replace(`${portalUrl}/security/login`);
+    return (
+      <div className="portal-container" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+        <p>Redirecting to Unified Portal login...</p>
+      </div>
+    );
   }
 
   const role = user?.role;

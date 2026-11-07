@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../shared/auth/useAuth';
-import { ROLE_ROUTE_MAP, portalAuthService, getAuthorizedRedirectPath, normalizeRoleCode } from '../shared/auth/portalAuthService';
+import { ROLE_ROUTE_MAP, portalAuthService, getAuthorizedRedirectPath, normalizeRoleCode, SUPER_ADMIN_URL } from '../shared/auth/portalAuthService';
 import {
   Shield,
   ShieldCheck,
@@ -111,6 +111,7 @@ export default function SharedLoginPage({ initialPersona = null }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isSuperAdminBlocked, setIsSuperAdminBlocked] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [colleges, setColleges] = useState([]);
   const [selectedCollege, setSelectedCollege] = useState(null);
@@ -190,6 +191,7 @@ export default function SharedLoginPage({ initialPersona = null }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setIsSuperAdminBlocked(false);
 
     if (!email.trim()) {
       setError('Please provide your institutional email address or login ID.');
@@ -206,6 +208,7 @@ export default function SharedLoginPage({ initialPersona = null }) {
 
       // Block Super Admin accounts from this portal
       if (result.isSuperAdmin) {
+        setIsSuperAdminBlocked(true);
         setError('Super Administrator accounts must sign in through the Central Super Admin Console. Please use your institutional college credentials.');
         setLoading(false);
         return;
@@ -350,6 +353,27 @@ export default function SharedLoginPage({ initialPersona = null }) {
             <AlertCircle size={18} className="alert-banner-icon" />
             <div className="alert-banner-content">
               <span>{error}</span>
+              {isSuperAdminBlocked && (
+                <div style={{ marginTop: '10px' }}>
+                  <a
+                    href={`${SUPER_ADMIN_URL}/login`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      background: '#4338ca',
+                      color: '#ffffff',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    Open Super Admin Console ({SUPER_ADMIN_URL}) →
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         )}

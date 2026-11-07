@@ -4,56 +4,18 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"github.com/yourusername/hostel-management-system/MODULES/PARENT/BACKEND/models"
 )
 
-type StudentParent struct {
-	ID                      uuid.UUID `json:"id"`
-	CollegeID               uuid.UUID `json:"college_id"`
-	StudentID               uuid.UUID `json:"student_id"`
-	ParentID                uuid.UUID `json:"parent_id"`
-	Relationship            string    `json:"relationship"`
-	IsPrimary               bool      `json:"is_primary"`
-	CanReceiveNotifications bool      `json:"can_receive_notifications"`
-	CanPickupStudent        bool      `json:"can_pickup_student"`
-	CreatedAt               time.Time `json:"created_at"`
-	UpdatedAt               time.Time `json:"updated_at"`
-}
-
-type ListStudentParentsParams struct {
-	CollegeID uuid.UUID
-	StudentID uuid.UUID
-	Limit     int
-	Offset    int
-}
-
-type CreateStudentParentParams struct {
-	CollegeID               uuid.UUID
-	StudentID               uuid.UUID
-	ParentID                uuid.UUID
-	Relationship            string
-	IsPrimary               bool
-	CanReceiveNotifications bool
-	CanPickupStudent        bool
-}
-
-type UpdateStudentParentParams struct {
-	CollegeID               uuid.UUID
-	StudentID               uuid.UUID
-	ID                      uuid.UUID
-	Relationship            string
-	IsPrimary               bool
-	CanReceiveNotifications bool
-	CanPickupStudent        bool
-}
-
+// ListStudentParents lists all parent-student associations for a given student.
 func (r *Repository) ListStudentParents(
 	ctx context.Context,
-	params ListStudentParentsParams,
-) ([]StudentParent, error) {
+	params models.ListStudentParentsParams,
+) ([]models.StudentParent, error) {
 	query := `
 		SELECT
 			id,
@@ -86,10 +48,10 @@ func (r *Repository) ListStudentParents(
 	}
 	defer rows.Close()
 
-	var result []StudentParent
+	var result []models.StudentParent
 
 	for rows.Next() {
-		var item StudentParent
+		var item models.StudentParent
 
 		if err := rows.Scan(
 			&item.ID,
@@ -116,12 +78,13 @@ func (r *Repository) ListStudentParents(
 	return result, nil
 }
 
+// GetStudentParent retrieves a specific student-parent relationship.
 func (r *Repository) GetStudentParent(
 	ctx context.Context,
 	collegeID uuid.UUID,
 	studentID uuid.UUID,
 	relationshipID uuid.UUID,
-) (StudentParent, error) {
+) (models.StudentParent, error) {
 	query := `
 		SELECT
 			id,
@@ -140,7 +103,7 @@ func (r *Repository) GetStudentParent(
 		  AND id = $3
 	`
 
-	var item StudentParent
+	var item models.StudentParent
 
 	err := r.Executor(ctx).QueryRow(
 		ctx,
@@ -163,19 +126,20 @@ func (r *Repository) GetStudentParent(
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return StudentParent{}, ErrNotFound
+			return models.StudentParent{}, ErrNotFound
 		}
 
-		return StudentParent{}, err
+		return models.StudentParent{}, err
 	}
 
 	return item, nil
 }
 
+// CreateStudentParent links a parent to a student, resetting previous primary status if needed.
 func (r *Repository) CreateStudentParent(
 	ctx context.Context,
-	params CreateStudentParentParams,
-) (StudentParent, error) {
+	params models.CreateStudentParentParams,
+) (models.StudentParent, error) {
 	/*
 		If this relationship is primary, clear the existing primary
 		relationship for this student first.
@@ -192,7 +156,7 @@ func (r *Repository) CreateStudentParent(
 				updated_at = NOW()
 			WHERE college_id = $1
 			  AND student_id = $2
-			  AND $6 = TRUE
+			  AND $5 = TRUE
 			  AND is_primary = TRUE
 		)
 		INSERT INTO app.student_parents (
@@ -226,7 +190,7 @@ func (r *Repository) CreateStudentParent(
 			updated_at
 	`
 
-	var item StudentParent
+	var item models.StudentParent
 
 	err := r.Executor(ctx).QueryRow(
 		ctx,
@@ -253,19 +217,20 @@ func (r *Repository) CreateStudentParent(
 
 	if err != nil {
 		if isStudentParentConflictError(err) {
-			return StudentParent{}, ErrConflict
+			return models.StudentParent{}, ErrConflict
 		}
 
-		return StudentParent{}, err
+		return models.StudentParent{}, err
 	}
 
 	return item, nil
 }
 
+// UpdateStudentParent modifies an existing student-parent relationship.
 func (r *Repository) UpdateStudentParent(
 	ctx context.Context,
-	params UpdateStudentParentParams,
-) (StudentParent, error) {
+	params models.UpdateStudentParentParams,
+) (models.StudentParent, error) {
 	query := `
 		WITH cleared AS (
 			UPDATE app.student_parents
@@ -301,7 +266,7 @@ func (r *Repository) UpdateStudentParent(
 			updated_at
 	`
 
-	var item StudentParent
+	var item models.StudentParent
 
 	err := r.Executor(ctx).QueryRow(
 		ctx,
@@ -328,19 +293,20 @@ func (r *Repository) UpdateStudentParent(
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return StudentParent{}, ErrNotFound
+			return models.StudentParent{}, ErrNotFound
 		}
 
 		if isStudentParentConflictError(err) {
-			return StudentParent{}, ErrConflict
+			return models.StudentParent{}, ErrConflict
 		}
 
-		return StudentParent{}, err
+		return models.StudentParent{}, err
 	}
 
 	return item, nil
 }
 
+// DeleteStudentParent removes a student-parent association.
 func (r *Repository) DeleteStudentParent(
 	ctx context.Context,
 	collegeID uuid.UUID,
@@ -377,3 +343,4 @@ func isStudentParentConflictError(err error) bool {
 	return strings.Contains(message, "duplicate key") ||
 		strings.Contains(message, "unique constraint")
 }
+

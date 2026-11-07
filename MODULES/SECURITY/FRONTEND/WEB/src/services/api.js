@@ -2,7 +2,8 @@ import axios from 'axios';
 
 const baseURL =
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : 'http://localhost:8080');
+  import.meta.env.VITE_BACKEND_TARGET ||
+  (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : 'http://localhost:3001');
 
 const api = axios.create({
   baseURL,

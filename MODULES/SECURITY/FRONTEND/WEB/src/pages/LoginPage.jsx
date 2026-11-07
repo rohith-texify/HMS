@@ -1,112 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import useAuth from '../hooks/useAuth';
+import React, { useEffect } from 'react';
 
+const PORTAL_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5173'
+    : '');
+
+/**
+ * Security Standalone Login Forwarder
+ * 
+ * Standalone login entry points are retired. All authentication must occur
+ * through the Unified Login Portal at http://localhost:5173/login.
+ */
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const targetUrl = `${PORTAL_URL}/security/login`;
 
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-
-    try {
-      await login(email, password, rememberMe);
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        'Authentication failed. Please verify credentials.';
-      setError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  useEffect(() => {
+    window.location.replace(targetUrl);
+  }, [targetUrl]);
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="auth-logo-badge">HMS SECURITY</div>
-          <h2 className="auth-title">Campus Security Sign In</h2>
-          <p className="auth-subtitle">
-            Gate station personnel and movement verification authentication
-          </p>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        background: '#f8fafc',
+        color: '#1e293b',
+        padding: '24px',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '460px',
+          width: '100%',
+          padding: '36px',
+          background: '#ffffff',
+          borderRadius: '16px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        <div
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '14px',
+            background: '#fef2f2',
+            color: '#dc2626',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            marginBottom: '16px',
+          }}
+        >
+          🛡️
         </div>
-
-        {error && (
-          <div className="alert alert-error" role="alert">
-            <span className="alert-icon">⚠️</span>
-            <div className="alert-content">{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Staff Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              className="form-control"
-              placeholder="security@college.edu"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              className="form-control"
-              placeholder="••••••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="form-row">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <span>Remember me on this gate terminal</span>
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-block btn-lg"
-            disabled={submitting}
-          >
-            {submitting ? 'Authenticating...' : 'Sign In as Security Officer'}
-          </button>
-        </form>
-
-        <div className="auth-footer-note">
-          <p>
-            Authorized security staff only. All activity is logged and associated with your station ID.
-          </p>
-        </div>
+        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>
+          Redirecting to Unified Login Portal
+        </h2>
+        <p style={{ fontSize: '0.875rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
+          Campus Security Portal authentication has been centralized into the Unified Campus Portal.
+        </p>
+        <a
+          href={targetUrl}
+          style={{
+            display: 'inline-block',
+            padding: '12px 24px',
+            background: '#dc2626',
+            color: '#ffffff',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            boxShadow: '0 4px 6px -1px rgba(220, 38, 38, 0.2)',
+          }}
+        >
+          Sign In via Unified Portal →
+        </a>
       </div>
     </div>
   );

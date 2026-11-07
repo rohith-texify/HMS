@@ -1,114 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
-import useAuth from '../hooks/useAuth';
+import React, { useEffect } from 'react';
 
+const PORTAL_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5173'
+    : '');
+
+/**
+ * Parent Standalone Login Forwarder
+ * 
+ * Standalone login entry points are retired. All authentication must occur
+ * through the Unified Login Portal at http://localhost:5173/login.
+ */
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const targetUrl = `${PORTAL_URL}/parent/login`;
 
-  const { login } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-
-    try {
-      await login(email, password);
-      navigate('/dashboard', { replace: true });
-    } catch (err) {
-      const msg =
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        'Authentication failed. Please verify credentials.';
-      setError(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  useEffect(() => {
+    window.location.replace(targetUrl);
+  }, [targetUrl]);
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="auth-logo-badge">HMS PARENT</div>
-          <h2 className="auth-title">Parent & Guardian Sign In</h2>
-          <p className="auth-subtitle">
-            Access authorized information and leave records for your ward
-          </p>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        background: '#f8fafc',
+        color: '#1e293b',
+        padding: '24px',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '460px',
+          width: '100%',
+          padding: '36px',
+          background: '#ffffff',
+          borderRadius: '16px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        <div
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '14px',
+            background: '#ecfdf5',
+            color: '#059669',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            marginBottom: '16px',
+          }}
+        >
+          👨‍👩‍👧
         </div>
-
-        {error && (
-          <div className="alert alert-error" role="alert">
-            <span className="alert-icon">⚠️</span>
-            <div className="alert-content">{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
-              Registered Email Address
-            </label>
-            <input
-              id="email"
-              type="email"
-              className="form-control"
-              placeholder="parent@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
-              Password
-            </label>
-            <div className="password-input-wrap">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                className="form-control"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="password-visibility-toggle"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword((isVisible) => !isVisible)}
-              >
-                {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-block btn-lg"
-            disabled={submitting}
-          >
-            {submitting ? 'Authenticating...' : 'Sign In as Parent'}
-          </button>
-        </form>
-
-        <div className="auth-footer-note">
-          <p>
-            Role requirements: Only registered <strong>PARENT</strong> accounts in college scope are
-            authorized to access this portal.
-          </p>
-        </div>
+        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>
+          Redirecting to Unified Login Portal
+        </h2>
+        <p style={{ fontSize: '0.875rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
+          Parent & Guardian Portal authentication has been centralized into the Unified Campus Portal.
+        </p>
+        <a
+          href={targetUrl}
+          style={{
+            display: 'inline-block',
+            padding: '12px 24px',
+            background: '#059669',
+            color: '#ffffff',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.2)',
+          }}
+        >
+          Sign In via Unified Portal →
+        </a>
       </div>
     </div>
   );

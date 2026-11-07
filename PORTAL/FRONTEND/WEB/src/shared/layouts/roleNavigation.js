@@ -418,7 +418,9 @@ export const ROLE_NAVIGATION = {
         group: 'Ward Oversight',
         items: [
           { label: 'Dashboard', path: '/parent/dashboard', icon: LayoutDashboard },
-          { label: 'Leave Approvals', path: '/parent/leaves', icon: Send },
+          { label: 'Notifications', path: '/parent/notifications', icon: Bell },
+          { label: "Today's Mess Menu", path: '/parent/mess', icon: Utensils },
+          { label: 'Leave History', path: '/parent/leaves', icon: Send },
         ],
       },
     ],

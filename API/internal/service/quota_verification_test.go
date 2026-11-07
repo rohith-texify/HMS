@@ -16,6 +16,9 @@ import (
 	"github.com/yourusername/hostel-management-system/API/database"
 	apirepo "github.com/yourusername/hostel-management-system/API/internal/repository"
 	apisvc "github.com/yourusername/hostel-management-system/API/internal/service"
+	parentmodels "github.com/yourusername/hostel-management-system/MODULES/PARENT/BACKEND/models"
+	parentrepo "github.com/yourusername/hostel-management-system/MODULES/PARENT/BACKEND/repository"
+	parentsvc "github.com/yourusername/hostel-management-system/MODULES/PARENT/BACKEND/services"
 	samodels "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/models"
 	sarepo "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/repository"
 	sasvc "github.com/yourusername/hostel-management-system/MODULES/SUPER-ADMIN/BACKEND/services"
@@ -227,11 +230,11 @@ func TestQuotaEnforcement_AllCategories(t *testing.T) {
 
 		ctx := database.WithTenantID(context.Background(), collegeID)
 
-		repo := apirepo.New(db)
-		svc := apisvc.NewParentService(db, repo)
+		repo := parentrepo.New(db)
+		svc := parentsvc.NewParentService(db, repo)
 
 		// 1. Create Parent 1 (Below Limit: 1 of 1) -> MUST SUCCEED
-		req1 := apirepo.CreateParentParams{
+		req1 := parentmodels.CreateParentParams{
 			CollegeID:       collegeID,
 			FirstName:       "ParentOne",
 			Email:           strPtr(fmt.Sprintf("%s_p1@test.local", code)),
@@ -244,7 +247,7 @@ func TestQuotaEnforcement_AllCategories(t *testing.T) {
 		}
 
 		// 2. Create Parent 2 (Exceeds Limit: 2 of 1) -> MUST BE REJECTED
-		req2 := apirepo.CreateParentParams{
+		req2 := parentmodels.CreateParentParams{
 			CollegeID:       collegeID,
 			FirstName:       "ParentTwo",
 			Email:           strPtr(fmt.Sprintf("%s_p2@test.local", code)),
@@ -583,8 +586,8 @@ func TestConcurrency_StrictQuotaEnforcement(t *testing.T) {
 		collegeID, code, cleanupCollege := createIsolatedTestCollege(context.Background(), t, pool, map[string]int{"parents": quotaLimit})
 		defer cleanupCollege()
 
-		repo := apirepo.New(db)
-		svc := apisvc.NewParentService(db, repo)
+		repo := parentrepo.New(db)
+		svc := parentsvc.NewParentService(db, repo)
 
 		var wg sync.WaitGroup
 		var successCount int64
@@ -599,7 +602,7 @@ func TestConcurrency_StrictQuotaEnforcement(t *testing.T) {
 				<-startBarrier
 
 				reqCtx := database.WithTenantID(context.Background(), collegeID)
-				req := apirepo.CreateParentParams{
+				req := parentmodels.CreateParentParams{
 					CollegeID:       collegeID,
 					FirstName:       fmt.Sprintf("ConcParent%d", idx),
 					Email:           strPtr(fmt.Sprintf("%s_pconc_%d@test.local", code, idx)),

@@ -1,159 +1,88 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import { Eye, EyeOff, GraduationCap, Lock, Mail, AlertCircle, ArrowRight } from 'lucide-react';
+import React, { useEffect } from 'react';
 
+const PORTAL_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5173'
+    : '');
+
+/**
+ * Student Standalone Login Forwarder
+ * 
+ * Standalone login entry points are retired. All authentication must occur
+ * through the Unified Login Portal at http://localhost:5173/login.
+ */
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-  const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const targetUrl = `${PORTAL_URL}/student/login`;
 
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const from = location.state?.from?.pathname || '/dashboard';
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError(null);
-
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setError('Please provide your student email address.');
-      return;
-    }
-    if (!password) {
-      setError('Please provide your password.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      await login(trimmedEmail, password, rememberMe);
-      navigate(from, { replace: true });
-    } catch (err) {
-      setError(err.message || 'Authentication failed. Please verify your student credentials.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  useEffect(() => {
+    window.location.replace(targetUrl);
+  }, [targetUrl]);
 
   return (
     <div
       style={{
         minHeight: '100vh',
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #312e81 0%, #4338ca 50%, #1e1b4b 100%)',
+        fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        background: '#f8fafc',
+        color: '#1e293b',
         padding: '24px',
+        textAlign: 'center',
       }}
     >
       <div
         style={{
+          maxWidth: '460px',
           width: '100%',
-          maxWidth: '440px',
-          background: 'rgba(255, 255, 255, 0.96)',
-          borderRadius: '16px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
           padding: '36px',
+          background: '#ffffff',
+          borderRadius: '16px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+          border: '1px solid #e2e8f0',
         }}
       >
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '14px',
-              background: '#4f46e5',
-              color: '#fff',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '12px',
-            }}
-          >
-            <GraduationCap size={28} />
-          </div>
-          <h1 style={{ fontSize: '1.6rem', fontWeight: 700, color: '#0f172a' }}>Student Portal</h1>
-          <p style={{ fontSize: '0.85rem', color: '#64748b' }}>Hostel Management System • Resident Access</p>
+        <div
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '14px',
+            background: '#eef2ff',
+            color: '#4f46e5',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '28px',
+            marginBottom: '16px',
+          }}
+        >
+          🎓
         </div>
-
-        {error && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', color: '#b91c1c', fontSize: '0.875rem', marginBottom: '20px' }}>
-            <AlertCircle size={18} />
-            <div>{error}</div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '18px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              Student Email
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Mail size={18} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="student@college.edu"
-                style={{ width: '100%', padding: '10px 12px 10px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none' }}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-              Password
-            </label>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <Lock size={18} style={{ position: 'absolute', left: '12px', color: '#94a3b8' }} />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                style={{ width: '100%', padding: '10px 38px 10px 38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', outline: 'none' }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ position: 'absolute', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '24px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#64748b', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ accentColor: '#4f46e5' }}
-              />
-              Remember session
-            </label>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn btn-primary"
-            style={{ width: '100%', padding: '12px', justifyContent: 'center' }}
-          >
-            {isSubmitting ? 'Signing in...' : 'Sign In to Student Portal'}
-            <ArrowRight size={18} />
-          </button>
-        </form>
+        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>
+          Redirecting to Unified Login Portal
+        </h2>
+        <p style={{ fontSize: '0.875rem', color: '#64748b', margin: '0 0 24px', lineHeight: 1.5 }}>
+          Student Living Portal authentication has been centralized into the Unified Campus Portal.
+        </p>
+        <a
+          href={targetUrl}
+          style={{
+            display: 'inline-block',
+            padding: '12px 24px',
+            background: '#4f46e5',
+            color: '#ffffff',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)',
+          }}
+        >
+          Sign In via Unified Portal →
+        </a>
       </div>
     </div>
   );

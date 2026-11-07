@@ -3,6 +3,7 @@ import axios from 'axios';
 const baseURL =
   import.meta.env.VITE_API_BASE_URL ||
   import.meta.env.VITE_API_URL ||
+  import.meta.env.VITE_BACKEND_TARGET ||
   (import.meta.env.PROD ? 'https://hms-1-mjvj.onrender.com' : '');
 
 const api = axios.create({
@@ -40,8 +41,14 @@ api.interceptors.response.use(
     const responseData = error.response?.data;
     const message = responseData?.error?.message || error.message || 'An unexpected error occurred';
     const code = responseData?.error?.code || 'NETWORK_ERROR';
+    const status = error.response?.status || 500;
+
+    if (status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('hms:parent-auth-expired'));
+    }
+
     return Promise.reject({
-      status: error.response?.status || 500,
+      status,
       code,
       message,
     });

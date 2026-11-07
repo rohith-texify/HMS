@@ -39,8 +39,9 @@ const StudentComplaintsPage = lazy(() => import('../../modules/student/pages/Com
 
 // Lazy-loaded Parent Pages
 const ParentDashboardPage = lazy(() => import('../../modules/parent/pages/DashboardPage'));
-const ParentStudentDetailPage = lazy(() => import('../../modules/parent/pages/StudentDetailPage'));
-const ParentLeavesPage = lazy(() => import('../../modules/parent/pages/LeavesPage'));
+const ParentNotificationsPage = lazy(() => import('../../modules/parent/pages/NotificationsPage'));
+const ParentMessPage = lazy(() => import('../../modules/parent/pages/MessPage'));
+const ParentFeatureUnavailablePage = lazy(() => import('../../modules/parent/pages/FeatureUnavailablePage'));
 
 // Lazy-loaded Hostel Incharge Pages
 const InchargeLayout = lazy(() => import('../../modules/hostel-incharge/layouts/InchargeLayout'));
@@ -351,8 +352,26 @@ export default function AppRoutes() {
         >
           <Route index element={<Navigate to="/parent/dashboard" replace />} />
           <Route path="dashboard" element={<ParentDashboardPage />} />
-          <Route path="students/:studentId" element={<ParentStudentDetailPage />} />
-          <Route path="leaves" element={<ParentLeavesPage />} />
+          <Route path="notifications" element={<ParentNotificationsPage />} />
+          <Route path="mess" element={<ParentMessPage />} />
+          <Route
+            path="students/:studentId"
+            element={
+              <ParentFeatureUnavailablePage
+                title="Student profile"
+                description="Student profiles will be available when the API can authorize access to students linked to your Parent account."
+              />
+            }
+          />
+          <Route
+            path="leaves"
+            element={
+              <ParentFeatureUnavailablePage
+                title="Leave history"
+                description="Leave history will be available when the API can restrict results to students linked to your Parent account."
+              />
+            }
+          />
         </Route>
 
         {/* ============================================================== */}

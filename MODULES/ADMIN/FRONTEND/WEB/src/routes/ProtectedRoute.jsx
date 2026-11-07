@@ -28,7 +28,18 @@ export default function ProtectedRoute({
 
   // 1. Authentication check
   if (!token || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const portalUrl =
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+      PORTAL_URL ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:5173'
+        : '');
+    window.location.replace(`${portalUrl}/admin/login`);
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p className="text-sm text-slate-500">Redirecting to Unified Portal login...</p>
+      </div>
+    );
   }
 
   // 2. Scope check: enforce COLLEGE scope

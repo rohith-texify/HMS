@@ -2,6 +2,35 @@ import api from './api';
 
 const TOKEN_KEY = 'hms_parent_token';
 const USER_KEY = 'hms_parent_user';
+const SHARED_TOKEN_KEY = 'token';
+const SHARED_USER_KEY = 'hms_user';
+
+export const UNIFIED_PORTAL_URL =
+  (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:5173'
+    : '');
+
+function clearStoredSession() {
+  [localStorage, sessionStorage].forEach((storage) => {
+    storage.removeItem(TOKEN_KEY);
+    storage.removeItem(USER_KEY);
+    storage.removeItem(SHARED_TOKEN_KEY);
+    storage.removeItem(SHARED_USER_KEY);
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (key && key.startsWith('hms_parent_')) {
+        storage.removeItem(key);
+      }
+    }
+  });
+}
+
+function isSessionExpired(user) {
+  if (!user || typeof user.expiresAt !== 'string') return false;
+  const expiresAt = Date.parse(user.expiresAt);
+  return Number.isFinite(expiresAt) && expiresAt <= Date.now();
+}
 
 export const authService = {
   async login(email, password, rememberMe = true) {
@@ -37,19 +66,23 @@ export const authService = {
       expiresAt: expires_at,
     };
 
-    if (rememberMe) {
-      localStorage.setItem(TOKEN_KEY, access_token);
-      localStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
-      sessionStorage.removeItem(TOKEN_KEY);
-      sessionStorage.removeItem(USER_KEY);
-    } else {
-      sessionStorage.setItem(TOKEN_KEY, access_token);
-      sessionStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(USER_KEY);
+    if (isSessionExpired(sessionUser)) {
+      throw new Error('Authentication response did not contain a valid session expiry.');
     }
 
-    localStorage.setItem('token', access_token);
+    const primaryStorage = rememberMe ? localStorage : sessionStorage;
+    const secondaryStorage = rememberMe ? sessionStorage : localStorage;
+
+    primaryStorage.setItem(TOKEN_KEY, access_token);
+    primaryStorage.setItem(USER_KEY, JSON.stringify(sessionUser));
+    primaryStorage.setItem(SHARED_TOKEN_KEY, access_token);
+    primaryStorage.setItem(SHARED_USER_KEY, JSON.stringify(sessionUser));
+
+    secondaryStorage.removeItem(TOKEN_KEY);
+    secondaryStorage.removeItem(USER_KEY);
+    secondaryStorage.removeItem(SHARED_TOKEN_KEY);
+    secondaryStorage.removeItem(SHARED_USER_KEY);
+
     return { token: access_token, user: sessionUser };
   },
 
@@ -57,26 +90,63 @@ export const authService = {
     return (
       localStorage.getItem(TOKEN_KEY) ||
       sessionStorage.getItem(TOKEN_KEY) ||
-      localStorage.getItem('token')
+      localStorage.getItem(SHARED_TOKEN_KEY) ||
+      sessionStorage.getItem(SHARED_TOKEN_KEY)
     );
   },
 
   getCurrentUser() {
-    const raw = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw);
-    } catch {
+    for (const storage of [localStorage, sessionStorage]) {
+      const raw = storage.getItem(USER_KEY) || storage.getItem(SHARED_USER_KEY);
+      if (raw) {
+        try {
+          const user = JSON.parse(raw);
+          if (user?.role === 'PARENT' && !isSessionExpired(user)) {
+            return user;
+          }
+        } catch {
+          // continue
+        }
+      }
+    }
+    return null;
+  },
+
+  getSession() {
+    for (const storage of [localStorage, sessionStorage]) {
+      const token = storage.getItem(TOKEN_KEY) || storage.getItem(SHARED_TOKEN_KEY);
+      const rawUser = storage.getItem(USER_KEY) || storage.getItem(SHARED_USER_KEY);
+      if (!token && !rawUser) continue;
+
+      try {
+        const user = rawUser ? JSON.parse(rawUser) : null;
+        if (token && user && user.role === 'PARENT' && !isSessionExpired(user)) {
+          return { token, user };
+        }
+      } catch {
+        clearStoredSession();
+        return null;
+      }
+
+      clearStoredSession();
       return null;
+    }
+    return null;
+  },
+
+  isSessionExpired,
+
+  logout() {
+    clearStoredSession();
+    if (typeof window !== 'undefined') {
+      window.location.replace(`${UNIFIED_PORTAL_URL}/login`);
     }
   },
 
-  logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem('token');
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
+  redirectToUnifiedPortal() {
+    if (typeof window !== 'undefined') {
+      window.location.replace(`${UNIFIED_PORTAL_URL}/login`);
+    }
   },
 };
 

@@ -17,7 +17,17 @@ export default function ProtectedRoute({ children, allowedRoles = ['HOSTEL_INCHA
   }
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const portalUrl =
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:5173'
+        : '');
+    window.location.replace(`${portalUrl}/hostel-incharge/login`);
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <LoadingSpinner message="Redirecting to Unified Portal login..." size="lg" />
+      </div>
+    );
   }
 
   // Strict role check

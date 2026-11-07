@@ -33,7 +33,12 @@ const AuditLogPage = lazy(() => import('../pages/AuditLogPage'));
 // Persona Forwarder to Unified Portal
 function ExternalPersonaRedirect({ targetPath }) {
   React.useEffect(() => {
-    window.location.replace(`http://localhost:5173${targetPath}`);
+    const portalUrl =
+      (typeof import.meta !== 'undefined' && import.meta.env?.VITE_PORTAL_URL) ||
+      (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://localhost:5173'
+        : '');
+    window.location.replace(`${portalUrl}${targetPath}`);
   }, [targetPath]);
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
